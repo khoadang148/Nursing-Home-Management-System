@@ -14,6 +14,7 @@ import ActivityNavigator from './ActivityNavigator';
 import TasksNavigator from './TasksNavigator';
 import ProfileNavigator from './ProfileNavigator';
 import MedicationNavigator from './MedicationNavigator';
+import FamilyNavigator from './FamilyNavigator';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import NotificationDetailScreen from '../screens/notifications/NotificationDetailScreen';
 
@@ -28,7 +29,8 @@ const NotificationsStack = () => (
   </Stack.Navigator>
 );
 
-const MainNavigator = () => {
+// Staff Navigator - original navigation for staff roles
+const StaffNavigator = () => {
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
   
   return (
@@ -47,6 +49,7 @@ const MainNavigator = () => {
           shadowOpacity: 0.2,
           shadowRadius: 3,
           shadowOffset: { height: -3, width: 0 },
+          bottom: 15,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -122,6 +125,18 @@ const MainNavigator = () => {
       />
     </Tab.Navigator>
   );
+};
+
+const MainNavigator = () => {
+  const { user } = useSelector((state) => state.auth);
+  
+  // Choose navigator based on user role
+  if (user?.role === 'family') {
+    return <FamilyNavigator />;
+  }
+  
+  // Default to staff navigator for all other roles
+  return <StaffNavigator />;
 };
 
 export default MainNavigator; 

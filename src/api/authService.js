@@ -1,21 +1,34 @@
 import apiService from './apiService';
 import { AUTH_ENDPOINTS } from '../constants/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { staff } from './mockData';
+import { staff, familyMembers } from './mockData';
 
 // Simulated API delay
 const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 500));
 
 // Mock user database for authentication
-const mockUsers = staff.map(staffMember => ({
-  id: staffMember.id,
-  email: staffMember.email,
-  password: 'password123', // In a real app, this would be hashed
-  firstName: staffMember.firstName,
-  lastName: staffMember.lastName,
-  role: staffMember.role,
-  photo: staffMember.photo,
-}));
+const mockUsers = [
+  ...staff.map(staffMember => ({
+    id: staffMember.id,
+    email: staffMember.email,
+    password: 'password123', // In a real app, this would be hashed
+    firstName: staffMember.firstName,
+    lastName: staffMember.lastName,
+    role: staffMember.role,
+    photo: staffMember.photo,
+  })),
+  ...familyMembers.map(familyMember => ({
+    id: familyMember.id,
+    email: familyMember.email,
+    password: familyMember.password,
+    firstName: familyMember.firstName,
+    lastName: familyMember.lastName,
+    role: 'family',
+    photo: familyMember.photo,
+    relationship: familyMember.relationship,
+    residentId: familyMember.residentId,
+  }))
+];
 
 // Authentication service functions
 const authService = {

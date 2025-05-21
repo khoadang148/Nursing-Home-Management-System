@@ -1883,6 +1883,70 @@ export const mockNotifications = [
   }
 ];
 
+// Mock data for family members
+export const familyMembers = [
+  {
+    id: 'f1',
+    email: 'jane.doe@example.com',
+    password: 'password123',
+    firstName: 'Jane',
+    lastName: 'Doe',
+    phone: '555-123-4567',
+    relationship: 'Daughter',
+    residentId: '1', // John Doe
+    photo: 'https://randomuser.me/api/portraits/women/11.jpg',
+    role: 'family',
+  },
+  {
+    id: 'f2',
+    email: 'robert.smith@example.com',
+    password: 'password123',
+    firstName: 'Robert',
+    lastName: 'Smith',
+    phone: '555-987-6543',
+    relationship: 'Son',
+    residentId: '2', // Mary Smith
+    photo: 'https://randomuser.me/api/portraits/men/12.jpg',
+    role: 'family',
+  },
+  {
+    id: 'f3',
+    email: 'elizabeth.johnson@example.com',
+    password: 'password123',
+    firstName: 'Elizabeth',
+    lastName: 'Johnson',
+    phone: '555-456-7890',
+    relationship: 'Wife',
+    residentId: '3', // William Johnson
+    photo: 'https://randomuser.me/api/portraits/women/13.jpg',
+    role: 'family',
+  },
+  {
+    id: 'f4',
+    email: 'michael.brown@example.com',
+    password: 'password123',
+    firstName: 'Michael',
+    lastName: 'Brown',
+    phone: '555-567-8901',
+    relationship: 'Son',
+    residentId: '4', // Patricia Brown
+    photo: 'https://randomuser.me/api/portraits/men/14.jpg',
+    role: 'family',
+  },
+  {
+    id: 'f5',
+    email: 'susan.miller@example.com',
+    password: 'password123',
+    firstName: 'Susan',
+    lastName: 'Miller',
+    phone: '555-234-5678',
+    relationship: 'Daughter',
+    residentId: '5', // Richard Miller
+    photo: 'https://randomuser.me/api/portraits/women/15.jpg',
+    role: 'family',
+  },
+];
+
 // Export all mock data
 export default {
   residents,
@@ -1901,5 +1965,6 @@ export default {
   mockActivityRecommendations,
   mockStaff,
   mockTasks,
-  mockNotifications
+  mockNotifications,
+  familyMembers
 }; 
