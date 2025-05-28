@@ -10,9 +10,9 @@ const MedicationScheduleScreen = () => {
   
   // Mock data - in a real app, fetch from API or database
   const [scheduleData, setScheduleData] = useState([
-    { id: '1', date: '2023-12-01', time: '08:00', status: 'completed', adminBy: 'Nurse Smith' },
-    { id: '2', date: '2023-12-01', time: '20:00', status: 'completed', adminBy: 'Nurse Johnson' },
-    { id: '3', date: '2023-12-02', time: '08:00', status: 'completed', adminBy: 'Nurse Williams' },
+    { id: '1', date: '2023-12-01', time: '08:00', status: 'completed', adminBy: 'Y tá Smith' },
+    { id: '2', date: '2023-12-01', time: '20:00', status: 'completed', adminBy: 'Y tá Johnson' },
+    { id: '3', date: '2023-12-02', time: '08:00', status: 'completed', adminBy: 'Y tá Williams' },
     { id: '4', date: '2023-12-02', time: '20:00', status: 'missed', adminBy: '' },
     { id: '5', date: '2023-12-03', time: '08:00', status: 'upcoming', adminBy: '' },
     { id: '6', date: '2023-12-03', time: '20:00', status: 'upcoming', adminBy: '' },
@@ -34,13 +34,13 @@ const MedicationScheduleScreen = () => {
   const getStatusLabel = (status) => {
     switch (status) {
       case 'completed':
-        return 'Completed';
+        return 'Đã hoàn thành';
       case 'missed':
-        return 'Missed';
+        return 'Đã bỏ lỡ';
       case 'upcoming':
-        return 'Upcoming';
+        return 'Sắp tới';
       default:
-        return 'Unknown';
+        return 'Không rõ';
     }
   };
 
@@ -50,7 +50,7 @@ const MedicationScheduleScreen = () => {
         <Text style={styles.scheduleDate}>{item.date}</Text>
         <Text style={styles.scheduleTime}>{item.time}</Text>
         <Text style={styles.scheduleStatus}>{getStatusLabel(item.status)}</Text>
-        {item.adminBy ? <Text style={styles.adminBy}>By: {item.adminBy}</Text> : null}
+        {item.adminBy ? <Text style={styles.adminBy}>Bởi: {item.adminBy}</Text> : null}
       </View>
       <View style={styles.statusIconContainer}>
         {getStatusIcon(item.status)}
@@ -67,18 +67,18 @@ const MedicationScheduleScreen = () => {
         >
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Medication Schedule</Text>
+        <Text style={styles.headerTitle}>Lịch trình thuốc</Text>
         <View style={{ width: 30 }} />
       </View>
 
       <View style={styles.medicationInfo}>
         <Text style={styles.medicationName}>Paracetamol</Text>
-        <Text style={styles.medicationDetails}>500mg - Morning and Evening</Text>
+        <Text style={styles.medicationDetails}>500mg - Sáng và Tối</Text>
       </View>
 
       <View style={styles.scheduleContainer}>
         <View style={styles.scheduleHeader}>
-          <Text style={styles.scheduleHeaderTitle}>Schedule History</Text>
+          <Text style={styles.scheduleHeaderTitle}>Lịch sử lịch trình</Text>
         </View>
         
         <FlatList
@@ -94,7 +94,7 @@ const MedicationScheduleScreen = () => {
         onPress={() => navigation.navigate('MedicationAdmin', { medicationId })}
       >
         <Icon name="pill" size={20} color="#fff" />
-        <Text style={styles.buttonText}>Administer Now</Text>
+        <Text style={styles.buttonText}>Cung cấp ngay</Text>
       </TouchableOpacity>
     </View>
   );

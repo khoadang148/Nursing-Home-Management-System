@@ -11,23 +11,37 @@ import {
 import { TextInput, Button } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useNotification } from '../../components/NotificationSystem';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  
+  const { showWarning, showLoading, hideLoading, showSuccess } = useNotification();
 
   const handleSubmit = async () => {
     if (!email) {
-      alert('Please enter your email address');
+      showWarning('Vui lòng nhập địa chỉ email của bạn');
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showWarning('Vui lòng nhập địa chỉ email hợp lệ');
       return;
     }
 
     setLoading(true);
+    showLoading('Đang gửi email đặt lại mật khẩu...');
+    
     // Simulate API call
     setTimeout(() => {
       setLoading(false);
+      hideLoading();
       setSubmitted(true);
+      showSuccess('Đã gửi email đặt lại mật khẩu thành công! Vui lòng kiểm tra hộp thư của bạn.');
       // In a real app, would call an API endpoint here
     }, 1500);
   };
@@ -46,12 +60,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.contentContainer}>
-          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.title}>Đặt Lại Mật Khẩu</Text>
           
           {!submitted ? (
             <>
               <Text style={styles.instructions}>
-                Enter your email address and we'll send you instructions to reset your password.
+                Nhập địa chỉ email của bạn và chúng tôi sẽ gửi hướng dẫn để đặt lại mật khẩu.
               </Text>
               
               <View style={styles.formContainer}>
@@ -76,7 +90,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                   loading={loading}
                   disabled={loading}
                 >
-                  Send Reset Instructions
+                  Gửi Hướng Dẫn Đặt Lại
                 </Button>
               </View>
             </>
@@ -87,17 +101,17 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 size={80}
                 color={COLORS.success}
               />
-              <Text style={styles.successTitle}>Email Sent!</Text>
+              <Text style={styles.successTitle}>Đã Gửi Email!</Text>
               <Text style={styles.successText}>
-                Please check your inbox for instructions to reset your password.
+                Vui lòng kiểm tra hộp thư của bạn để nhận hướng dẫn đặt lại mật khẩu.
               </Text>
               <Button
                 mode="contained"
-                onPress={() => navigation.navigate('Login')}
+                onPress={() => navigation.navigate('DangNhap')}
                 style={[styles.submitButton, { marginTop: 20 }]}
                 labelStyle={styles.submitButtonText}
               >
-                Return to Login
+                Trở Về Trang Đăng Nhập
               </Button>
             </View>
           )}

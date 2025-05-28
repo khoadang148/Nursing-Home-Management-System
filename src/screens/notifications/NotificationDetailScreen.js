@@ -51,7 +51,7 @@ const NotificationDetailScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Notification Details" />
+        <Appbar.Content title="Chi Tiết Thông Báo" />
       </Appbar.Header>
 
       {isLoading && (
@@ -86,7 +86,7 @@ const NotificationDetailScreen = ({ route, navigation }) => {
               
               {notification.actionRequired && (
                 <View style={styles.actionContainer}>
-                  <Text style={styles.actionLabel}>Action Required:</Text>
+                  <Text style={styles.actionLabel}>Hành Động Cần Thiết:</Text>
                   <Text style={styles.actionText}>{notification.actionRequired}</Text>
                 </View>
               )}
@@ -98,7 +98,7 @@ const NotificationDetailScreen = ({ route, navigation }) => {
             style={styles.button}
             onPress={() => navigation.goBack()}
           >
-            Back to Notifications
+            Quay Lại Danh Sách Thông Báo
           </Button>
         </ScrollView>
       )}

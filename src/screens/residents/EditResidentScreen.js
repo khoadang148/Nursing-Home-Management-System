@@ -8,11 +8,11 @@ const EditResidentScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Edit Resident" />
+        <Appbar.Content title="Chỉnh sửa người dân" />
         <Appbar.Action icon="content-save" onPress={() => navigation.goBack()} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Edit Resident Screen (placeholder)</Text>
+        <Text>Màn hình chỉnh sửa người dân (tạm thời)</Text>
       </View>
     </View>
   );

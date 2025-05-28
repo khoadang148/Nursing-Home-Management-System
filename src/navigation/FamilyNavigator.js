@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 import { FontAwesome, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import theme
 import { COLORS } from '../constants/theme';
@@ -64,6 +65,7 @@ const ProfileStack = () => (
 
 const FamilyNavigator = () => {
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
+  const insets = useSafeAreaInsets();
   
   return (
     <Tab.Navigator
@@ -73,72 +75,80 @@ const FamilyNavigator = () => {
         tabBarStyle: {
           backgroundColor: COLORS.surface,
           borderTopColor: COLORS.border,
-          paddingTop: 5,
-          paddingBottom: 10,
-          height: 65,
-          position: 'absolute',
-          elevation: 5,
-          shadowOpacity: 0.2,
-          shadowRadius: 3,
-          shadowOffset: { height: -3, width: 0 },
-          bottom: 15,
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 60 + Math.max(insets.bottom, 8),
+          elevation: 8,
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          shadowOffset: { height: -2, width: 0 },
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: '500',
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: 2,
         },
         headerShown: false,
       }}
     >
       <Tab.Screen
-        name="Home"
+        name="TrangChu"
         component={HomeStack}
         options={{
+          tabBarLabel: 'Trang Chủ',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="home" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Loved One"
+        name="NguoiThan"
         component={ResidentStack}
         options={{
+          tabBarLabel: 'Người Thân',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Messages"
+        name="TinNhan"
         component={CommunicationStack}
         options={{
+          tabBarLabel: 'Tin Nhắn',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="message-text" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Visits"
+        name="LichTham"
         component={VisitStack}
         options={{
+          tabBarLabel: 'Lịch Thăm',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="event" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Gallery"
+        name="HinhAnh"
         component={GalleryStack}
         options={{
+          tabBarLabel: 'Hình Ảnh',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="photo-library" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Alerts"
+        name="ThongBao"
         component={NotificationsStack}
         options={{
+          tabBarLabel: 'Thông Báo',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size} color={color} />
           ),
@@ -147,9 +157,10 @@ const FamilyNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Profile"
+        name="HoSo"
         component={ProfileStack}
         options={{
+          tabBarLabel: 'Hồ Sơ',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user-circle" size={size} color={color} />
           ),

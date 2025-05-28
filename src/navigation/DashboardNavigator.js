@@ -10,13 +10,13 @@ const Stack = createStackNavigator();
 const DashboardNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="DashboardScreen"
+      initialRouteName="ManHinhTongQuan"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-      <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} />
+      <Stack.Screen name="ManHinhTongQuan" component={DashboardScreen} />
+      <Stack.Screen name="ChiTietThongBao" component={NotificationDetailScreen} />
     </Stack.Navigator>
   );
 };

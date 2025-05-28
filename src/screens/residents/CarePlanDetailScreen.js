@@ -8,10 +8,10 @@ const CarePlanDetailScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Care Plan Detail" />
+        <Appbar.Content title="Chi Tiết Kế Hoạch Chăm Sóc" />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Care Plan Detail Screen (placeholder)</Text>
+        <Text>Màn hình Chi Tiết Kế Hoạch Chăm Sóc (đang phát triển)</Text>
       </View>
     </View>
   );

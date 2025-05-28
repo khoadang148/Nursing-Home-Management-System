@@ -41,54 +41,54 @@ const AddMedicationScreen = () => {
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isEditing ? 'Edit Medication' : 'Add Medication'}
+          {isEditing ? 'Chỉnh sửa thuốc' : 'Thêm thuốc'}
         </Text>
         <View style={{ width: 30 }} />
       </View>
 
       <ScrollView style={styles.formContainer}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Medication Name</Text>
+          <Text style={styles.label}>Tên thuốc</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Enter medication name"
+            placeholder="Nhập tên thuốc"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Dosage</Text>
+          <Text style={styles.label}>Liều lượng</Text>
           <TextInput
             style={styles.input}
             value={dosage}
             onChangeText={setDosage}
-            placeholder="Enter dosage (e.g., 500mg)"
+            placeholder="Nhập liều lượng (vd: 500mg)"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Schedule</Text>
+          <Text style={styles.label}>Lịch trình</Text>
           <TextInput
             style={styles.input}
             value={schedule}
             onChangeText={setSchedule}
-            placeholder="When to take (e.g., Morning, Evening)"
+            placeholder="Khi nào uống (vd: Sáng, Tối)"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Frequency</Text>
+          <Text style={styles.label}>Tần suất</Text>
           <TextInput
             style={styles.input}
             value={frequency}
             onChangeText={setFrequency}
-            placeholder="How often (e.g., Once daily)"
+            placeholder="Bao lâu một lần (vd: Một lần mỗi ngày)"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Start Date</Text>
+          <Text style={styles.label}>Ngày bắt đầu</Text>
           <TextInput
             style={styles.input}
             value={startDate}
@@ -98,7 +98,7 @@ const AddMedicationScreen = () => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>End Date</Text>
+          <Text style={styles.label}>Ngày kết thúc</Text>
           <TextInput
             style={styles.input}
             value={endDate}
@@ -108,31 +108,31 @@ const AddMedicationScreen = () => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Instructions</Text>
+          <Text style={styles.label}>Hướng dẫn</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={instructions}
             onChangeText={setInstructions}
-            placeholder="Special instructions for taking this medication"
+            placeholder="Hướng dẫn đặc biệt khi sử dụng thuốc này"
             multiline={true}
             numberOfLines={4}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Side Effects</Text>
+          <Text style={styles.label}>Tác dụng phụ</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={sideEffects}
             onChangeText={setSideEffects}
-            placeholder="Possible side effects"
+            placeholder="Các tác dụng phụ có thể xảy ra"
             multiline={true}
             numberOfLines={4}
           />
         </View>
 
         <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Required Medication</Text>
+          <Text style={styles.switchLabel}>Thuốc bắt buộc</Text>
           <Switch
             value={isRequired}
             onValueChange={setIsRequired}
@@ -142,7 +142,7 @@ const AddMedicationScreen = () => {
         </View>
 
         <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Set Reminders</Text>
+          <Text style={styles.switchLabel}>Đặt nhắc nhở</Text>
           <Switch
             value={hasReminder}
             onValueChange={setHasReminder}
@@ -152,7 +152,7 @@ const AddMedicationScreen = () => {
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Medication</Text>
+          <Text style={styles.saveButtonText}>Lưu thuốc</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

@@ -13,12 +13,12 @@ const MedicationDetailsScreen = () => {
     id: medicationId,
     name: 'Paracetamol',
     dosage: '500mg',
-    schedule: 'Morning, Evening',
-    frequency: 'Twice daily',
+    schedule: 'Sáng, Tối',
+    frequency: 'Hai lần mỗi ngày',
     startDate: '01/01/2023',
     endDate: '01/01/2024',
-    instructions: 'Take with food. Avoid alcohol consumption while using this medication.',
-    sideEffects: 'May cause drowsiness, nausea, or allergic reactions.',
+    instructions: 'Uống cùng với thức ăn. Tránh tiêu thụ rượu bia khi dùng thuốc này.',
+    sideEffects: 'Có thể gây buồn ngủ, buồn nôn hoặc phản ứng dị ứng.',
   };
 
   return (
@@ -30,7 +30,7 @@ const MedicationDetailsScreen = () => {
         >
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Medication Details</Text>
+        <Text style={styles.headerTitle}>Chi tiết thuốc</Text>
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => navigation.navigate('AddMedication', { medicationId })}
@@ -43,34 +43,34 @@ const MedicationDetailsScreen = () => {
         <View style={styles.infoCard}>
           <Text style={styles.medicationName}>{medication.name}</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Dosage:</Text>
+            <Text style={styles.infoLabel}>Liều lượng:</Text>
             <Text style={styles.infoValue}>{medication.dosage}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Schedule:</Text>
+            <Text style={styles.infoLabel}>Lịch trình:</Text>
             <Text style={styles.infoValue}>{medication.schedule}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Frequency:</Text>
+            <Text style={styles.infoLabel}>Tần suất:</Text>
             <Text style={styles.infoValue}>{medication.frequency}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Start Date:</Text>
+            <Text style={styles.infoLabel}>Ngày bắt đầu:</Text>
             <Text style={styles.infoValue}>{medication.startDate}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>End Date:</Text>
+            <Text style={styles.infoLabel}>Ngày kết thúc:</Text>
             <Text style={styles.infoValue}>{medication.endDate}</Text>
           </View>
         </View>
 
         <View style={styles.instructionCard}>
-          <Text style={styles.sectionTitle}>Instructions</Text>
+          <Text style={styles.sectionTitle}>Hướng dẫn</Text>
           <Text style={styles.instructionText}>{medication.instructions}</Text>
         </View>
 
         <View style={styles.sideEffectsCard}>
-          <Text style={styles.sectionTitle}>Side Effects</Text>
+          <Text style={styles.sectionTitle}>Tác dụng phụ</Text>
           <Text style={styles.sideEffectsText}>{medication.sideEffects}</Text>
         </View>
 
@@ -80,7 +80,7 @@ const MedicationDetailsScreen = () => {
             onPress={() => navigation.navigate('MedicationSchedule', { medicationId })}
           >
             <Icon name="calendar" size={20} color="#fff" />
-            <Text style={styles.buttonText}>View Schedule</Text>
+            <Text style={styles.buttonText}>Xem lịch trình</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -88,7 +88,7 @@ const MedicationDetailsScreen = () => {
             onPress={() => navigation.navigate('MedicationAdmin', { medicationId })}
           >
             <Icon name="pill" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Administer</Text>
+            <Text style={styles.buttonText}>Cung cấp</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

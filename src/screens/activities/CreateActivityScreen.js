@@ -21,22 +21,22 @@ import { useDispatch } from 'react-redux';
 import { createActivity } from '../../redux/slices/activitySlice';
 
 const ACTIVITY_TYPES = [
-  { value: 'physical', label: 'Physical', icon: 'dumbbell' },
-  { value: 'social', label: 'Social', icon: 'account-group' },
-  { value: 'cognitive', label: 'Cognitive', icon: 'brain' },
-  { value: 'creative', label: 'Creative', icon: 'palette' },
-  { value: 'spiritual', label: 'Spiritual', icon: 'hand-peace' },
+  { value: 'physical', label: 'Thể chất', icon: 'dumbbell' },
+  { value: 'social', label: 'Xã hội', icon: 'account-group' },
+  { value: 'cognitive', label: 'Nhận thức', icon: 'brain' },
+  { value: 'creative', label: 'Sáng tạo', icon: 'palette' },
+  { value: 'spiritual', label: 'Tâm linh', icon: 'hand-peace' },
 ];
 
 const LOCATIONS = [
-  'Activity Room',
-  'Common Area',
-  'Dining Hall',
-  'Garden',
-  'Therapy Room',
-  'Library',
-  'Outdoor Patio',
-  'Private Room',
+  'Phòng hoạt động',
+  'Khu vực chung',
+  'Phòng ăn',
+  'Vườn',
+  'Phòng trị liệu',
+  'Thư viện',
+  'Sân hiên ngoài trời',
+  'Phòng riêng',
 ];
 
 const CreateActivityScreen = () => {
@@ -51,7 +51,7 @@ const CreateActivityScreen = () => {
   const [time, setTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [duration, setDuration] = useState('45');
-  const [location, setLocation] = useState('Activity Room');
+  const [location, setLocation] = useState('Phòng hoạt động');
   const [showLocationMenu, setShowLocationMenu] = useState(false);
   const [participants, setParticipants] = useState('10');
   const [facilitator, setFacilitator] = useState('');
@@ -64,16 +64,16 @@ const CreateActivityScreen = () => {
   const validate = () => {
     const newErrors = {};
     
-    if (!name.trim()) newErrors.name = 'Activity name is required';
-    if (!description.trim()) newErrors.description = 'Description is required';
-    if (!location.trim()) newErrors.location = 'Location is required';
+    if (!name.trim()) newErrors.name = 'Tên hoạt động là bắt buộc';
+    if (!description.trim()) newErrors.description = 'Mô tả là bắt buộc';
+    if (!location.trim()) newErrors.location = 'Địa điểm là bắt buộc';
     if (isNaN(parseInt(duration)) || parseInt(duration) <= 0) {
-      newErrors.duration = 'Enter a valid duration';
+      newErrors.duration = 'Nhập thời lượng hợp lệ';
     }
     if (isNaN(parseInt(participants)) || parseInt(participants) <= 0) {
-      newErrors.participants = 'Enter a valid number of participants';
+      newErrors.participants = 'Nhập số lượng người tham gia hợp lệ';
     }
-    if (!facilitator.trim()) newErrors.facilitator = 'Facilitator is required';
+    if (!facilitator.trim()) newErrors.facilitator = 'Người hướng dẫn là bắt buộc';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -145,15 +145,15 @@ const CreateActivityScreen = () => {
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
       <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Create Activity" titleStyle={FONTS.h2} />
+        <Appbar.Content title="Tạo hoạt động" titleStyle={FONTS.h2} />
         <Appbar.Action icon="check" onPress={handleSubmit} />
       </Appbar.Header>
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Activity Information</Text>
+        <Text style={styles.sectionTitle}>Thông tin hoạt động</Text>
         
         <TextInput
-          label="Activity Name"
+          label="Tên hoạt động"
           value={name}
           onChangeText={setName}
           style={styles.input}
@@ -165,7 +165,7 @@ const CreateActivityScreen = () => {
         </HelperText>
         
         <TextInput
-          label="Description"
+          label="Mô tả"
           value={description}
           onChangeText={setDescription}
           multiline
@@ -178,7 +178,7 @@ const CreateActivityScreen = () => {
           {errors.description}
         </HelperText>
         
-        <Text style={styles.inputLabel}>Activity Type</Text>
+        <Text style={styles.inputLabel}>Loại hoạt động</Text>
         <SegmentedButtons
           value={activityType}
           onValueChange={setActivityType}
@@ -187,11 +187,11 @@ const CreateActivityScreen = () => {
         />
         
         <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Schedule</Text>
+        <Text style={styles.sectionTitle}>Lịch trình</Text>
         
         <View>
           <TextInput
-            label="Date"
+            label="Ngày"
             value={formatDate(date)}
             onPressIn={() => setShowDatePicker(true)}
             right={<TextInput.Icon icon="calendar" />}
@@ -212,7 +212,7 @@ const CreateActivityScreen = () => {
           )}
           
           <TextInput
-            label="Time"
+            label="Thời gian"
             value={formatTime(time)}
             onPressIn={() => setShowTimePicker(true)}
             right={<TextInput.Icon icon="clock-outline" />}
@@ -233,7 +233,7 @@ const CreateActivityScreen = () => {
           )}
           
           <TextInput
-            label="Duration (minutes)"
+            label="Thời lượng (phút)"
             value={duration}
             onChangeText={setDuration}
             keyboardType="numeric"
@@ -246,7 +246,7 @@ const CreateActivityScreen = () => {
           </HelperText>
           
           <TextInput
-            label="Location"
+            label="Địa điểm"
             value={location}
             onPressIn={() => setShowLocationMenu(true)}
             right={
@@ -284,10 +284,10 @@ const CreateActivityScreen = () => {
         </View>
         
         <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Attendance</Text>
+        <Text style={styles.sectionTitle}>Tham gia</Text>
         
         <TextInput
-          label="Maximum Participants"
+          label="Số người tham gia tối đa"
           value={participants}
           onChangeText={setParticipants}
           keyboardType="numeric"
@@ -300,7 +300,7 @@ const CreateActivityScreen = () => {
         </HelperText>
         
         <TextInput
-          label="Facilitator"
+          label="Người hướng dẫn"
           value={facilitator}
           onChangeText={setFacilitator}
           style={styles.input}
@@ -312,12 +312,12 @@ const CreateActivityScreen = () => {
         </HelperText>
         
         <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Recurring Activity</Text>
+          <Text style={styles.switchLabel}>Hoạt động định kỳ</Text>
           <Switch value={isRecurring} onValueChange={setIsRecurring} />
         </View>
         
         <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Materials Needed</Text>
+        <Text style={styles.sectionTitle}>Vật liệu cần thiết</Text>
         
         <View style={styles.materialsContainer}>
           {materials.map((material) => (
@@ -334,14 +334,14 @@ const CreateActivityScreen = () => {
         
         <View style={styles.addMaterialContainer}>
           <TextInput
-            label="Material Name"
+            label="Tên vật liệu"
             value={newMaterial}
             onChangeText={setNewMaterial}
             style={[styles.input, { flex: 2 }]}
             mode="outlined"
           />
           <TextInput
-            label="Qty"
+            label="SL"
             value={newMaterialQuantity}
             onChangeText={setNewMaterialQuantity}
             keyboardType="numeric"
@@ -361,7 +361,7 @@ const CreateActivityScreen = () => {
           onPress={handleSubmit}
           style={styles.submitButton}
         >
-          Create Activity
+          Tạo hoạt động
         </Button>
       </ScrollView>
     </View>

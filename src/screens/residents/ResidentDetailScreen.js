@@ -51,29 +51,29 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   const renderOverviewTab = () => (
     <>
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+        <Text style={styles.sectionTitle}>Thông Tin Cá Nhân</Text>
         <Surface style={styles.infoBox}>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Room Number</Text>
+              <Text style={styles.infoLabel}>Số Phòng</Text>
               <Text style={styles.infoValue}>{resident.roomNumber}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Date of Birth</Text>
+              <Text style={styles.infoLabel}>Ngày Sinh</Text>
               <Text style={styles.infoValue}>
-                {new Date(resident.dateOfBirth).toLocaleDateString()}
+                {new Date(resident.dateOfBirth).toLocaleDateString('vi-VN')}
               </Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Admission Date</Text>
+              <Text style={styles.infoLabel}>Ngày Nhập Viện</Text>
               <Text style={styles.infoValue}>
-                {new Date(resident.admissionDate).toLocaleDateString()}
+                {new Date(resident.admissionDate).toLocaleDateString('vi-VN')}
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Care Level</Text>
+              <Text style={styles.infoLabel}>Mức Độ Chăm Sóc</Text>
               <Chip
                 style={[
                   styles.careChip,
@@ -88,29 +88,29 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 ]}
                 textStyle={{ color: COLORS.surface }}
               >
-                {resident.careLevel}
+                {resident.careLevel === 'High' ? 'Cao' : resident.careLevel === 'Medium' ? 'Trung Bình' : 'Thấp'}
               </Chip>
             </View>
           </View>
           
           <View style={styles.infoRow}>
             <View style={styles.infoFullItem}>
-              <Text style={styles.infoLabel}>Doctor</Text>
+              <Text style={styles.infoLabel}>Bác Sĩ</Text>
               <Text style={styles.infoValue}>{resident.doctor}</Text>
             </View>
           </View>
           
           <View style={styles.infoRow}>
             <View style={styles.infoFullItem}>
-              <Text style={styles.infoLabel}>Dietary Restrictions</Text>
-              <Text style={styles.infoValue}>{resident.dietaryRestrictions || 'None'}</Text>
+              <Text style={styles.infoLabel}>Hạn Chế Chế Độ Ăn</Text>
+              <Text style={styles.infoValue}>{resident.dietaryRestrictions || 'Không có'}</Text>
             </View>
           </View>
         </Surface>
       </View>
       
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Medical Conditions</Text>
+        <Text style={styles.sectionTitle}>Tình Trạng Sức Khỏe</Text>
         <Surface style={styles.infoBox}>
           <View style={styles.conditionsContainer}>
             {resident.medicalConditions.map((condition, index) => (
@@ -120,7 +120,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             ))}
           </View>
           
-          <Text style={[styles.infoLabel, { marginTop: 16 }]}>Allergies</Text>
+          <Text style={[styles.infoLabel, { marginTop: 16 }]}>Dị Ứng</Text>
           <View style={styles.conditionsContainer}>
             {resident.allergies.length > 0 ? (
               resident.allergies.map((allergy, index) => (
@@ -133,28 +133,28 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 </Chip>
               ))
             ) : (
-              <Text style={styles.infoValue}>No known allergies</Text>
+              <Text style={styles.infoValue}>Không có dị ứng đã biết</Text>
             )}
           </View>
         </Surface>
       </View>
       
       <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Emergency Contact</Text>
+        <Text style={styles.sectionTitle}>Liên Hệ Khẩn Cấp</Text>
         <Surface style={styles.infoBox}>
           <View style={styles.infoRow}>
             <View style={styles.infoFullItem}>
-              <Text style={styles.infoLabel}>Name</Text>
+              <Text style={styles.infoLabel}>Tên</Text>
               <Text style={styles.infoValue}>{resident.contactInfo.emergency.name}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Relationship</Text>
+              <Text style={styles.infoLabel}>Mối Quan Hệ</Text>
               <Text style={styles.infoValue}>{resident.contactInfo.emergency.relationship}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoLabel}>Điện Thoại</Text>
               <Text style={styles.infoValue}>{resident.contactInfo.emergency.phone}</Text>
             </View>
           </View>
@@ -173,7 +173,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     <>
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Care Plans</Text>
+          <Text style={styles.sectionTitle}>Kế Hoạch Chăm Sóc</Text>
           <Button
             mode="contained"
             icon="plus"
@@ -181,7 +181,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             style={styles.addButton}
             labelStyle={styles.addButtonText}
           >
-            Add
+            Thêm
           </Button>
         </View>
         
@@ -195,7 +195,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                   <View>
                     <Text style={styles.carePlanTitle}>{plan.title}</Text>
                     <Text style={styles.carePlanDate}>
-                      Created: {new Date(plan.startDate).toLocaleDateString()}
+                      Tạo: {new Date(plan.startDate).toLocaleDateString('vi-VN')}
                     </Text>
                   </View>
                   <Chip
@@ -210,13 +210,13 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                       color: plan.status === 'Active' ? COLORS.success : COLORS.error,
                     }}
                   >
-                    {plan.status}
+                    {plan.status === 'Active' ? 'Đang Hoạt Động' : 'Không Hoạt Động'}
                   </Chip>
                 </View>
                 <Text style={styles.carePlanDescription}>{plan.description}</Text>
                 
                 <View style={styles.goalsContainer}>
-                  <Text style={styles.goalsTitle}>Goals:</Text>
+                  <Text style={styles.goalsTitle}>Mục Tiêu:</Text>
                   {plan.goals.slice(0, 2).map((goal, index) => (
                     <View key={index} style={styles.goalItem}>
                       <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
@@ -225,7 +225,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                   ))}
                   {plan.goals.length > 2 && (
                     <Text style={styles.moreText}>
-                      +{plan.goals.length - 2} more goals
+                      +{plan.goals.length - 2} mục tiêu khác
                     </Text>
                   )}
                 </View>
@@ -234,14 +234,14 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No care plans found</Text>
+            <Text style={styles.emptyText}>Không tìm thấy kế hoạch chăm sóc</Text>
             <Button
               mode="outlined"
               icon="plus"
               onPress={() => navigation.navigate('AddCarePlan', { residentId })}
               style={{ marginTop: 10 }}
             >
-              Create Care Plan
+              Tạo Kế Hoạch Chăm Sóc
             </Button>
           </View>
         )}
@@ -253,7 +253,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     <>
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Medications</Text>
+          <Text style={styles.sectionTitle}>Thuốc</Text>
           <Button
             mode="contained"
             icon="plus"
@@ -261,7 +261,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             style={styles.addButton}
             labelStyle={styles.addButtonText}
           >
-            Add
+            Thêm
           </Button>
         </View>
         
@@ -285,28 +285,28 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                       color: med.status === 'Active' ? COLORS.success : COLORS.error,
                     }}
                   >
-                    {med.status}
+                    {med.status === 'Active' ? 'Đang Sử Dụng' : 'Ngừng Sử Dụng'}
                   </Chip>
                 </View>
                 
                 <View style={styles.medicationDetails}>
                   <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Dosage:</Text>
+                    <Text style={styles.medicationLabel}>Liều Lượng:</Text>
                     <Text style={styles.medicationValue}>{med.dosage}</Text>
                   </View>
                   <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Route:</Text>
+                    <Text style={styles.medicationLabel}>Đường Dùng:</Text>
                     <Text style={styles.medicationValue}>{med.route}</Text>
                   </View>
                   <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Frequency:</Text>
+                    <Text style={styles.medicationLabel}>Tần Suất:</Text>
                     <Text style={styles.medicationValue}>{med.frequency}</Text>
                   </View>
                 </View>
                 
                 <View style={styles.medicationSchedule}>
                   <Text style={styles.medicationScheduleTitle}>
-                    Administration Times:
+                    Thời Gian Dùng Thuốc:
                   </Text>
                   <View style={styles.timeContainer}>
                     {med.timeOfAdministration.map((time, index) => (
@@ -317,20 +317,20 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                   </View>
                 </View>
                 
-                {med.notes && <Text style={styles.medicationNotes}>Notes: {med.notes}</Text>}
+                {med.notes && <Text style={styles.medicationNotes}>Ghi Chú: {med.notes}</Text>}
               </TouchableOpacity>
             </Surface>
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No medications found</Text>
+            <Text style={styles.emptyText}>Không tìm thấy thuốc</Text>
             <Button
               mode="outlined"
               icon="plus"
               onPress={() => navigation.navigate('AddMedication', { residentId })}
               style={{ marginTop: 10 }}
             >
-              Add Medication
+              Thêm Thuốc
             </Button>
           </View>
         )}
@@ -342,7 +342,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     <>
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Vital Signs</Text>
+          <Text style={styles.sectionTitle}>Dấu Hiệu Sinh Tồn</Text>
           <Button
             mode="contained"
             icon="plus"
@@ -350,7 +350,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             style={styles.addButton}
             labelStyle={styles.addButtonText}
           >
-            Record
+            Ghi Nhận
           </Button>
         </View>
         
@@ -364,66 +364,66 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 >
                   <View style={styles.vitalHeader}>
                     <Text style={styles.vitalDate}>
-                      {vitalDate.toLocaleDateString()} {vitalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {vitalDate.toLocaleDateString('vi-VN')} {vitalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                     <Text style={styles.vitalRecorded}>
-                      By: {vital.recordedBy}
+                      Ghi nhận bởi: {vital.recordedBy}
                     </Text>
                   </View>
                   
                   <View style={styles.vitalGrid}>
                     <View style={styles.vitalItem}>
                       <MaterialIcons name="favorite" size={18} color={COLORS.error} />
-                      <Text style={styles.vitalLabel}>BP</Text>
+                      <Text style={styles.vitalLabel}>Huyết Áp</Text>
                       <Text style={styles.vitalValue}>{vital.bloodPressure}</Text>
                     </View>
                     
                     <View style={styles.vitalItem}>
                       <MaterialCommunityIcons name="heart-pulse" size={18} color={COLORS.primary} />
-                      <Text style={styles.vitalLabel}>Heart Rate</Text>
+                      <Text style={styles.vitalLabel}>Nhịp Tim</Text>
                       <Text style={styles.vitalValue}>{vital.heartRate}</Text>
                     </View>
                     
                     <View style={styles.vitalItem}>
                       <MaterialCommunityIcons name="lungs" size={18} color={COLORS.info} />
-                      <Text style={styles.vitalLabel}>Resp Rate</Text>
+                      <Text style={styles.vitalLabel}>Nhịp Thở</Text>
                       <Text style={styles.vitalValue}>{vital.respiratoryRate}</Text>
                     </View>
                     
                     <View style={styles.vitalItem}>
                       <FontAwesome5 name="temperature-high" size={18} color={COLORS.warning} />
-                      <Text style={styles.vitalLabel}>Temp</Text>
+                      <Text style={styles.vitalLabel}>Nhiệt Độ</Text>
                       <Text style={styles.vitalValue}>{vital.temperature}°C</Text>
                     </View>
                     
                     <View style={styles.vitalItem}>
                       <MaterialCommunityIcons name="percent" size={18} color={COLORS.accent} />
-                      <Text style={styles.vitalLabel}>O2 Sat</Text>
+                      <Text style={styles.vitalLabel}>SpO2</Text>
                       <Text style={styles.vitalValue}>{vital.oxygenSaturation}%</Text>
                     </View>
                     
                     <View style={styles.vitalItem}>
                       <MaterialCommunityIcons name="scale" size={18} color={COLORS.secondary} />
-                      <Text style={styles.vitalLabel}>Weight</Text>
+                      <Text style={styles.vitalLabel}>Cân Nặng</Text>
                       <Text style={styles.vitalValue}>{vital.weight} kg</Text>
                     </View>
                   </View>
                   
-                  {vital.notes && <Text style={styles.vitalNotes}>Notes: {vital.notes}</Text>}
+                  {vital.notes && <Text style={styles.vitalNotes}>Ghi Chú: {vital.notes}</Text>}
                 </TouchableOpacity>
               </Surface>
             );
           })
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No vital signs recorded</Text>
+            <Text style={styles.emptyText}>Chưa có dấu hiệu sinh tồn được ghi nhận</Text>
             <Button
               mode="outlined"
               icon="plus"
               onPress={() => navigation.navigate('RecordVitals', { residentId })}
               style={{ marginTop: 10 }}
             >
-              Record Vitals
+              Ghi Nhận Dấu Hiệu Sinh Tồn
             </Button>
           </View>
         )}
@@ -451,7 +451,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               setMenuVisible(false);
               navigation.navigate('EditResident', { residentId });
             }}
-            title="Edit Resident"
+            title="Chỉnh Sửa Thông Tin"
             icon="pencil"
           />
           <Menu.Item
@@ -459,7 +459,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               setMenuVisible(false);
               navigation.navigate('ResidentNotes', { residentId });
             }}
-            title="Notes"
+            title="Ghi Chú"
             icon="notebook"
           />
           <Menu.Item
@@ -467,7 +467,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               setMenuVisible(false);
               navigation.navigate('ResidentFamily', { residentId });
             }}
-            title="Family Contacts"
+            title="Liên Hệ Gia Đình"
             icon="account-group"
           />
         </Menu>
@@ -482,7 +482,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             </View>
             <View style={styles.roomBadge}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.roomText}>Room {resident.roomNumber}</Text>
+              <Text style={styles.roomText}>Phòng {resident.roomNumber}</Text>
             </View>
           </View>
         </View>
@@ -503,7 +503,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 activeTab === 'overview' && styles.activeTabText,
               ]}
             >
-              Overview
+              Tổng Quan
             </Text>
           </TouchableOpacity>
           
@@ -522,7 +522,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 activeTab === 'care' && styles.activeTabText,
               ]}
             >
-              Care
+              Chăm Sóc
             </Text>
           </TouchableOpacity>
           
@@ -541,7 +541,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 activeTab === 'meds' && styles.activeTabText,
               ]}
             >
-              Meds
+              Thuốc
             </Text>
           </TouchableOpacity>
           
@@ -560,7 +560,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 activeTab === 'vitals' && styles.activeTabText,
               ]}
             >
-              Vitals
+              Sinh Hiệu
             </Text>
           </TouchableOpacity>
         </View>

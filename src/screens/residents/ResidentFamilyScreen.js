@@ -8,11 +8,11 @@ const ResidentFamilyScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Family Contacts" />
-        <Appbar.Action icon="plus" onPress={() => console.log('Add family contact')} />
+        <Appbar.Content title="Liên Hệ Gia Đình" />
+        <Appbar.Action icon="plus" onPress={() => console.log('Thêm liên hệ gia đình')} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Family Contacts Screen (placeholder)</Text>
+        <Text>Màn hình Liên Hệ Gia Đình (chưa hoàn thiện)</Text>
       </View>
     </View>
   );

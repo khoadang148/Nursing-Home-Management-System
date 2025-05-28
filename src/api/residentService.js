@@ -18,7 +18,7 @@ const residentService = {
     await simulateNetworkDelay();
     const resident = residents.find(r => r.id === id);
     if (!resident) {
-      return { data: null, success: false, error: 'Resident not found' };
+      return { data: null, success: false, error: 'Không tìm thấy cư dân' };
     }
     return { data: resident, success: true };
   },
@@ -29,7 +29,7 @@ const residentService = {
     const newResident = {
       id: (residents.length + 1).toString(),
       ...residentData,
-      status: 'Active',
+      status: 'Hoạt động',
     };
     return { data: newResident, success: true };
   },
@@ -39,7 +39,7 @@ const residentService = {
     await simulateNetworkDelay();
     const residentIndex = residents.findIndex(r => r.id === id);
     if (residentIndex === -1) {
-      return { data: null, success: false, error: 'Resident not found' };
+      return { data: null, success: false, error: 'Không tìm thấy cư dân' };
     }
     const updatedResident = { ...residents[residentIndex], ...residentData };
     return { data: updatedResident, success: true };
@@ -50,7 +50,7 @@ const residentService = {
     await simulateNetworkDelay();
     const residentIndex = residents.findIndex(r => r.id === id);
     if (residentIndex === -1) {
-      return { data: null, success: false, error: 'Resident not found' };
+      return { data: null, success: false, error: 'Không tìm thấy cư dân' };
     }
     return { data: { id }, success: true };
   },
@@ -83,7 +83,7 @@ const residentService = {
       id: (medications.length + 1).toString(),
       residentId: id,
       ...medicationData,
-      status: 'Active',
+      status: 'Hoạt động',
     };
     return { data: newMedication, success: true };
   },
@@ -95,7 +95,7 @@ const residentService = {
       id: (carePlans.length + 1).toString(),
       residentId: id,
       ...carePlanData,
-      status: 'Active',
+      status: 'Hoạt động',
     };
     return { data: newCarePlan, success: true };
   },

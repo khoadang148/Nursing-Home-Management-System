@@ -19,7 +19,7 @@ const SplashScreen = () => {
         style={styles.logo}
         resizeMode="contain"
       />
-      <Text style={styles.title}>Nursing Home Management System</Text>
+      <Text style={styles.title}>Hệ Thống Quản Lý Viện Dưỡng Lão</Text>
       <ActivityIndicator
         size="large"
         color={COLORS.primary}

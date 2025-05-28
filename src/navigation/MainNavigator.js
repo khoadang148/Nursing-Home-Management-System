@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 import { FontAwesome, FontAwesome5, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import theme
 import { COLORS } from '../constants/theme';
@@ -24,14 +25,15 @@ const Stack = createStackNavigator();
 // Notifications stack
 const NotificationsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
-    <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} />
+    <Stack.Screen name="ManHinhThongBao" component={NotificationsScreen} />
+    <Stack.Screen name="ChiTietThongBao" component={NotificationDetailScreen} />
   </Stack.Navigator>
 );
 
 // Staff Navigator - original navigation for staff roles
 const StaffNavigator = () => {
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
+  const insets = useSafeAreaInsets();
   
   return (
     <Tab.Navigator
@@ -41,72 +43,80 @@ const StaffNavigator = () => {
         tabBarStyle: {
           backgroundColor: COLORS.surface,
           borderTopColor: COLORS.border,
-          paddingTop: 5,
-          paddingBottom: 10,
-          height: 65,
-          position: 'absolute',
-          elevation: 5,
-          shadowOpacity: 0.2,
-          shadowRadius: 3,
-          shadowOffset: { height: -3, width: 0 },
-          bottom: 15,
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 60 + Math.max(insets.bottom, 8),
+          elevation: 8,
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          shadowOffset: { height: -2, width: 0 },
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: '500',
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: 2,
         },
         headerShown: false,
       }}
     >
       <Tab.Screen
-        name="Dashboard"
+        name="TongQuan"
         component={DashboardNavigator}
         options={{
+          tabBarLabel: 'Tổng Quan',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="dashboard" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Residents"
+        name="CuDan"
         component={ResidentNavigator}
         options={{
+          tabBarLabel: 'Cư Dân',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome5 name="user-injured" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Tasks"
+        name="NhiemVu"
         component={TasksNavigator}
         options={{
+          tabBarLabel: 'Nhiệm Vụ',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="assignment" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Activities"
+        name="HoatDong"
         component={ActivityNavigator}
         options={{
+          tabBarLabel: 'Hoạt Động',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="event" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Medications"
+        name="Thuoc"
         component={MedicationNavigator}
         options={{
+          tabBarLabel: 'Thuốc',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="pill" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Notifications"
+        name="ThongBao"
         component={NotificationsStack}
         options={{
+          tabBarLabel: 'Thông Báo',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size} color={color} />
           ),
@@ -115,9 +125,10 @@ const StaffNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Profile"
+        name="HoSo"
         component={ProfileNavigator}
         options={{
+          tabBarLabel: 'Hồ Sơ',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user-circle" size={size} color={color} />
           ),

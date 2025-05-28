@@ -89,7 +89,7 @@ const FamilyResidentScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading resident information...</Text>
+        <Text style={styles.loadingText}>Đang tải thông tin cư dân...</Text>
       </SafeAreaView>
     );
   }
@@ -98,7 +98,7 @@ const FamilyResidentScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <FontAwesome5 name="exclamation-circle" size={50} color={COLORS.error} />
-        <Text style={styles.errorText}>No resident information found</Text>
+        <Text style={styles.errorText}>Không tìm thấy thông tin cư dân</Text>
       </SafeAreaView>
     );
   }
@@ -121,18 +121,18 @@ const FamilyResidentScreen = ({ navigation }) => {
             <Text style={styles.name}>{`${resident.firstName} ${resident.lastName}`}</Text>
             <View style={styles.infoRow}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>Room {resident.roomNumber}</Text>
+              <Text style={styles.infoText}>Phòng {resident.roomNumber}</Text>
             </View>
             <View style={styles.infoRow}>
               <MaterialIcons name="cake" size={16} color={COLORS.primary} />
               <Text style={styles.infoText}>
-                {formatDate(resident.dateOfBirth)} ({calculateAge(resident.dateOfBirth)} years)
+                {formatDate(resident.dateOfBirth)} ({calculateAge(resident.dateOfBirth)} tuổi)
               </Text>
             </View>
             <View style={styles.infoRow}>
               <MaterialIcons name="event" size={16} color={COLORS.primary} />
               <Text style={styles.infoText}>
-                Admitted: {formatDate(resident.admissionDate)}
+                Ngày tiếp nhận: {formatDate(resident.admissionDate)}
               </Text>
             </View>
             <View style={styles.statusChipContainer}>
@@ -141,14 +141,17 @@ const FamilyResidentScreen = ({ navigation }) => {
                 style={[styles.statusChip, {backgroundColor: COLORS.success + '20'}]}
                 textStyle={{color: COLORS.success}}
               >
-                {resident.status}
+                {resident.status === 'Active' ? 'Đang Ở' : resident.status}
               </Chip>
               <Chip 
                 icon={() => <MaterialIcons name="local-hospital" size={16} color={COLORS.primary} />} 
                 style={[styles.statusChip, {backgroundColor: COLORS.primary + '20'}]}
                 textStyle={{color: COLORS.primary}}
               >
-                {resident.careLevel} Care
+                Chăm sóc {resident.careLevel === 'Intensive' ? 'Tích cực' : 
+                          resident.careLevel === 'Moderate' ? 'Vừa phải' : 
+                          resident.careLevel === 'Standard' ? 'Tiêu chuẩn' : 
+                          resident.careLevel}
               </Chip>
             </View>
           </View>
@@ -159,10 +162,10 @@ const FamilyResidentScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <FontAwesome5 name="heartbeat" size={20} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Medical Information</Title>
+              <Title style={styles.cardTitle}>Thông Tin Y Tế</Title>
             </View>
             
-            <Text style={styles.sectionTitle}>Medical Conditions</Text>
+            <Text style={styles.sectionTitle}>Tình Trạng Bệnh</Text>
             <View style={styles.tagsContainer}>
               {resident.medicalConditions?.map((condition, index) => (
                 <Chip 
@@ -175,7 +178,7 @@ const FamilyResidentScreen = ({ navigation }) => {
               ))}
             </View>
             
-            <Text style={styles.sectionTitle}>Allergies</Text>
+            <Text style={styles.sectionTitle}>Dị Ứng</Text>
             <View style={styles.tagsContainer}>
               {resident.allergies?.map((allergy, index) => (
                 <Chip 
@@ -189,11 +192,11 @@ const FamilyResidentScreen = ({ navigation }) => {
               ))}
             </View>
             
-            <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
-            <Text style={styles.detailText}>{resident.dietaryRestrictions || 'No restrictions'}</Text>
+            <Text style={styles.sectionTitle}>Hạn Chế Ăn Uống</Text>
+            <Text style={styles.detailText}>{resident.dietaryRestrictions || 'Không có hạn chế'}</Text>
             
-            <Text style={styles.sectionTitle}>Primary Doctor</Text>
-            <Text style={styles.detailText}>{resident.doctor || 'Not assigned'}</Text>
+            <Text style={styles.sectionTitle}>Bác Sĩ Chính</Text>
+            <Text style={styles.detailText}>{resident.doctor || 'Chưa được chỉ định'}</Text>
           </Card.Content>
         </Card>
         
@@ -202,7 +205,7 @@ const FamilyResidentScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <MaterialCommunityIcons name="pill" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Current Medications</Title>
+              <Title style={styles.cardTitle}>Thuốc Hiện Tại</Title>
             </View>
             
             {activeMedications.length > 0 ? (
@@ -223,13 +226,13 @@ const FamilyResidentScreen = ({ navigation }) => {
                     </View>
                   </View>
                   {med.notes && (
-                    <Text style={styles.medicationNotes}>Note: {med.notes}</Text>
+                    <Text style={styles.medicationNotes}>Ghi chú: {med.notes}</Text>
                   )}
                   <Divider style={styles.divider} />
                 </View>
               ))
             ) : (
-              <Text style={styles.noDataText}>No active medications</Text>
+              <Text style={styles.noDataText}>Không có thuốc đang sử dụng</Text>
             )}
           </Card.Content>
         </Card>
@@ -239,7 +242,7 @@ const FamilyResidentScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <MaterialIcons name="assignment" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Care Plans</Title>
+              <Title style={styles.cardTitle}>Kế Hoạch Chăm Sóc</Title>
             </View>
             
             {carePlanData.length > 0 ? (
@@ -256,13 +259,15 @@ const FamilyResidentScreen = ({ navigation }) => {
                         color: plan.status === 'Active' ? COLORS.success : COLORS.warning
                       }}
                     >
-                      {plan.status}
+                      {plan.status === 'Active' ? 'Đang áp dụng' : 
+                       plan.status === 'Pending' ? 'Đang chờ' : 
+                       plan.status === 'Completed' ? 'Đã hoàn thành' : plan.status}
                     </Chip>
                   </View>
                   
                   <Text style={styles.carePlanDescription}>{plan.description}</Text>
                   
-                  <Text style={styles.carePlanSubtitle}>Goals:</Text>
+                  <Text style={styles.carePlanSubtitle}>Mục tiêu:</Text>
                   {plan.goals.map((goal, index) => (
                     <View key={index} style={styles.goalItem}>
                       <MaterialIcons name="check" size={16} color={COLORS.success} />
@@ -272,10 +277,10 @@ const FamilyResidentScreen = ({ navigation }) => {
                   
                   <View style={styles.carePlanDates}>
                     <Text style={styles.carePlanDateText}>
-                      Start: {formatDate(plan.startDate)}
+                      Bắt đầu: {formatDate(plan.startDate)}
                     </Text>
                     <Text style={styles.carePlanDateText}>
-                      Review: {formatDate(plan.reviewDate)}
+                      Đánh giá: {formatDate(plan.reviewDate)}
                     </Text>
                   </View>
                   
@@ -283,7 +288,7 @@ const FamilyResidentScreen = ({ navigation }) => {
                 </View>
               ))
             ) : (
-              <Text style={styles.noDataText}>No care plans available</Text>
+              <Text style={styles.noDataText}>Không có kế hoạch chăm sóc</Text>
             )}
           </Card.Content>
         </Card>
@@ -293,7 +298,7 @@ const FamilyResidentScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <Ionicons name="call" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Emergency Contact</Title>
+              <Title style={styles.cardTitle}>Liên Hệ Khẩn Cấp</Title>
             </View>
             
             {resident.contactInfo?.emergency ? (
@@ -312,7 +317,7 @@ const FamilyResidentScreen = ({ navigation }) => {
                 </View>
               </View>
             ) : (
-              <Text style={styles.noDataText}>No emergency contact information</Text>
+              <Text style={styles.noDataText}>Không có thông tin liên hệ khẩn cấp</Text>
             )}
           </Card.Content>
         </Card>

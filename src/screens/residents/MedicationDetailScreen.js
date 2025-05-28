@@ -8,10 +8,10 @@ const MedicationDetailScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Medication Detail" />
+        <Appbar.Content title="Chi tiết thuốc" />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Medication Detail Screen (placeholder)</Text>
+        <Text>Màn hình chi tiết thuốc (dữ liệu mẫu)</Text>
       </View>
     </View>
   );

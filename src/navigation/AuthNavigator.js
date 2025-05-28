@@ -10,13 +10,21 @@ const Stack = createStackNavigator();
 const AuthNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Login"
+      initialRouteName="DangNhap"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen 
+        name="DangNhap" 
+        component={LoginScreen} 
+        options={{title: 'Đăng Nhập'}} 
+      />
+      <Stack.Screen 
+        name="QuenMatKhau" 
+        component={ForgotPasswordScreen} 
+        options={{title: 'Quên Mật Khẩu'}} 
+      />
     </Stack.Navigator>
   );
 };

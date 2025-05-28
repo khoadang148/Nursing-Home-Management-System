@@ -8,11 +8,11 @@ const AddMedicationScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Add Medication" />
+        <Appbar.Content title="Thêm Thuốc" />
         <Appbar.Action icon="content-save" onPress={() => navigation.goBack()} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Add Medication Screen (placeholder)</Text>
+        <Text>Màn hình Thêm Thuốc (tạm thời)</Text>
       </View>
     </View>
   );

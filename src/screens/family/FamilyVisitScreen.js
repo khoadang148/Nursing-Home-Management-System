@@ -7,21 +7,15 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { 
-  Button, 
-  Card, 
-  Title, 
-  Paragraph, 
-  ActivityIndicator, 
-  Divider,
-  TextInput,
-  Chip,
-  Modal,
-  Portal,
-} from 'react-native-paper';
+// Native components
+import NativeCard from '../../components/NativeCard';
+import NativeButton from '../../components/NativeButton';
+import NativeTextInput from '../../components/NativeTextInput';
+import NativeModal from '../../components/NativeModal';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -36,15 +30,15 @@ const mockVisits = [
     date: '2023-11-15',
     time: '14:00',
     duration: 60,
-    status: 'Confirmed',
-    notes: 'Will bring photo album',
+    status: 'Đã xác nhận',
+    notes: 'Sẽ mang theo album ảnh',
   },
   {
     id: '2',
     date: '2023-11-22',
     time: '15:30',
     duration: 60,
-    status: 'Pending',
+    status: 'Đang chờ',
     notes: '',
   },
   {
@@ -52,8 +46,8 @@ const mockVisits = [
     date: '2023-10-30',
     time: '10:00',
     duration: 45,
-    status: 'Completed',
-    notes: 'Had lunch together',
+    status: 'Đã hoàn thành',
+    notes: 'Đã ăn trưa cùng nhau',
   },
 ];
 
@@ -64,6 +58,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   const [visits, setVisits] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [markedDates, setMarkedDates] = useState({});
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   
   // New visit form state
   const [showNewVisitModal, setShowNewVisitModal] = useState(false);
@@ -108,10 +103,10 @@ const FamilyVisitScreen = ({ navigation }) => {
   
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Confirmed': return COLORS.primary;
-      case 'Pending': return COLORS.warning;
-      case 'Completed': return COLORS.success;
-      case 'Cancelled': return COLORS.error;
+      case 'Đã xác nhận': return COLORS.primary;
+      case 'Đang chờ': return COLORS.warning;
+      case 'Đã hoàn thành': return COLORS.success;
+      case 'Đã hủy': return COLORS.error;
       default: return COLORS.secondary;
     }
   };
@@ -119,7 +114,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('vi-VN', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -133,10 +128,10 @@ const FamilyVisitScreen = ({ navigation }) => {
     const time = new Date();
     time.setHours(parseInt(hour, 10));
     time.setMinutes(parseInt(minute, 10));
-    return time.toLocaleTimeString('en-US', {
-      hour: 'numeric',
+    return time.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true,
+      hour12: false,
     });
   };
   
@@ -170,7 +165,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   const handleSubmitVisit = () => {
     // Form validation
     if (!visitDate || !visitTime || !visitDuration) {
-      Alert.alert('Validation Error', 'Please fill in all required fields.');
+      Alert.alert('Lỗi xác thực', 'Vui lòng điền đầy đủ thông tin.');
       return;
     }
     
@@ -186,7 +181,7 @@ const FamilyVisitScreen = ({ navigation }) => {
       date: dateString,
       time: timeString,
       duration: parseInt(visitDuration, 10),
-      status: 'Pending',
+      status: 'Đang chờ',
       notes: visitNotes,
     };
     
@@ -199,7 +194,7 @@ const FamilyVisitScreen = ({ navigation }) => {
     newMarkedDates[dateString] = { 
       selected: true, 
       marked: true, 
-      selectedColor: getStatusColor('Pending'),
+      selectedColor: getStatusColor('Đang chờ'),
     };
     setMarkedDates(newMarkedDates);
     
@@ -211,17 +206,27 @@ const FamilyVisitScreen = ({ navigation }) => {
     
     // Show success message
     Alert.alert(
-      'Visit Scheduled',
-      'Your visit has been submitted for approval. You will be notified once it is confirmed.',
+      'Đã Đặt Lịch Thăm',
+      'Lịch thăm của bạn đã được gửi để chờ phê duyệt. Bạn sẽ nhận được thông báo khi lịch được xác nhận.',
       [{ text: 'OK' }]
     );
+  };
+  
+  const handleMonthChange = (direction) => {
+    const newMonth = new Date(currentMonth);
+    if (direction === 'left') {
+      newMonth.setMonth(newMonth.getMonth() - 1);
+    } else {
+      newMonth.setMonth(newMonth.getMonth() + 1);
+    }
+    setCurrentMonth(newMonth);
   };
   
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading visits...</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Đang tải lịch thăm...</Text>
       </SafeAreaView>
     );
   }
@@ -236,68 +241,144 @@ const FamilyVisitScreen = ({ navigation }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Visit Schedule</Text>
-          <Button 
+          <Text style={styles.headerTitle}>Lịch Thăm</Text>
+          <NativeButton 
+            title="Đặt Lịch Thăm"
             mode="contained" 
-            icon="plus" 
             onPress={handleScheduleVisit}
             style={styles.scheduleButton}
-          >
-            Schedule Visit
-          </Button>
+            icon={<MaterialIcons name="add" size={20} color={COLORS.surface} style={{ marginRight: 8 }} />}
+          />
         </View>
         
         {/* Calendar */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.cardTitle}>Select Visit Date</Title>
-            <Calendar
-              onDayPress={handleDateSelect}
-              markedDates={{
-                ...markedDates,
-                [selectedDate]: {
-                  ...markedDates[selectedDate],
-                  selected: true,
-                  selectedColor: COLORS.primary,
-                }
-              }}
-              theme={{
-                calendarBackground: COLORS.surface,
-                textSectionTitleColor: COLORS.primary,
-                selectedDayBackgroundColor: COLORS.primary,
-                selectedDayTextColor: COLORS.surface,
-                todayTextColor: COLORS.primary,
-                dayTextColor: COLORS.text,
-                textDisabledColor: COLORS.disabled,
-                arrowColor: COLORS.primary,
-                monthTextColor: COLORS.primary,
-                indicatorColor: COLORS.primary,
-              }}
-            />
+        <NativeCard style={styles.card}>
+          <NativeCard.Content>
+            <Text style={styles.cardTitle}>Chọn Ngày Thăm</Text>
+            
+            {/* Custom Calendar Header */}
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity 
+                style={styles.monthNavButton}
+                onPress={() => handleMonthChange('left')}
+              >
+                <MaterialIcons name="chevron-left" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+              
+              <Text style={styles.monthYearText}>
+                {currentMonth.toLocaleDateString('vi-VN', { 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.monthNavButton}
+                onPress={() => handleMonthChange('right')}
+              >
+                <MaterialIcons name="chevron-right" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.calendarContainer}>
+              <Calendar
+                current={currentMonth.toISOString().split('T')[0]}
+                onDayPress={handleDateSelect}
+                markedDates={{
+                  ...markedDates,
+                  [selectedDate]: {
+                    ...markedDates[selectedDate],
+                    selected: true,
+                    selectedColor: COLORS.primary,
+                  }
+                }}
+                theme={{
+                  calendarBackground: COLORS.surface,
+                  textSectionTitleColor: COLORS.primary,
+                  selectedDayBackgroundColor: COLORS.primary,
+                  selectedDayTextColor: COLORS.surface,
+                  todayTextColor: COLORS.primary,
+                  dayTextColor: COLORS.text,
+                  textDisabledColor: COLORS.disabled,
+                  arrowColor: COLORS.primary,
+                  monthTextColor: COLORS.text,
+                  indicatorColor: COLORS.primary,
+                  textDayFontFamily: 'System',
+                  textMonthFontFamily: 'System',
+                  textDayHeaderFontFamily: 'System',
+                  textDayFontWeight: '500',
+                  textMonthFontWeight: '700',
+                  textDayHeaderFontWeight: '600',
+                  textDayFontSize: 16,
+                  textMonthFontSize: 20,
+                  textDayHeaderFontSize: 13,
+                  dayTextColor: COLORS.text,
+                  textSectionTitleDisabledColor: COLORS.disabled,
+                  'stylesheet.calendar.header': {
+                    dayHeader: {
+                      marginTop: 2,
+                      marginBottom: 7,
+                      width: 32,
+                      textAlign: 'center',
+                      fontSize: 13,
+                      fontFamily: 'System',
+                      fontWeight: '600',
+                      color: COLORS.textSecondary
+                    },
+                    header: {
+                      display: 'none'
+                    }
+                  },
+                  'stylesheet.day.basic': {
+                    selected: {
+                      backgroundColor: COLORS.primary,
+                      borderRadius: 20,
+                    },
+                    today: {
+                      backgroundColor: COLORS.primary + '20',
+                      borderRadius: 20,
+                    },
+                    base: {
+                      width: 32,
+                      height: 32,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }
+                  }
+                }}
+                hideExtraDays={true}
+                enableSwipeMonths={false}
+                showWeekNumbers={false}
+                disableAllTouchEventsForDisabledDays={true}
+                hideArrows={true}
+                firstDay={1}
+                markingType={'simple'}
+              />
+            </View>
             <View style={styles.legendContainer}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-                <Text style={styles.legendText}>Confirmed</Text>
+                <Text style={styles.legendText}>Đã xác nhận</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.warning }]} />
-                <Text style={styles.legendText}>Pending</Text>
+                <Text style={styles.legendText}>Đang chờ</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: COLORS.success }]} />
-                <Text style={styles.legendText}>Completed</Text>
+                <Text style={styles.legendText}>Hoàn thành</Text>
               </View>
             </View>
-          </Card.Content>
-        </Card>
+          </NativeCard.Content>
+        </NativeCard>
         
         {/* Visits for selected date */}
         {selectedDate && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Title style={styles.cardTitle}>
-                Visits for {formatDate(selectedDate)}
-              </Title>
+          <NativeCard style={styles.card}>
+            <NativeCard.Content>
+              <Text style={styles.cardTitle}>
+                Lịch thăm cho {formatDate(selectedDate)}
+              </Text>
               {getVisitsForSelectedDate().length > 0 ? (
                 getVisitsForSelectedDate().map((visit) => (
                   <View key={visit.id} style={styles.visitItem}>
@@ -306,21 +387,20 @@ const FamilyVisitScreen = ({ navigation }) => {
                         <Ionicons name="time" size={16} color={COLORS.primary} />
                         <Text style={styles.visitTimeText}>{formatTime(visit.time)}</Text>
                       </View>
-                      <Chip 
-                        style={{ 
-                          backgroundColor: getStatusColor(visit.status) + '20',
-                        }}
-                        textStyle={{ 
+                      <View style={[styles.customChip, { 
+                        backgroundColor: getStatusColor(visit.status) + '20',
+                      }]}>
+                        <Text style={[styles.customChipText, { 
                           color: getStatusColor(visit.status),
-                        }}
-                      >
-                        {visit.status}
-                      </Chip>
+                        }]}>
+                          {visit.status}
+                        </Text>
+                      </View>
                     </View>
                     
                     <View style={styles.visitDetail}>
                       <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
-                      <Text style={styles.visitDetailText}>{visit.duration} minutes</Text>
+                      <Text style={styles.visitDetailText}>{visit.duration} phút</Text>
                     </View>
                     
                     {visit.notes && (
@@ -331,23 +411,23 @@ const FamilyVisitScreen = ({ navigation }) => {
                     )}
                     
                     <View style={styles.visitActions}>
-                      {visit.status === 'Pending' && (
-                        <Button 
+                      {visit.status === 'Đang chờ' && (
+                        <NativeButton 
+                          title="Hủy"
                           mode="text"
-                          compact
+                          size="small"
                           onPress={() => {
-                            /* In a real app, this would call an API to cancel the visit */
                             Alert.alert(
-                              'Cancel Visit',
-                              'Are you sure you want to cancel this visit?',
+                              'Hủy Lịch Thăm',
+                              'Bạn có chắc muốn hủy lịch thăm này không?',
                               [
-                                { text: 'No', style: 'cancel' },
+                                { text: 'Không', style: 'cancel' },
                                 { 
-                                  text: 'Yes', 
+                                  text: 'Có', 
                                   style: 'destructive',
                                   onPress: () => {
                                     const updatedVisits = visits.map(v => 
-                                      v.id === visit.id ? { ...v, status: 'Cancelled' } : v
+                                      v.id === visit.id ? { ...v, status: 'Đã hủy' } : v
                                     );
                                     setVisits(updatedVisits);
                                     
@@ -364,24 +444,22 @@ const FamilyVisitScreen = ({ navigation }) => {
                               ]
                             );
                           }}
-                          textColor={COLORS.error}
-                        >
-                          Cancel
-                        </Button>
+                          textStyle={{ color: COLORS.error }}
+                        />
                       )}
-                      {visit.status === 'Confirmed' && (
-                        <Button 
+                      {visit.status === 'Đã xác nhận' && (
+                        <NativeButton 
+                          title="Đổi lịch"
                           mode="text"
-                          compact
+                          size="small"
                           onPress={() => {
-                            /* In a real app, this would call an API to reschedule the visit */
                             Alert.alert(
-                              'Reschedule Visit',
-                              'Would you like to reschedule this visit?',
+                              'Đổi Lịch Thăm',
+                              'Bạn có muốn đổi lịch thăm này không?',
                               [
-                                { text: 'No', style: 'cancel' },
+                                { text: 'Không', style: 'cancel' },
                                 { 
-                                  text: 'Yes',
+                                  text: 'Có',
                                   onPress: () => {
                                     // Logic to open rescheduling modal
                                   }
@@ -389,28 +467,26 @@ const FamilyVisitScreen = ({ navigation }) => {
                               ]
                             );
                           }}
-                          textColor={COLORS.primary}
-                        >
-                          Reschedule
-                        </Button>
+                          textStyle={{ color: COLORS.primary }}
+                        />
                       )}
                     </View>
-                    <Divider style={styles.divider} />
+                    <View style={styles.divider} />
                   </View>
                 ))
               ) : (
-                <Paragraph style={styles.noVisitsText}>No visits scheduled for this date.</Paragraph>
+                <Text style={styles.noVisitsText}>Không có lịch thăm cho ngày này.</Text>
               )}
-            </Card.Content>
-          </Card>
+            </NativeCard.Content>
+          </NativeCard>
         )}
         
         {/* Upcoming Visits */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.cardTitle}>Upcoming Visits</Title>
+        <NativeCard style={styles.card}>
+          <NativeCard.Content>
+            <Text style={styles.cardTitle}>Lịch Thăm Sắp Tới</Text>
             {visits
-              .filter(visit => ['Confirmed', 'Pending'].includes(visit.status))
+              .filter(visit => ['Đã xác nhận', 'Đang chờ'].includes(visit.status))
               .sort((a, b) => new Date(a.date) - new Date(b.date))
               .slice(0, 3)
               .map((visit) => (
@@ -424,7 +500,7 @@ const FamilyVisitScreen = ({ navigation }) => {
                       {new Date(visit.date).getDate()}
                     </Text>
                     <Text style={styles.upcomingVisitDateMonth}>
-                      {new Date(visit.date).toLocaleString('default', { month: 'short' })}
+                      Th{new Date(visit.date).getMonth() + 1}
                     </Text>
                   </View>
                   <View style={styles.upcomingVisitDetails}>
@@ -432,136 +508,114 @@ const FamilyVisitScreen = ({ navigation }) => {
                       <Text style={styles.upcomingVisitTime}>
                         {formatTime(visit.time)}
                       </Text>
-                      <Chip 
-                        style={{ 
-                          backgroundColor: getStatusColor(visit.status) + '20',
-                          height: 24,
-                        }}
-                        textStyle={{ 
+                      <View style={[styles.customChip, { 
+                        backgroundColor: getStatusColor(visit.status) + '20',
+                      }]}>
+                        <Text style={[styles.customChipText, { 
                           color: getStatusColor(visit.status),
-                          fontSize: 12,
-                        }}
-                      >
-                        {visit.status}
-                      </Chip>
+                        }]}>
+                          {visit.status}
+                        </Text>
+                      </View>
                     </View>
                     <View style={styles.visitDetail}>
                       <MaterialIcons name="access-time" size={14} color={COLORS.textSecondary} />
-                      <Text style={styles.visitDetailText}>{visit.duration} minutes</Text>
+                      <Text style={styles.visitDetailText}>{visit.duration} phút</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
               ))
             }
-            {visits.filter(visit => ['Confirmed', 'Pending'].includes(visit.status)).length === 0 && (
-              <Paragraph style={styles.noVisitsText}>No upcoming visits scheduled.</Paragraph>
+            {visits.filter(visit => ['Đã xác nhận', 'Đang chờ'].includes(visit.status)).length === 0 && (
+              <Text style={styles.noVisitsText}>Không có lịch thăm sắp tới.</Text>
             )}
-          </Card.Content>
-        </Card>
+          </NativeCard.Content>
+        </NativeCard>
       </ScrollView>
       
       {/* New Visit Modal */}
-      <Portal>
-        <Modal 
-          visible={showNewVisitModal} 
-          onDismiss={() => setShowNewVisitModal(false)}
-          contentContainerStyle={styles.modalContainer}
+      <NativeModal 
+        visible={showNewVisitModal} 
+        onClose={() => setShowNewVisitModal(false)}
+      >
+        <Text style={styles.modalTitle}>Đặt Lịch Thăm Mới</Text>
+        
+        {/* Date Picker */}
+        <TouchableOpacity 
+          style={styles.datePickerButton}
+          onPress={() => {
+            // In a real app, this would open a date picker
+          }}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Schedule New Visit</Text>
-            
-            {/* Date Picker */}
-            <Text style={styles.inputLabel}>Date*</Text>
-            <TouchableOpacity 
-              style={styles.datePickerButton}
-              onPress={() => {
-                /* In a real app, this would open a date picker */
-                // Using DateTimePicker here but for simplicity just showing the selected date
-              }}
-            >
-              <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
-              <Text style={styles.datePickerText}>
-                {visitDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </Text>
-            </TouchableOpacity>
-            
-            {/* Time Picker */}
-            <Text style={styles.inputLabel}>Time*</Text>
-            <TouchableOpacity 
-              style={styles.datePickerButton}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
-              <Text style={styles.datePickerText}>
-                {visitTime.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                })}
-              </Text>
-            </TouchableOpacity>
-            {showTimePicker && (
-              <DateTimePicker
-                value={visitTime}
-                mode="time"
-                is24Hour={false}
-                display="default"
-                onChange={handleTimeChange}
-              />
-            )}
-            
-            {/* Duration */}
-            <Text style={styles.inputLabel}>Duration (minutes)*</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={visitDuration}
-              onChangeText={setVisitDuration}
-              mode="outlined"
-              outlineColor={COLORS.border}
-              activeOutlineColor={COLORS.primary}
-            />
-            
-            {/* Notes */}
-            <Text style={styles.inputLabel}>Notes (optional)</Text>
-            <TextInput
-              style={styles.input}
-              multiline
-              numberOfLines={3}
-              value={visitNotes}
-              onChangeText={setVisitNotes}
-              placeholder="Add any special requirements or notes"
-              mode="outlined"
-              outlineColor={COLORS.border}
-              activeOutlineColor={COLORS.primary}
-            />
-            
-            {/* Buttons */}
-            <View style={styles.modalButtons}>
-              <Button 
-                mode="outlined"
-                onPress={() => setShowNewVisitModal(false)}
-                style={styles.modalButton}
-                textColor={COLORS.text}
-              >
-                Cancel
-              </Button>
-              <Button 
-                mode="contained"
-                onPress={handleSubmitVisit}
-                style={styles.modalButton}
-              >
-                Submit
-              </Button>
-            </View>
-          </View>
-        </Modal>
-      </Portal>
+          <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
+          <Text style={styles.datePickerText}>
+            {visitDate.toLocaleDateString('vi-VN', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </Text>
+        </TouchableOpacity>
+        
+        {/* Time Picker */}
+        <TouchableOpacity 
+          style={styles.datePickerButton}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
+          <Text style={styles.datePickerText}>
+            {visitTime.toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })}
+          </Text>
+        </TouchableOpacity>
+        {showTimePicker && (
+          <DateTimePicker
+            value={visitTime}
+            mode="time"
+            is24Hour={true}
+            display="default"
+            onChange={handleTimeChange}
+          />
+        )}
+        
+        {/* Duration */}
+        <NativeTextInput
+          label="Thời lượng (phút)*"
+          keyboardType="numeric"
+          value={visitDuration}
+          onChangeText={setVisitDuration}
+        />
+        
+        {/* Notes */}
+        <NativeTextInput
+          label="Ghi chú (không bắt buộc)"
+          multiline
+          numberOfLines={3}
+          value={visitNotes}
+          onChangeText={setVisitNotes}
+          placeholder="Thêm các yêu cầu đặc biệt hoặc ghi chú"
+        />
+        
+        {/* Buttons */}
+        <View style={styles.modalButtons}>
+          <NativeButton 
+            title="Hủy bỏ"
+            mode="outlined"
+            onPress={() => setShowNewVisitModal(false)}
+            style={styles.modalButton}
+          />
+          <NativeButton 
+            title="Gửi"
+            mode="contained"
+            onPress={handleSubmitVisit}
+            style={styles.modalButton}
+          />
+        </View>
+      </NativeModal>
     </SafeAreaView>
   );
 };
@@ -581,6 +635,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: COLORS.text,
     fontSize: 16,
+    ...FONTS.body2,
   },
   scrollContent: {
     padding: 16,
@@ -595,6 +650,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...FONTS.h2,
     color: COLORS.text,
+    fontWeight: '700',
   },
   scheduleButton: {
     backgroundColor: COLORS.primary,
@@ -606,25 +662,61 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...FONTS.h4,
     marginBottom: 16,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  monthNavButton: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+  },
+  monthYearText: {
+    ...FONTS.h4,
+    color: COLORS.text,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  calendarContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   legendContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    marginHorizontal: -4,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
   legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     marginRight: 6,
   },
   legendText: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
   },
   visitItem: {
     marginBottom: 12,
@@ -634,14 +726,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    minHeight: 32,
   },
   visitTime: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
   },
   visitTimeText: {
     ...FONTS.h4,
     marginLeft: 8,
+    color: COLORS.text,
+    fontWeight: '600',
   },
   visitDetail: {
     flexDirection: 'row',
@@ -660,6 +757,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
     marginTop: 8,
     marginBottom: 12,
   },
@@ -676,8 +775,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    minHeight: 80,
   },
   upcomingVisitDate: {
     width: 60,
@@ -694,54 +794,59 @@ const styles = StyleSheet.create({
   upcomingVisitDateMonth: {
     ...FONTS.body3,
     color: COLORS.surface,
+    fontWeight: '500',
   },
   upcomingVisitDetails: {
     flex: 1,
     padding: 12,
+    justifyContent: 'center',
   },
   upcomingVisitHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+    minHeight: 32,
   },
   upcomingVisitTime: {
     ...FONTS.body2,
     fontWeight: '500',
+    flex: 1,
+    marginRight: 12,
+    flexWrap: 'wrap',
+    color: COLORS.text,
   },
-  modalContainer: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+  customChip: {
+    flexShrink: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 90,
+    maxWidth: 120,
   },
-  modalContent: {
-    width: '100%',
+  customChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   modalTitle: {
     ...FONTS.h3,
     color: COLORS.text,
     marginBottom: 20,
     textAlign: 'center',
-  },
-  inputLabel: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: COLORS.surface,
+    fontWeight: '700',
   },
   datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 4,
-    padding: 12,
+    borderRadius: 8,
+    padding: 14,
     marginBottom: 16,
+    backgroundColor: COLORS.surface,
   },
   datePickerText: {
     ...FONTS.body2,
@@ -752,10 +857,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 16,
+    gap: 12,
   },
   modalButton: {
     flex: 1,
-    marginHorizontal: 5,
   },
 });
 

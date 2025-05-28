@@ -42,7 +42,7 @@ const authService = {
       return { 
         data: null, 
         success: false, 
-        error: 'Invalid email or password' 
+        error: 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại thông tin đăng nhập.' 
       };
     }
     
@@ -91,7 +91,7 @@ const authService = {
       return { 
         data: null, 
         success: false, 
-        error: 'Email already in use' 
+        error: 'Email này đã được sử dụng. Vui lòng chọn email khác.' 
       };
     }
     
@@ -150,7 +150,7 @@ const authService = {
       return { 
         data: null, 
         success: false, 
-        error: 'No refresh token available' 
+        error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' 
       };
     }
     
@@ -179,7 +179,7 @@ const authService = {
       return { 
         data: null, 
         success: false, 
-        error: 'User not found' 
+        error: 'Không tìm thấy người dùng với email này.' 
       };
     }
     
@@ -201,7 +201,7 @@ const authService = {
       return { 
         data: null, 
         success: false, 
-        error: 'Invalid current password' 
+        error: 'Mật khẩu hiện tại không đúng.' 
       };
     }
     

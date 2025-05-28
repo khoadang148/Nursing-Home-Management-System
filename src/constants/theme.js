@@ -1,3 +1,5 @@
+import { normalize, scale, LAYOUT } from './dimensions';
+
 export const COLORS = {
   primary: '#4169E1', // Royal Blue - primary brand color
   secondary: '#6495ED', // Cornflower Blue - secondary color
@@ -18,66 +20,66 @@ export const COLORS = {
 };
 
 export const SIZES = {
-  // Global sizes
-  base: 8,
-  small: 12,
-  font: 14,
-  medium: 16,
-  large: 18,
-  xlarge: 24,
-  xxlarge: 32,
+  // Global sizes (responsive)
+  base: scale(8),
+  small: scale(12),
+  font: normalize(14),
+  medium: scale(16),
+  large: scale(18),
+  xlarge: scale(24),
+  xxlarge: scale(32),
   
-  // Font sizes
-  h1: 30,
-  h2: 24,
-  h3: 20,
-  h4: 18,
-  h5: 16,
-  body1: 16,
-  body2: 14,
-  body3: 12,
+  // Font sizes (responsive)
+  h1: normalize(30),
+  h2: normalize(24),
+  h3: normalize(20),
+  h4: normalize(18),
+  h5: normalize(16),
+  body1: normalize(16),
+  body2: normalize(14),
+  body3: normalize(12),
   
   // App dimensions
   width: '100%',
   height: '100%',
   
-  // Spacing
-  padding: 16,
-  margin: 16,
-  radius: 8,
+  // Spacing (responsive)
+  padding: LAYOUT.padding.medium,
+  margin: LAYOUT.margin.medium,
+  radius: LAYOUT.borderRadius.medium,
 };
 
 export const FONTS = {
-  h1: { fontSize: SIZES.h1, fontWeight: 'bold', lineHeight: 36 },
-  h2: { fontSize: SIZES.h2, fontWeight: 'bold', lineHeight: 30 },
-  h3: { fontSize: SIZES.h3, fontWeight: 'bold', lineHeight: 26 },
-  h4: { fontSize: SIZES.h4, fontWeight: '600', lineHeight: 24 },
-  h5: { fontSize: SIZES.h5, fontWeight: '600', lineHeight: 22 },
-  body1: { fontSize: SIZES.body1, lineHeight: 22 },
-  body2: { fontSize: SIZES.body2, lineHeight: 20 },
-  body3: { fontSize: SIZES.body3, lineHeight: 18 },
+  h1: { fontSize: SIZES.h1, fontWeight: 'bold', lineHeight: normalize(36) },
+  h2: { fontSize: SIZES.h2, fontWeight: 'bold', lineHeight: normalize(30) },
+  h3: { fontSize: SIZES.h3, fontWeight: 'bold', lineHeight: normalize(26) },
+  h4: { fontSize: SIZES.h4, fontWeight: '600', lineHeight: normalize(24) },
+  h5: { fontSize: SIZES.h5, fontWeight: '600', lineHeight: normalize(22) },
+  body1: { fontSize: SIZES.body1, lineHeight: normalize(22) },
+  body2: { fontSize: SIZES.body2, lineHeight: normalize(20) },
+  body3: { fontSize: SIZES.body3, lineHeight: normalize(18) },
 };
 
 export const SHADOWS = {
   small: {
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: scale(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: scale(3),
     elevation: 2,
   },
   medium: {
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: scale(4) },
     shadowOpacity: 0.15,
-    shadowRadius: 5,
+    shadowRadius: scale(5),
     elevation: 4,
   },
   large: {
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: scale(6) },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowRadius: scale(8),
     elevation: 8,
   },
 };

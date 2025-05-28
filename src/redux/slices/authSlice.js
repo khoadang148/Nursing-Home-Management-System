@@ -92,6 +92,7 @@ const initialState = {
   isLoading: false,
   isInitialized: false,
   error: null,
+  message: null,
 };
 
 // Auth slice
@@ -102,19 +103,29 @@ const authSlice = createSlice({
     resetAuthError: (state) => {
       state.error = null;
     },
+    resetAuthMessage: (state) => {
+      state.message = null;
+    },
+    clearAuthState: (state) => {
+      state.error = null;
+      state.message = null;
+    },
   },
   extraReducers: (builder) => {
     builder
       // Check auth state
       .addCase(checkAuthState.pending, (state) => {
         state.isLoading = true;
+        state.message = 'Đang kiểm tra trạng thái đăng nhập...';
       })
       .addCase(checkAuthState.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isInitialized = true;
+        state.message = null;
         if (action.payload.success) {
           state.user = action.payload.data;
           state.isAuthenticated = true;
+          state.message = 'Đã đăng nhập thành công';
         } else {
           state.user = null;
           state.tokens = null;
@@ -127,47 +138,59 @@ const authSlice = createSlice({
         state.user = null;
         state.tokens = null;
         state.isAuthenticated = false;
+        state.message = null;
       })
       
       // Login
       .addCase(login.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.message = 'Đang đăng nhập...';
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
+        state.error = null;
+        state.message = 'Đăng nhập thành công!';
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Login failed';
+        state.error = action.payload || 'Đăng nhập thất bại';
+        state.message = null;
       })
       
       // Register
       .addCase(register.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.message = 'Đang đăng ký tài khoản...';
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.error = null;
+        state.message = 'Đăng ký tài khoản thành công! Vui lòng đăng nhập.';
         // Registration successful, but not logged in yet
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Registration failed';
+        state.error = action.payload || 'Đăng ký thất bại';
+        state.message = null;
       })
       
       // Logout
       .addCase(logout.pending, (state) => {
         state.isLoading = true;
+        state.message = 'Đang đăng xuất...';
       })
       .addCase(logout.fulfilled, (state) => {
         state.isLoading = false;
         state.isAuthenticated = false;
         state.user = null;
         state.tokens = null;
+        state.error = null;
+        state.message = 'Đã đăng xuất thành công';
       })
       .addCase(logout.rejected, (state) => {
         state.isLoading = false;
@@ -175,23 +198,47 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.tokens = null;
+        state.message = 'Đã đăng xuất';
       })
       
       // Refresh token
+      .addCase(refreshToken.pending, (state) => {
+        state.message = 'Đang làm mới phiên đăng nhập...';
+      })
       .addCase(refreshToken.fulfilled, (state, action) => {
         if (state.tokens) {
           state.tokens.authToken = action.payload.authToken;
         }
+        state.message = null;
       })
       .addCase(refreshToken.rejected, (state) => {
         // Token refresh failed, logout user
         state.isAuthenticated = false;
         state.user = null;
         state.tokens = null;
+        state.error = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        state.message = null;
+      })
+      
+      // Reset password
+      .addCase(resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.message = 'Đang gửi yêu cầu đặt lại mật khẩu...';
+      })
+      .addCase(resetPassword.fulfilled, (state) => {
+        state.isLoading = false;
+        state.error = null;
+        state.message = 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.';
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Không thể gửi email đặt lại mật khẩu';
+        state.message = null;
       });
   },
 });
 
-export const { resetAuthError } = authSlice.actions;
+export const { resetAuthError, resetAuthMessage, clearAuthState } = authSlice.actions;
 
 export default authSlice.reducer; 

@@ -12,15 +12,15 @@ const Stack = createStackNavigator();
 const TasksNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="TaskList"
+      initialRouteName="DanhSachNhiemVu"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="TaskList" component={TaskListScreen} />
-      <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
-      <Stack.Screen name="AddTask" component={AddTaskScreen} />
-      <Stack.Screen name="EditTask" component={EditTaskScreen} />
+      <Stack.Screen name="DanhSachNhiemVu" component={TaskListScreen} />
+      <Stack.Screen name="ChiTietNhiemVu" component={TaskDetailScreen} />
+      <Stack.Screen name="ThemNhiemVu" component={AddTaskScreen} />
+      <Stack.Screen name="SuaNhiemVu" component={EditTaskScreen} />
     </Stack.Navigator>
   );
 };

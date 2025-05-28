@@ -24,8 +24,8 @@ const MedicationAdminScreen = () => {
   const handleAdminister = () => {
     // Here would be logic to record the administration
     Alert.alert(
-      'Medication Administered',
-      `Successfully recorded administration of ${medication.name}`,
+      'Đã cung cấp thuốc',
+      `Đã ghi nhận thành công việc cung cấp ${medication.name}`,
       [
         { 
           text: 'OK', 
@@ -44,19 +44,19 @@ const MedicationAdminScreen = () => {
         >
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Administer Medication</Text>
+        <Text style={styles.headerTitle}>Cung cấp thuốc</Text>
         <View style={{ width: 30 }} />
       </View>
 
       <View style={styles.medicationInfo}>
         <Text style={styles.medicationName}>{medication.name}</Text>
         <Text style={styles.medicationDetails}>{medication.dosage} - {medication.schedule}</Text>
-        <Text style={styles.adminTime}>Current Time: {adminDateTime}</Text>
+        <Text style={styles.adminTime}>Thời gian hiện tại: {adminDateTime}</Text>
       </View>
 
       <View style={styles.formContainer}>
         <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Patient Refused Medication</Text>
+          <Text style={styles.switchLabel}>Bệnh nhân từ chối thuốc</Text>
           <Switch
             value={wasRefused}
             onValueChange={setWasRefused}
@@ -66,12 +66,12 @@ const MedicationAdminScreen = () => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Notes</Text>
+          <Text style={styles.label}>Ghi chú</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Any additional notes about this administration"
+            placeholder="Ghi chú bổ sung về việc cung cấp thuốc này"
             multiline={true}
             numberOfLines={4}
           />
@@ -79,7 +79,7 @@ const MedicationAdminScreen = () => {
 
         <View style={styles.confirmationContainer}>
           <Text style={styles.confirmationText}>
-            I confirm that I have administered the medication as prescribed.
+Tôi xác nhận rằng tôi đã cung cấp thuốc theo đúng đơn.
           </Text>
         </View>
 
@@ -89,7 +89,7 @@ const MedicationAdminScreen = () => {
         >
           <Icon name={wasRefused ? "close-circle" : "check-circle"} size={20} color="#fff" />
           <Text style={styles.buttonText}>
-            {wasRefused ? 'Record as Refused' : 'Confirm Administration'}
+            {wasRefused ? 'Ghi nhận từ chối' : 'Xác nhận cung cấp'}
           </Text>
         </TouchableOpacity>
       </View>

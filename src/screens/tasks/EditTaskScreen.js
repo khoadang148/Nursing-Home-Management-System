@@ -167,10 +167,10 @@ const EditTaskScreen = () => {
       <View style={styles.container}>
         <Appbar.Header style={styles.appbar}>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Edit Task" />
+          <Appbar.Content title="Chỉnh sửa nhiệm vụ" />
         </Appbar.Header>
         <View style={styles.loadingContainer}>
-          <Text>Loading...</Text>
+          <Text>Đang tải...</Text>
         </View>
       </View>
     );
@@ -180,7 +180,7 @@ const EditTaskScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={handleBack} />
-        <Appbar.Content title="Edit Task" />
+        <Appbar.Content title="Chỉnh sửa nhiệm vụ" />
       </Appbar.Header>
 
       <Portal>

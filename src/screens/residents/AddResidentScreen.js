@@ -32,7 +32,7 @@ const AddResidentScreen = ({ navigation }) => {
   const [roomNumber, setRoomNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(new Date(1950, 0, 1));
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [careLevel, setCareLevel] = useState('Medium');
+  const [careLevel, setCareLevel] = useState('Trung Bình');
   const [careLevelMenuVisible, setCareLevelMenuVisible] = useState(false);
   const [medicalConditions, setMedicalConditions] = useState([]);
   const [currentCondition, setCurrentCondition] = useState('');
@@ -107,7 +107,7 @@ const AddResidentScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={handleBack} />
-        <Appbar.Content title="Add New Resident" />
+        <Appbar.Content title="Thêm Cư Dân Mới" />
       </Appbar.Header>
 
       <KeyboardAvoidingView
@@ -127,22 +127,22 @@ const AddResidentScreen = ({ navigation }) => {
               onPress={() => console.log('Upload photo')}
               style={styles.uploadButton}
             >
-              Upload Photo
+              Tải Ảnh Lên
             </Button>
           </View>
 
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>Thông Tin Cá Nhân</Text>
           
           <View style={styles.inputRow}>
             <TextInput
-              label="First Name *"
+              label="Họ *"
               value={firstName}
               onChangeText={setFirstName}
               style={styles.inputHalf}
               mode="outlined"
             />
             <TextInput
-              label="Last Name *"
+              label="Tên *"
               value={lastName}
               onChangeText={setLastName}
               style={styles.inputHalf}
@@ -151,7 +151,7 @@ const AddResidentScreen = ({ navigation }) => {
           </View>
 
           <TextInput
-            label="Room Number *"
+            label="Số Phòng *"
             value={roomNumber}
             onChangeText={setRoomNumber}
             style={styles.input}
@@ -161,8 +161,8 @@ const AddResidentScreen = ({ navigation }) => {
 
           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.datePickerButton}>
             <TextInput
-              label="Date of Birth *"
-              value={format(dateOfBirth, 'MM/dd/yyyy')}
+              label="Ngày Sinh *"
+              value={format(dateOfBirth, 'dd/MM/yyyy')}
               editable={false}
               mode="outlined"
               right={<TextInput.Icon icon="calendar" />}
@@ -184,7 +184,7 @@ const AddResidentScreen = ({ navigation }) => {
             onPress={() => setCareLevelMenuVisible(true)}
             style={styles.careLevelContainer}
           >
-            <Text style={styles.inputLabel}>Care Level *</Text>
+            <Text style={styles.inputLabel}>Mức Độ Chăm Sóc *</Text>
             <View style={styles.careLevelSelector}>
               <Text style={styles.careLevelText}>{careLevel}</Text>
               <MaterialIcons name="arrow-drop-down" size={24} color={COLORS.textPrimary} />
@@ -197,40 +197,40 @@ const AddResidentScreen = ({ navigation }) => {
             >
               <Menu.Item 
                 onPress={() => {
-                  setCareLevel('Low');
+                  setCareLevel('Thấp');
                   setCareLevelMenuVisible(false);
                 }}
-                title="Low"
+                title="Thấp"
               />
               <Menu.Item 
                 onPress={() => {
-                  setCareLevel('Medium');
+                  setCareLevel('Trung Bình');
                   setCareLevelMenuVisible(false);
                 }}
-                title="Medium"
+                title="Trung Bình"
               />
               <Menu.Item 
                 onPress={() => {
-                  setCareLevel('High');
+                  setCareLevel('Cao');
                   setCareLevelMenuVisible(false);
                 }}
-                title="High" 
+                title="Cao" 
               />
             </Menu>
           </TouchableOpacity>
 
           <Divider style={styles.divider} />
-          <Text style={styles.sectionTitle}>Medical Information</Text>
+          <Text style={styles.sectionTitle}>Thông Tin Y Tế</Text>
 
           <TextInput
-            label="Primary Doctor"
+            label="Bác Sĩ Chính"
             value={doctor}
             onChangeText={setDoctor}
             style={styles.input}
             mode="outlined"
           />
 
-          <Text style={styles.inputLabel}>Medical Conditions</Text>
+          <Text style={styles.inputLabel}>Tình Trạng Bệnh Lý</Text>
           <View style={styles.chipsContainer}>
             {medicalConditions.map((condition, index) => (
               <Chip 
@@ -244,7 +244,7 @@ const AddResidentScreen = ({ navigation }) => {
           </View>
           <View style={styles.addItemContainer}>
             <TextInput
-              label="Add Medical Condition"
+              label="Thêm Tình Trạng Bệnh Lý"
               value={currentCondition}
               onChangeText={setCurrentCondition}
               style={styles.addItemInput}
@@ -256,11 +256,11 @@ const AddResidentScreen = ({ navigation }) => {
               disabled={currentCondition.trim() === ''}
               style={styles.addButton}
             >
-              Add
+              Thêm
             </Button>
           </View>
 
-          <Text style={styles.inputLabel}>Allergies</Text>
+          <Text style={styles.inputLabel}>Dị Ứng</Text>
           <View style={styles.chipsContainer}>
             {allergies.map((allergy, index) => (
               <Chip 
@@ -274,7 +274,7 @@ const AddResidentScreen = ({ navigation }) => {
           </View>
           <View style={styles.addItemContainer}>
             <TextInput
-              label="Add Allergy"
+              label="Thêm Dị Ứng"
               value={currentAllergy}
               onChangeText={setCurrentAllergy}
               style={styles.addItemInput}
@@ -286,12 +286,12 @@ const AddResidentScreen = ({ navigation }) => {
               disabled={currentAllergy.trim() === ''}
               style={styles.addButton}
             >
-              Add
+              Thêm
             </Button>
           </View>
 
           <TextInput
-            label="Dietary Restrictions"
+            label="Hạn Chế Chế Độ Ăn"
             value={dietaryRestrictions}
             onChangeText={setDietaryRestrictions}
             style={styles.input}
@@ -300,10 +300,10 @@ const AddResidentScreen = ({ navigation }) => {
           />
 
           <Divider style={styles.divider} />
-          <Text style={styles.sectionTitle}>Emergency Contact</Text>
+          <Text style={styles.sectionTitle}>Liên Hệ Khẩn Cấp</Text>
 
           <TextInput
-            label="Name"
+            label="Họ Tên"
             value={emergencyContactName}
             onChangeText={setEmergencyContactName}
             style={styles.input}
@@ -311,7 +311,7 @@ const AddResidentScreen = ({ navigation }) => {
           />
 
           <TextInput
-            label="Relationship"
+            label="Mối Quan Hệ"
             value={emergencyContactRelation}
             onChangeText={setEmergencyContactRelation}
             style={styles.input}
@@ -319,7 +319,7 @@ const AddResidentScreen = ({ navigation }) => {
           />
 
           <TextInput
-            label="Phone"
+            label="Số Điện Thoại"
             value={emergencyContactPhone}
             onChangeText={setEmergencyContactPhone}
             style={styles.input}
@@ -343,7 +343,7 @@ const AddResidentScreen = ({ navigation }) => {
               style={styles.cancelButton}
               labelStyle={styles.cancelButtonText}
             >
-              Cancel
+              Hủy
             </Button>
             <Button
               mode="contained"
@@ -352,7 +352,7 @@ const AddResidentScreen = ({ navigation }) => {
               labelStyle={styles.submitButtonText}
               disabled={!firstName || !lastName || !roomNumber}
             >
-              Save Resident
+              Lưu Cư Dân
             </Button>
           </View>
         </ScrollView>
@@ -364,16 +364,16 @@ const AddResidentScreen = ({ navigation }) => {
           onDismiss={() => setDiscardDialogVisible(false)}
           style={styles.dialog}
         >
-          <Dialog.Title>Discard Changes?</Dialog.Title>
+          <Dialog.Title>Hủy Thay Đổi?</Dialog.Title>
           <Dialog.Content>
-            <Text>You have unsaved changes. Are you sure you want to discard them?</Text>
+            <Text>Bạn có những thay đổi chưa được lưu. Bạn có chắc chắn muốn hủy bỏ chúng không?</Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDiscardDialogVisible(false)}>Cancel</Button>
+            <Button onPress={() => setDiscardDialogVisible(false)}>Hủy</Button>
             <Button onPress={() => {
               setDiscardDialogVisible(false);
               navigation.goBack();
-            }}>Discard</Button>
+            }}>Bỏ Qua</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

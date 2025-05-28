@@ -17,11 +17,11 @@ const ActivityNavigator = () => {
         headerShown: false
       }}
     >
-      <Stack.Screen name="ActivityList" component={ActivityListScreen} />
-      <Stack.Screen name="ActivityDetails" component={ActivityDetailsScreen} />
-      <Stack.Screen name="CreateActivity" component={CreateActivityScreen} />
-      <Stack.Screen name="ActivityCalendar" component={ActivityCalendarScreen} />
-      <Stack.Screen name="RecommendActivity" component={RecommendActivityScreen} />
+      <Stack.Screen name="DanhSachHoatDong" component={ActivityListScreen} />
+      <Stack.Screen name="ChiTietHoatDong" component={ActivityDetailsScreen} />
+      <Stack.Screen name="TaoHoatDong" component={CreateActivityScreen} />
+      <Stack.Screen name="LichHoatDong" component={ActivityCalendarScreen} />
+      <Stack.Screen name="DeXuatHoatDong" component={RecommendActivityScreen} />
     </Stack.Navigator>
   );
 };

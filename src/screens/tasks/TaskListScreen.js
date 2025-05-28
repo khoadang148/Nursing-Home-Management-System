@@ -16,95 +16,95 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 export const mockTasks = [
   {
     id: '1',
-    title: 'Medication Administration',
-    description: 'Administer morning medications to John Doe',
+    title: 'Quản lý thuốc',
+    description: 'Quản lý thuốc buổi sáng cho John Doe',
     dueDate: '2024-03-15T09:00:00',
-    priority: 'High',
-    status: 'Pending',
+    priority: 'Cao',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '1',
     residentName: 'John Doe',
     roomNumber: '101',
-    category: 'Medication',
+    category: 'Thuốc',
   },
   {
     id: '2',
-    title: 'Blood Pressure Check',
-    description: 'Check and record blood pressure for Mary Smith',
+    title: 'Kiểm tra huyết áp',
+    description: 'Kiểm tra và ghi lại huyết áp của Mary Smith',
     dueDate: '2024-03-15T10:30:00',
-    priority: 'Medium',
-    status: 'Pending',
+    priority: 'Trung bình',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '2',
     residentName: 'Mary Smith',
     roomNumber: '102',
-    category: 'Vitals',
+    category: 'Dấu hiệu sinh tồn',
   },
   {
     id: '3',
-    title: 'Physical Therapy Session',
-    description: 'Assist William Johnson with PT exercises',
+    title: 'Buổi vật lý trị liệu',
+    description: 'Hỗ trợ William Johnson với các bài tập PT',
     dueDate: '2024-03-15T13:00:00',
-    priority: 'Medium',
-    status: 'Pending',
+    priority: 'Trung bình',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '3',
     residentName: 'William Johnson',
     roomNumber: '103',
-    category: 'Therapy',
+    category: 'Liệu pháp',
   },
   {
     id: '4',
-    title: 'Wound Dressing Change',
-    description: 'Change wound dressing for Patricia Brown',
+    title: 'Thay băng vết thương',
+    description: 'Thay băng vết thương cho Patricia Brown',
     dueDate: '2024-03-15T11:15:00',
-    priority: 'High',
-    status: 'Pending',
+    priority: 'Cao',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '4',
     residentName: 'Patricia Brown',
     roomNumber: '104',
-    category: 'Treatment',
+    category: 'Điều trị',
   },
   {
     id: '5',
-    title: 'Social Activity',
-    description: 'Escort Richard Miller to group activity in common room',
+    title: 'Hoạt động xã hội',
+    description: 'Đưa Richard Miller đến hoạt động nhóm tại phòng chung',
     dueDate: '2024-03-15T14:30:00',
-    priority: 'Low',
-    status: 'Pending',
+    priority: 'Thấp',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '5',
     residentName: 'Richard Miller',
     roomNumber: '105',
-    category: 'Activity',
+    category: 'Hoạt động',
   },
   {
     id: '6',
-    title: 'Medication Administration',
-    description: 'Administer afternoon medications to John Doe',
+    title: 'Quản lý thuốc',
+    description: 'Quản lý thuốc buổi chiều cho John Doe',
     dueDate: '2024-03-15T15:00:00',
-    priority: 'High',
-    status: 'Pending',
+    priority: 'Cao',
+    status: 'Chờ xử lý',
     assignedTo: 'Jane Wilson',
     residentId: '1',
     residentName: 'John Doe',
     roomNumber: '101',
-    category: 'Medication',
+    category: 'Thuốc',
   },
   {
     id: '7',
-    title: 'Change Bed Linens',
-    description: 'Change bed linens for Mary Smith',
+    title: 'Thay ga giường',
+    description: 'Thay ga giường cho Mary Smith',
     dueDate: '2024-03-15T10:00:00',
-    priority: 'Low',
-    status: 'Completed',
+    priority: 'Thấp',
+    status: 'Hoàn thành',
     completedAt: '2024-03-15T09:45:00',
     assignedTo: 'Jane Wilson',
     residentId: '2',
     residentName: 'Mary Smith',
     roomNumber: '102',
-    category: 'Housekeeping',
+    category: 'Vệ sinh',
   },
 ];
 
@@ -151,16 +151,16 @@ const TaskListScreen = ({ navigation }) => {
     // Apply status filter
     switch (activeFilter) {
       case 'pending':
-        filtered = filtered.filter(task => task.status === 'Pending');
+        filtered = filtered.filter(task => task.status === 'Chờ xử lý');
         break;
       case 'completed':
-        filtered = filtered.filter(task => task.status === 'Completed');
+        filtered = filtered.filter(task => task.status === 'Hoàn thành');
         break;
       case 'overdue':
         const now = new Date();
         filtered = filtered.filter(
           task => 
-            task.status === 'Pending' && 
+            task.status === 'Chờ xử lý' && 
             new Date(task.dueDate) < now
         );
         break;
@@ -175,7 +175,7 @@ const TaskListScreen = ({ navigation }) => {
         filtered.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
         break;
       case 'priority':
-        const priorityOrder = { High: 1, Medium: 2, Low: 3 };
+        const priorityOrder = { Cao: 1, 'Trung bình': 2, Thấp: 3 };
         filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
         break;
       case 'resident':
@@ -194,7 +194,7 @@ const TaskListScreen = ({ navigation }) => {
         task.id === taskId
           ? {
               ...task,
-              status: 'Completed',
+              status: 'Hoàn thành',
               completedAt: new Date().toISOString(),
             }
           : task
@@ -208,7 +208,7 @@ const TaskListScreen = ({ navigation }) => {
         task.id === taskId
           ? {
               ...task,
-              status: 'Pending',
+              status: 'Chờ xử lý',
               completedAt: null,
             }
           : task
@@ -231,7 +231,7 @@ const TaskListScreen = ({ navigation }) => {
       dueDate.getFullYear() === today.getFullYear();
       
     // Calculate the date string to display
-    let dateString = isToday ? 'Today' : dueDate.toLocaleDateString();
+            let dateString = isToday ? 'Hôm nay' : dueDate.toLocaleDateString('vi-VN');
     
     return (
       <TouchableOpacity
@@ -275,7 +275,7 @@ const TaskListScreen = ({ navigation }) => {
                 styles.statusChip,
                 {
                   backgroundColor:
-                    item.status === 'Completed'
+                    item.status === 'Hoàn thành'
                       ? COLORS.success + '20'
                       : isOverdue
                       ? COLORS.error + '20'
@@ -284,7 +284,7 @@ const TaskListScreen = ({ navigation }) => {
               ]}
               textStyle={{
                 color:
-                  item.status === 'Completed'
+                  item.status === 'Hoàn thành'
                     ? COLORS.success
                     : isOverdue
                     ? COLORS.error
@@ -292,7 +292,7 @@ const TaskListScreen = ({ navigation }) => {
                 ...FONTS.body3,
               }}
             >
-              {item.status === 'Completed' ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'}
+              {item.status === 'Hoàn thành' ? 'Hoàn thành' : isOverdue ? 'Quá hạn' : 'Chờ xử lý'}
             </Chip>
           </View>
         </View>
@@ -300,7 +300,7 @@ const TaskListScreen = ({ navigation }) => {
         <View style={styles.taskResidentInfo}>
           <MaterialIcons name="person" size={16} color={COLORS.textSecondary} />
           <Text style={styles.taskResidentName}>{item.residentName}</Text>
-          <Text style={styles.taskRoomNumber}>Room {item.roomNumber}</Text>
+          <Text style={styles.taskRoomNumber}>Phòng {item.roomNumber}</Text>
         </View>
         
         <Text style={styles.taskDescription} numberOfLines={2}>
@@ -321,7 +321,7 @@ const TaskListScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.taskActions}>
-            {item.status === 'Pending' ? (
+            {item.status === 'Chờ xử lý' ? (
               <TouchableOpacity
                 style={styles.completeButton}
                 onPress={() => markTaskCompleted(item.id)}
@@ -345,10 +345,10 @@ const TaskListScreen = ({ navigation }) => {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="checkbox-marked-outline" size={60} color={COLORS.textSecondary} />
-      <Text style={styles.emptyText}>No tasks found</Text>
+      <Text style={styles.emptyText}>Không tìm thấy nhiệm vụ</Text>
       {activeFilter !== 'all' && (
         <TouchableOpacity onPress={() => setActiveFilter('all')}>
-          <Text style={styles.emptyActionText}>Clear filters</Text>
+          <Text style={styles.emptyActionText}>Xóa bộ lọc</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -365,7 +365,7 @@ const TaskListScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Tasks" />
+        <Appbar.Content title="Nhiệm vụ" />
         <Appbar.Action icon="bell" onPress={() => navigation.navigate('Notifications')} />
         <Menu
           visible={sortMenuVisible}
@@ -382,7 +382,7 @@ const TaskListScreen = ({ navigation }) => {
               setActiveSort('time');
               setSortMenuVisible(false);
             }}
-            title="Sort by Time"
+            title="Sắp xếp theo thời gian"
             leadingIcon="clock-outline"
             titleStyle={activeSort === 'time' ? styles.activeMenuText : null}
           />
@@ -391,7 +391,7 @@ const TaskListScreen = ({ navigation }) => {
               setActiveSort('priority');
               setSortMenuVisible(false);
             }}
-            title="Sort by Priority"
+            title="Sắp xếp theo độ ưu tiên"
             leadingIcon="flag-outline"
             titleStyle={activeSort === 'priority' ? styles.activeMenuText : null}
           />
@@ -400,7 +400,7 @@ const TaskListScreen = ({ navigation }) => {
               setActiveSort('resident');
               setSortMenuVisible(false);
             }}
-            title="Sort by Resident"
+            title="Sắp xếp theo cư dân"
             leadingIcon="account-outline"
             titleStyle={activeSort === 'resident' ? styles.activeMenuText : null}
           />
@@ -409,7 +409,7 @@ const TaskListScreen = ({ navigation }) => {
 
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Search tasks, residents or rooms..."
+          placeholder="Tìm kiếm nhiệm vụ, cư dân hoặc phòng..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
@@ -432,7 +432,7 @@ const TaskListScreen = ({ navigation }) => {
                 activeFilter === 'all' && styles.activeFilterText,
               ]}
             >
-              All
+Tất cả
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -448,7 +448,7 @@ const TaskListScreen = ({ navigation }) => {
                 activeFilter === 'pending' && styles.activeFilterText,
               ]}
             >
-              Pending
+Chờ xử lý
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -464,7 +464,7 @@ const TaskListScreen = ({ navigation }) => {
                 activeFilter === 'completed' && styles.activeFilterText,
               ]}
             >
-              Completed
+Hoàn thành
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -480,7 +480,7 @@ const TaskListScreen = ({ navigation }) => {
                 activeFilter === 'overdue' && styles.activeFilterText,
               ]}
             >
-              Overdue
+Quá hạn
             </Text>
           </TouchableOpacity>
         </ScrollView>

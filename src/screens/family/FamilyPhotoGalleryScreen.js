@@ -37,119 +37,119 @@ const mockPhotos = [
     id: '1',
     url: 'https://images.unsplash.com/photo-1573056019137-d8576a36d23c',
     thumbnail: 'https://images.unsplash.com/photo-1573056019137-d8576a36d23c?w=200',
-    title: 'Morning Exercise Group',
+    title: 'Nhóm Tập Thể Dục Buổi Sáng',
     date: '2023-11-10T09:30:00Z',
-    description: 'John participating in our morning exercise routine',
+    description: 'Ông John tham gia hoạt động tập thể dục buổi sáng',
     likes: 3,
     liked: false,
-    tags: ['Activity', 'Exercise', 'Group'],
+    tags: ['Hoạt động', 'Thể dục', 'Nhóm'],
     albumId: '1'
   },
   {
     id: '2',
     url: 'https://images.unsplash.com/photo-1573497491208-6b1acb260507',
     thumbnail: 'https://images.unsplash.com/photo-1573497491208-6b1acb260507?w=200',
-    title: 'Art Therapy Session',
+    title: 'Buổi Trị Liệu Nghệ Thuật',
     date: '2023-11-08T14:15:00Z',
-    description: 'John created a beautiful painting during art therapy',
+    description: 'Ông John đã tạo ra một bức tranh tuyệt đẹp trong buổi trị liệu nghệ thuật',
     likes: 5,
     liked: true,
-    tags: ['Activity', 'Art', 'Creative'],
+    tags: ['Hoạt động', 'Nghệ thuật', 'Sáng tạo'],
     albumId: '2'
   },
   {
     id: '3',
     url: 'https://images.unsplash.com/photo-1554907984-15263bfd63bd',
     thumbnail: 'https://images.unsplash.com/photo-1554907984-15263bfd63bd?w=200',
-    title: 'Garden Club',
+    title: 'Câu Lạc Bộ Làm Vườn',
     date: '2023-11-05T10:45:00Z',
-    description: 'John helping to plant new flowers in our community garden',
+    description: 'Ông John giúp trồng hoa mới trong khu vườn cộng đồng',
     likes: 2,
     liked: false,
-    tags: ['Activity', 'Garden', 'Outdoors'],
+    tags: ['Hoạt động', 'Làm vườn', 'Ngoài trời'],
     albumId: '3'
   },
   {
     id: '4',
     url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f',
     thumbnail: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200',
-    title: 'Music Therapy',
+    title: 'Trị Liệu Âm Nhạc',
     date: '2023-11-03T15:30:00Z',
-    description: 'John enjoying our music therapy session with the visiting pianist',
+    description: 'Ông John thưởng thức buổi trị liệu âm nhạc với nghệ sĩ piano',
     likes: 4,
     liked: false,
-    tags: ['Activity', 'Music', 'Entertainment'],
+    tags: ['Hoạt động', 'Âm nhạc', 'Giải trí'],
     albumId: '4'
   },
   {
     id: '5',
     url: 'https://images.unsplash.com/photo-1581285690158-f4995af90ee6',
     thumbnail: 'https://images.unsplash.com/photo-1581285690158-f4995af90ee6?w=200',
-    title: 'Birthday Celebration',
+    title: 'Tiệc Sinh Nhật',
     date: '2023-11-01T12:00:00Z',
-    description: 'John celebrating his birthday with friends and staff',
+    description: 'Ông John ăn mừng sinh nhật cùng bạn bè và nhân viên',
     likes: 8,
     liked: true,
-    tags: ['Celebration', 'Social', 'Special'],
+    tags: ['Lễ kỷ niệm', 'Xã hội', 'Đặc biệt'],
     albumId: '5'
   },
   {
     id: '6',
     url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea',
     thumbnail: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200',
-    title: 'Family Visit',
+    title: 'Thăm Viếng Gia Đình',
     date: '2023-10-28T11:15:00Z',
-    description: 'John during your last visit',
+    description: 'Ông John trong chuyến thăm gần đây của gia đình',
     likes: 6,
     liked: true,
-    tags: ['Family', 'Visit', 'Social'],
+    tags: ['Gia đình', 'Thăm viếng', 'Xã hội'],
     albumId: '6'
   },
   {
     id: '7',
     url: 'https://images.unsplash.com/photo-1486308510493-aa64833637bc',
     thumbnail: 'https://images.unsplash.com/photo-1486308510493-aa64833637bc?w=200',
-    title: 'Bingo Night',
+    title: 'Đêm Bingo',
     date: '2023-10-25T18:30:00Z',
-    description: 'John winning at our weekly bingo night',
+    description: 'Ông John chiến thắng trong đêm bingo hàng tuần',
     likes: 3,
     liked: false,
-    tags: ['Activity', 'Games', 'Social'],
+    tags: ['Hoạt động', 'Trò chơi', 'Xã hội'],
     albumId: '7'
   },
   {
     id: '8',
     url: 'https://images.unsplash.com/photo-1514896856000-91cb6de818e0',
     thumbnail: 'https://images.unsplash.com/photo-1514896856000-91cb6de818e0?w=200',
-    title: 'Movie Afternoon',
+    title: 'Chiều Xem Phim',
     date: '2023-10-22T14:00:00Z',
-    description: 'John watching a classic film with other residents',
+    description: 'Ông John xem phim kinh điển cùng các cư dân khác',
     likes: 2,
     liked: false,
-    tags: ['Entertainment', 'Social', 'Activity'],
+    tags: ['Giải trí', 'Xã hội', 'Hoạt động'],
     albumId: '8'
   },
   {
     id: '9',
     url: 'https://images.unsplash.com/photo-1426901555017-5a600ff9233f',
     thumbnail: 'https://images.unsplash.com/photo-1426901555017-5a600ff9233f?w=200',
-    title: 'Outdoor Walk',
+    title: 'Đi Bộ Ngoài Trời',
     date: '2023-10-20T09:45:00Z',
-    description: 'John enjoying some fresh air during our morning walk',
+    description: 'Ông John tận hưởng không khí trong lành trong buổi đi bộ sáng',
     likes: 4,
     liked: false,
-    tags: ['Activity', 'Outdoors', 'Exercise'],
+    tags: ['Hoạt động', 'Ngoài trời', 'Thể dục'],
     albumId: '9'
   },
 ];
 
 // Mock album data
 const mockAlbums = [
-  { id: 'all', name: 'All Photos' },
-  { id: 'recent', name: 'Recent' },
-  { id: 'activities', name: 'Activities' },
-  { id: 'family', name: 'Family Visits' },
-  { id: 'events', name: 'Events' },
+  { id: 'all', name: 'Tất cả ảnh' },
+  { id: 'recent', name: 'Gần đây' },
+  { id: 'activities', name: 'Hoạt động' },
+  { id: 'family', name: 'Thăm viếng gia đình' },
+  { id: 'events', name: 'Sự kiện' },
 ];
 
 const FamilyPhotoGalleryScreen = ({ navigation }) => {
@@ -188,7 +188,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -261,7 +261,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading photo gallery...</Text>
+        <Text style={styles.loadingText}>Đang tải thư viện ảnh...</Text>
       </SafeAreaView>
     );
   }
@@ -270,7 +270,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Photo Gallery</Text>
+        <Text style={styles.headerTitle}>Thư Viện Ảnh</Text>
       </View>
       
       {/* Album Filters */}
@@ -299,7 +299,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons name="photo-library" size={60} color={COLORS.border} />
-            <Text style={styles.emptyText}>No photos found</Text>
+            <Text style={styles.emptyText}>Không tìm thấy ảnh nào</Text>
           </View>
         }
       />

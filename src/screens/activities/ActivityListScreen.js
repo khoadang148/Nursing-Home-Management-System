@@ -125,7 +125,7 @@ const ActivityListScreen = () => {
                 icon="account-group" 
                 mode="outlined" 
                 style={styles.chip}>
-                {item.participants} participants
+                {item.participants} người tham gia
               </Chip>
             </View>
           </Card.Content>
@@ -138,14 +138,14 @@ const ActivityListScreen = () => {
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
       <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
-        <Appbar.Content title="Activities" titleStyle={FONTS.h2} />
+        <Appbar.Content title="Hoạt động" titleStyle={FONTS.h2} />
         <Appbar.Action icon="calendar" onPress={() => navigation.navigate('ActivityCalendar')} />
         <Appbar.Action icon="filter-variant" onPress={() => {}} />
       </Appbar.Header>
       
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Search activities"
+          placeholder="Tìm kiếm hoạt động"
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchbar}
@@ -158,17 +158,17 @@ const ActivityListScreen = () => {
         buttons={[
           {
             value: 'today',
-            label: 'Today',
+            label: 'Hôm nay',
             icon: 'calendar-today',
           },
           {
             value: 'upcoming',
-            label: 'Upcoming',
+            label: 'Sắp tới',
             icon: 'calendar-clock',
           },
           {
             value: 'past',
-            label: 'Past',
+            label: 'Đã qua',
             icon: 'calendar-check',
           },
         ]}
@@ -185,8 +185,8 @@ const ActivityListScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="calendar-blank" size={64} color={COLORS.disabled} />
-            <Text style={styles.emptyText}>No activities found</Text>
-            <Text style={styles.emptySubText}>Try changing your filters or create a new activity</Text>
+            <Text style={styles.emptyText}>Không tìm thấy hoạt động nào</Text>
+            <Text style={styles.emptySubText}>Thử thay đổi bộ lọc hoặc tạo hoạt động mới</Text>
           </View>
         }
       />

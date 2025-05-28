@@ -11,8 +11,8 @@ const mockMedications = [
     id: '1', 
     name: 'Paracetamol', 
     dosage: '500mg', 
-    schedule: 'Morning, Evening',
-    category: 'Pain Relief',
+    schedule: 'Sáng, Tối',
+    category: 'Giảm đau',
     residentName: 'John Doe',
     roomNumber: '101',
     nextDue: '2024-03-15T09:00:00'
@@ -21,8 +21,8 @@ const mockMedications = [
     id: '2', 
     name: 'Amoxicillin', 
     dosage: '250mg', 
-    schedule: 'Three times a day',
-    category: 'Antibiotic',
+    schedule: 'Ba lần một ngày',
+    category: 'Kháng sinh',
     residentName: 'Mary Smith',
     roomNumber: '102',
     nextDue: '2024-03-15T08:00:00'
@@ -31,8 +31,8 @@ const mockMedications = [
     id: '3', 
     name: 'Ibuprofen', 
     dosage: '400mg', 
-    schedule: 'As needed',
-    category: 'Anti-inflammatory',
+    schedule: 'Khi cần thiết',
+    category: 'Chống viêm',
     residentName: 'William Johnson',
     roomNumber: '103',
     nextDue: null
@@ -41,8 +41,8 @@ const mockMedications = [
     id: '4', 
     name: 'Metformin', 
     dosage: '850mg', 
-    schedule: 'Twice daily with meals',
-    category: 'Diabetes',
+    schedule: 'Hai lần một ngày với bữa ăn',
+    category: 'Tiểu đường',
     residentName: 'Patricia Brown',
     roomNumber: '104',
     nextDue: '2024-03-15T12:00:00'
@@ -51,7 +51,7 @@ const mockMedications = [
     id: '5', 
     name: 'Simvastatin', 
     dosage: '20mg', 
-    schedule: 'Once daily at bedtime',
+    schedule: 'Một lần một ngày trước khi đi ngủ',
     category: 'Cholesterol',
     residentName: 'Richard Miller',
     roomNumber: '105',
@@ -99,7 +99,7 @@ const MedicationListScreen = () => {
   };
 
   const getFormattedTime = (dateString) => {
-    if (!dateString) return 'As needed';
+    if (!dateString) return 'Khi cần thiết';
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -124,7 +124,7 @@ const MedicationListScreen = () => {
             <MaterialIcons name="person" size={16} color={COLORS.textSecondary} />
             <Text style={styles.residentName}>{item.residentName}</Text>
             <MaterialIcons name="room" size={16} color={COLORS.textSecondary} />
-            <Text style={styles.roomNumber}>Room {item.roomNumber}</Text>
+            <Text style={styles.roomNumber}>Phòng {item.roomNumber}</Text>
           </View>
           
           <View style={styles.scheduleInfo}>
@@ -138,7 +138,7 @@ const MedicationListScreen = () => {
               onPress={() => navigation.navigate('MedicationSchedule', { medicationId: item.id })}
             >
               <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
-              <Text style={styles.actionButtonText}>Schedule</Text>
+              <Text style={styles.actionButtonText}>Lịch trình</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -146,7 +146,7 @@ const MedicationListScreen = () => {
               onPress={() => navigation.navigate('MedicationAdmin', { medicationId: item.id })}
             >
               <MaterialCommunityIcons name="pill" size={20} color={COLORS.primary} />
-              <Text style={styles.actionButtonText}>Administer</Text>
+              <Text style={styles.actionButtonText}>Quản lý</Text>
             </TouchableOpacity>
           </View>
         </Card.Content>
@@ -157,21 +157,21 @@ const MedicationListScreen = () => {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="pill-off" size={60} color={COLORS.textSecondary} />
-      <Text style={styles.emptyText}>No medications found</Text>
-      <Text style={styles.emptySubtext}>Try changing your search or filter</Text>
+      <Text style={styles.emptyText}>Không tìm thấy thuốc</Text>
+      <Text style={styles.emptySubtext}>Thử thay đổi tìm kiếm hoặc bộ lọc</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Medications" titleStyle={FONTS.h2} />
+        <Appbar.Content title="Thuốc" titleStyle={FONTS.h2} />
         <Appbar.Action icon="tune-vertical" onPress={() => {}} />
       </Appbar.Header>
       
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Search medications or residents..."
+          placeholder="Tìm kiếm thuốc hoặc cư dân..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchbar}
@@ -192,7 +192,7 @@ const MedicationListScreen = () => {
               activeFilter === 'all' && styles.activeFilterText,
             ]}
           >
-            All
+Tất cả
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -208,7 +208,7 @@ const MedicationListScreen = () => {
               activeFilter === 'scheduled' && styles.activeFilterText,
             ]}
           >
-            Scheduled
+Đã lên lịch
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -224,7 +224,7 @@ const MedicationListScreen = () => {
               activeFilter === 'asNeeded' && styles.activeFilterText,
             ]}
           >
-            As Needed (PRN)
+Khi cần thiết (PRN)
           </Text>
         </TouchableOpacity>
       </View>

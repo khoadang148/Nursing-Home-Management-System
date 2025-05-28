@@ -12,6 +12,7 @@ import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 
+
 // Mock data - In a real app, this would come from an API
 const mockDashboardData = {
   residents: {
@@ -39,25 +40,25 @@ const mockDashboardData = {
     {
       id: '1',
       type: 'urgent',
-      title: 'Medication Alert',
-      message: 'John Doe missed morning medication',
+      title: 'Cảnh Báo Thuốc',
+      message: 'John Doe bỏ lỡ thuốc buổi sáng',
       time: '10:15 AM',
       read: false,
     },
     {
       id: '2',
       type: 'info',
-      title: 'New Resident',
-      message: 'Margaret Wilson has been admitted to Room 204',
-      time: 'Yesterday',
+      title: 'Cư Dân Mới',
+      message: 'Margaret Wilson đã được đưa vào Phòng 204',
+      time: 'Hôm qua',
       read: true,
     },
     {
       id: '3',
       type: 'warning',
-      title: 'Vital Signs',
-      message: 'Mary Smith has elevated blood pressure',
-      time: 'Yesterday',
+      title: 'Dấu Hiệu Sinh Tồn',
+      message: 'Mary Smith có huyết áp cao',
+      time: 'Hôm qua',
       read: false,
     },
   ],
@@ -66,18 +67,18 @@ const mockDashboardData = {
 const upcomingShifts = [
   {
     id: '1',
-    date: 'Today',
+    date: 'Hôm nay',
     startTime: '07:00 AM',
     endTime: '03:00 PM',
-    department: 'General',
+    department: 'Khoa Tổng Quát',
     assignedResidents: 8,
   },
   {
     id: '2',
-    date: 'Tomorrow',
+    date: 'Ngày mai',
     startTime: '03:00 PM',
     endTime: '11:00 PM',
-    department: 'Memory Care',
+    department: 'Khoa Chăm Sóc Trí Nhớ',
     assignedResidents: 6,
   },
 ];
@@ -98,11 +99,11 @@ const DashboardScreen = ({ navigation }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
+          <Text style={styles.welcomeText}>Xin chào,</Text>
           <Text style={styles.nameText}>Jane Wilson</Text>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('HoSo')}
           style={styles.profileButton}
         >
           <Avatar.Image
@@ -124,32 +125,32 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.cardRow}>
           <TouchableOpacity
             style={[styles.summaryCard, { backgroundColor: COLORS.primary }]}
-            onPress={() => navigation.navigate('Residents')}
+            onPress={() => navigation.navigate('CuDan')}
           >
             <View style={styles.cardIconContainer}>
               <FontAwesome5 name="user-injured" size={24} color={COLORS.surface} />
             </View>
-            <Text style={styles.cardTitle}>Residents</Text>
+            <Text style={styles.cardTitle}>Cư Dân</Text>
             <Text style={styles.cardValue}>{dashboardData.residents.total}</Text>
             <View style={styles.cardFooter}>
               <Text style={styles.cardFooterText}>
-                {dashboardData.residents.newAdmissions} new
+                {dashboardData.residents.newAdmissions} mới
               </Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.summaryCard, { backgroundColor: COLORS.accent }]}
-            onPress={() => navigation.navigate('Tasks')}
+            onPress={() => navigation.navigate('NhiemVu')}
           >
             <View style={styles.cardIconContainer}>
               <MaterialIcons name="assignment" size={24} color={COLORS.surface} />
             </View>
-            <Text style={styles.cardTitle}>Tasks</Text>
+            <Text style={styles.cardTitle}>Nhiệm Vụ</Text>
             <Text style={styles.cardValue}>{dashboardData.tasks.pending}</Text>
             <View style={styles.cardFooter}>
               <Text style={styles.cardFooterText}>
-                {dashboardData.tasks.overdue} overdue
+                {dashboardData.tasks.overdue} quá hạn
               </Text>
             </View>
           </TouchableOpacity>
@@ -158,29 +159,29 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.cardRow}>
           <TouchableOpacity
             style={[styles.summaryCard, { backgroundColor: COLORS.secondary }]}
-            onPress={() => navigation.navigate('Medications')}
+            onPress={() => navigation.navigate('Thuoc')}
           >
             <View style={styles.cardIconContainer}>
               <FontAwesome5 name="pills" size={24} color={COLORS.surface} />
             </View>
-            <Text style={styles.cardTitle}>Medications</Text>
+            <Text style={styles.cardTitle}>Thuốc</Text>
             <Text style={styles.cardValue}>{dashboardData.medications.pending}</Text>
             <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>Pending</Text>
+              <Text style={styles.cardFooterText}>Đang chờ</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.summaryCard, { backgroundColor: COLORS.info }]}
-            onPress={() => navigation.navigate('Activities')}
+            onPress={() => navigation.navigate('HoatDong')}
           >
             <View style={styles.cardIconContainer}>
               <MaterialIcons name="event" size={24} color={COLORS.surface} />
             </View>
-            <Text style={styles.cardTitle}>Activities</Text>
+            <Text style={styles.cardTitle}>Hoạt Động</Text>
             <Text style={styles.cardValue}>{dashboardData.activities.today}</Text>
             <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>Today</Text>
+              <Text style={styles.cardFooterText}>Hôm nay</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -188,7 +189,7 @@ const DashboardScreen = ({ navigation }) => {
         {/* Upcoming Shifts */}
         <Card style={styles.shiftCard}>
           <Card.Title
-            title="Upcoming Shifts"
+            title="Ca Làm Sắp Tới"
             titleStyle={styles.cardSectionTitle}
             right={(props) => (
               <IconButton
@@ -196,13 +197,13 @@ const DashboardScreen = ({ navigation }) => {
                 icon="calendar"
                 color={COLORS.primary}
                 size={24}
-                onPress={() => navigation.navigate('Schedule')}
+                onPress={() => navigation.navigate('LichTrinh')}
               />
             )}
           />
           <Card.Content>
             {upcomingShifts.map((shift) => (
-              <View key={shift.id} style={styles.shiftItem}>
+                              <View key={shift.id} style={styles.shiftItem}>
                 <View style={styles.shiftInfo}>
                   <Text style={styles.shiftDate}>{shift.date}</Text>
                   <Text style={styles.shiftTime}>
@@ -212,7 +213,7 @@ const DashboardScreen = ({ navigation }) => {
                 <View style={styles.shiftDetails}>
                   <Text style={styles.shiftDepartment}>{shift.department}</Text>
                   <Text style={styles.shiftResidents}>
-                    {shift.assignedResidents} residents
+                    {shift.assignedResidents} cư dân
                   </Text>
                 </View>
               </View>
@@ -223,7 +224,7 @@ const DashboardScreen = ({ navigation }) => {
         {/* Recent Alerts */}
         <Card style={styles.alertsCard}>
           <Card.Title
-            title="Recent Alerts"
+            title="Cảnh Báo Gần Đây"
             titleStyle={styles.cardSectionTitle}
             right={(props) => (
               <IconButton
@@ -231,7 +232,7 @@ const DashboardScreen = ({ navigation }) => {
                 icon="bell"
                 color={COLORS.primary}
                 size={24}
-                onPress={() => navigation.navigate('Notifications')}
+                onPress={() => navigation.navigate('ThongBao')}
               />
             )}
           />
@@ -240,7 +241,7 @@ const DashboardScreen = ({ navigation }) => {
               <TouchableOpacity
                 key={alert.id}
                 style={styles.alertItem}
-                onPress={() => navigation.navigate('Notifications')}
+                onPress={() => navigation.navigate('ThongBao')}
               >
                 <View
                   style={[
@@ -269,11 +270,17 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.alertContent}>
                   <View style={styles.alertHeader}>
-                    <Text style={styles.alertTitle}>{alert.title}</Text>
+                    <Text style={styles.alertTitle}>
+                      {alert.title}
+                    </Text>
                     {!alert.read && <Badge size={8} style={styles.unreadBadge} />}
                   </View>
-                  <Text style={styles.alertMessage}>{alert.message}</Text>
-                  <Text style={styles.alertTime}>{alert.time}</Text>
+                  <Text style={styles.alertMessage}>
+                    {alert.message}
+                  </Text>
+                  <Text style={styles.alertTime}>
+                    {alert.time}
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))}

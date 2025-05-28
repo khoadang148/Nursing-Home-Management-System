@@ -110,7 +110,7 @@ const ActivityCalendarScreen = () => {
             />
             <View style={styles.activityTime}>
               <Text style={styles.timeText}>{formatTime(item.scheduledTime)}</Text>
-              <Text style={styles.durationText}>{item.durationMinutes} min</Text>
+              <Text style={styles.durationText}>{item.durationMinutes} phút</Text>
             </View>
             <View style={styles.activityDetails}>
               <Text style={styles.activityTitle} numberOfLines={1}>{item.name}</Text>
@@ -131,12 +131,12 @@ const ActivityCalendarScreen = () => {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <MaterialIcons name="event-busy" size={64} color={COLORS.disabled} />
-      <Text style={styles.emptyText}>No activities on this date</Text>
+      <Text style={styles.emptyText}>Không có hoạt động vào ngày này</Text>
       <TouchableOpacity 
         onPress={() => navigation.navigate('CreateActivity')}
         style={styles.createButton}
       >
-        <Text style={styles.createButtonText}>Create Activity</Text>
+        <Text style={styles.createButtonText}>Tạo hoạt động</Text>
       </TouchableOpacity>
     </View>
   );
@@ -154,7 +154,7 @@ const ActivityCalendarScreen = () => {
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
       <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Activity Calendar" titleStyle={FONTS.h2} />
+        <Appbar.Content title="Lịch hoạt động" titleStyle={FONTS.h2} />
         <Appbar.Action icon="plus" onPress={() => navigation.navigate('CreateActivity')} />
       </Appbar.Header>
       
@@ -193,23 +193,23 @@ const ActivityCalendarScreen = () => {
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-          <Text style={styles.legendText}>Physical</Text>
+          <Text style={styles.legendText}>Thể chất</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.accent }]} />
-          <Text style={styles.legendText}>Social</Text>
+          <Text style={styles.legendText}>Xã hội</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#FF9500' }]} />
-          <Text style={styles.legendText}>Cognitive</Text>
+          <Text style={styles.legendText}>Trí tuệ</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#FF3B30' }]} />
-          <Text style={styles.legendText}>Creative</Text>
+          <Text style={styles.legendText}>Sáng tạo</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#5856D6' }]} />
-          <Text style={styles.legendText}>Spiritual</Text>
+          <Text style={styles.legendText}>Tâm linh</Text>
         </View>
       </View>
       
@@ -225,7 +225,7 @@ const ActivityCalendarScreen = () => {
             })}
           </Text>
           <Text style={styles.listHeaderCount}>
-            {selectedDateActivities.length} Activities
+            {selectedDateActivities.length} Hoạt động
           </Text>
         </View>
         

@@ -18,6 +18,9 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchActivityDetails } from '../../redux/slices/activitySlice';
 
+import dateUtils from '../../utils/dateUtils';
+
+
 const ActivityDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -70,13 +73,25 @@ const ActivityDetailsScreen = () => {
   };
   
   const formatDate = (dateString) => {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    return dateUtils.formatDate(dateString, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
   
   const formatTime = (dateString) => {
-    const options = { hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleTimeString(undefined, options);
+    return dateUtils.formatTime(dateString);
+  };
+  
+  const getActivityTypeInVietnamese = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'physical': return 'Thể chất';
+      case 'social': return 'Xã hội';
+      case 'cognitive': return 'Nhận thức';
+      case 'creative': return 'Sáng tạo';
+      case 'spiritual': return 'Tâm linh';
+      case 'recreational': return 'Giải trí';
+      case 'educational': return 'Giáo dục';
+      case 'therapeutic': return 'Trị liệu';
+      default: return type || 'Khác';
+    }
   };
   
   if (loading) {
@@ -91,13 +106,13 @@ const ActivityDetailsScreen = () => {
     return (
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={64} color={COLORS.error} />
-        <Text style={styles.errorText}>Activity not found</Text>
+        <Text style={styles.errorText}>Không tìm thấy hoạt động</Text>
         <Button 
           mode="contained" 
           onPress={() => navigation.goBack()}
           style={{ marginTop: 16 }}
         >
-          Go Back
+          Quay lại
         </Button>
       </View>
     );
@@ -140,7 +155,7 @@ const ActivityDetailsScreen = () => {
                 style={[styles.typeChip, { backgroundColor: `${activityIconColor}20` }]}
                 textStyle={{ color: activityIconColor }}
               >
-                {activity.type}
+                {getActivityTypeInVietnamese(activity.type)}
               </Chip>
             </View>
           </Card.Content>
@@ -148,36 +163,36 @@ const ActivityDetailsScreen = () => {
         
         <Card style={styles.detailCard}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.sectionTitle}>Mô tả</Text>
             <Text style={styles.descriptionText}>{activity.description}</Text>
             
             <Divider style={styles.divider} />
             
-            <Text style={styles.sectionTitle}>Details</Text>
+            <Text style={styles.sectionTitle}>Chi tiết</Text>
             <List.Item
-              title="Location"
+              title="Địa điểm"
               description={activity.location}
               left={props => <List.Icon {...props} icon="map-marker" color={COLORS.primary} />}
             />
             <List.Item
-              title="Duration"
-              description={`${activity.durationMinutes} minutes`}
+              title="Thời lượng"
+              description={`${activity.durationMinutes} phút`}
               left={props => <List.Icon {...props} icon="clock-outline" color={COLORS.primary} />}
             />
             <List.Item
-              title="Capacity"
-              description={`${activity.participants} participants`}
+              title="Sức chứa"
+              description={`${activity.participants} người tham gia`}
               left={props => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
             />
             <List.Item
-              title="Facilitator"
+              title="Hướng dẫn viên"
               description={activity.facilitator}
               left={props => <List.Icon {...props} icon="account" color={COLORS.primary} />}
             />
             
             <Divider style={styles.divider} />
             
-            <Text style={styles.sectionTitle}>Participants</Text>
+            <Text style={styles.sectionTitle}>Người tham gia</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -198,25 +213,25 @@ const ActivityDetailsScreen = () => {
               
               {(!activity.participantsList || activity.participantsList.length === 0) && (
                 <View style={styles.noParticipantsContainer}>
-                  <Text style={styles.noParticipantsText}>No participants yet</Text>
+                  <Text style={styles.noParticipantsText}>Chưa có người tham gia</Text>
                 </View>
               )}
             </ScrollView>
             
             <Divider style={styles.divider} />
             
-            <Text style={styles.sectionTitle}>Materials Needed</Text>
+            <Text style={styles.sectionTitle}>Vật liệu cần thiết</Text>
             {activity.materials && activity.materials.length > 0 ? (
               activity.materials.map((item, index) => (
                 <List.Item
                   key={index}
                   title={item.name}
-                  description={`Quantity: ${item.quantity}`}
+                  description={`Số lượng: ${item.quantity}`}
                   left={props => <List.Icon {...props} icon="package-variant" color={COLORS.primary} />}
                 />
               ))
             ) : (
-              <Text style={styles.emptyListText}>No materials required</Text>
+              <Text style={styles.emptyListText}>Không cần vật liệu</Text>
             )}
           </Card.Content>
         </Card>
@@ -230,7 +245,7 @@ const ActivityDetailsScreen = () => {
           labelStyle={{color: 'white'}}
           onPress={() => {}}
         >
-          Mark Complete
+          Hoàn thành
         </Button>
         <Button 
           mode="contained" 
@@ -239,7 +254,7 @@ const ActivityDetailsScreen = () => {
           labelStyle={{color: 'white'}}
           onPress={() => {}}
         >
-          Add Participants
+          Thêm người tham gia
         </Button>
       </View>
     </View>

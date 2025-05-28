@@ -57,24 +57,24 @@ const FamilyHomeScreen = ({ navigation }) => {
         { 
           id: '1', 
           type: 'health', 
-          title: 'Health Update', 
-          message: `${residentData?.firstName} had a great day today. Blood pressure was normal at 120/80.`,
+          title: 'Cập Nhật Sức Khỏe', 
+          message: `${residentData?.firstName} có một ngày tuyệt vời hôm nay. Huyết áp bình thường ở mức 120/80.`,
           date: new Date().toISOString(),
           read: false
         },
         { 
           id: '2', 
           type: 'activity', 
-          title: 'Activity Completed', 
-          message: `${residentData?.firstName} participated in group music therapy and enjoyed singing along.`,
+          title: 'Hoạt Động Đã Hoàn Thành', 
+          message: `${residentData?.firstName} đã tham gia vào liệu pháp âm nhạc nhóm và thích thú hát theo.`,
           date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
           read: true
         },
         { 
           id: '3', 
           type: 'medication', 
-          title: 'Medication Update', 
-          message: 'All medications were administered as scheduled today.',
+          title: 'Cập Nhật Thuốc', 
+          message: 'Tất cả thuốc đã được dùng theo lịch trình hôm nay.',
           date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           read: true
         },
@@ -84,17 +84,17 @@ const FamilyHomeScreen = ({ navigation }) => {
       setUpcomingActivities([
         { 
           id: '1', 
-          title: 'Music Therapy', 
+          title: 'Liệu Pháp Âm Nhạc', 
           date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           time: '10:00 AM',
-          location: 'Recreation Room'
+          location: 'Phòng Giải Trí'
         },
         { 
           id: '2', 
-          title: 'Outdoor Garden Walk', 
+          title: 'Đi Dạo Vườn', 
           date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
           time: '2:30 PM',
-          location: 'Garden Patio'
+          location: 'Sân Vườn'
         },
       ]);
     }
@@ -110,9 +110,9 @@ const FamilyHomeScreen = ({ navigation }) => {
   
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return 'Chào Buổi Sáng';
+    if (hour < 17) return 'Chào Buổi Chiều';
+    return 'Chào Buổi Tối';
   };
   
   // Format date to friendly format (Today, Yesterday, or actual date)
@@ -123,9 +123,9 @@ const FamilyHomeScreen = ({ navigation }) => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+      return 'Hôm nay';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      return 'Hôm qua';
     } else {
       return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
     }
@@ -135,7 +135,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
     );
   }
@@ -154,7 +154,7 @@ const FamilyHomeScreen = ({ navigation }) => {
             <Text style={styles.greeting}>{getGreeting()},</Text>
             <Text style={styles.name}>{user?.firstName || 'User'}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <TouchableOpacity onPress={() => navigation.navigate('HoSo')}>
             <Image 
               source={{ uri: user?.photo || 'https://randomuser.me/api/portraits/women/11.jpg' }}
               style={styles.avatar}
@@ -172,12 +172,12 @@ const FamilyHomeScreen = ({ navigation }) => {
               />
               <View style={styles.residentInfo}>
                 <Title style={styles.residentName}>{`${resident.firstName} ${resident.lastName}`}</Title>
-                <Paragraph style={styles.residentDetails}>Room {resident.roomNumber}</Paragraph>
+                <Paragraph style={styles.residentDetails}>Phòng {resident.roomNumber}</Paragraph>
                 <TouchableOpacity 
                   style={styles.viewDetailsButton}
-                  onPress={() => navigation.navigate('Loved One')}
+                  onPress={() => navigation.navigate('NguoiThan')}
                 >
-                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Text style={styles.viewDetailsText}>Xem Chi Tiết</Text>
                 </TouchableOpacity>
               </View>
             </Card.Content>
@@ -186,36 +186,36 @@ const FamilyHomeScreen = ({ navigation }) => {
         
         {/* Quick Actions */}
         <View style={styles.quickActionContainer}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Tiện Ích Gia Đình</Text>
           <View style={styles.quickActions}>
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('Messages')}
+              onPress={() => navigation.navigate('TinNhan')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.primary }]}>
                 <Ionicons name="chatbubble-ellipses" size={24} color="white" />
               </View>
-              <Text style={styles.quickActionText}>Message Staff</Text>
+              <Text style={styles.quickActionText}>Nhắn Tin Nhân Viên</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('Visits')}
+              onPress={() => navigation.navigate('LichTham')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.accent }]}>
                 <MaterialIcons name="event" size={24} color="white" />
               </View>
-              <Text style={styles.quickActionText}>Schedule Visit</Text>
+              <Text style={styles.quickActionText}>Đặt Lịch Thăm</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('Gallery')}
+              onPress={() => navigation.navigate('HinhAnh')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.secondary }]}>
                 <MaterialIcons name="photo-library" size={24} color="white" />
               </View>
-              <Text style={styles.quickActionText}>View Photos</Text>
+              <Text style={styles.quickActionText}>Xem Hình Ảnh</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -226,27 +226,27 @@ const FamilyHomeScreen = ({ navigation }) => {
             <Card.Content>
               <View style={styles.cardHeader}>
                 <MaterialIcons name="event" size={24} color={COLORS.primary} />
-                <Title style={styles.cardTitle}>Your Next Visit</Title>
+                <Title style={styles.cardTitle}>Lịch Thăm Sắp Tới</Title>
               </View>
               <View style={styles.visitInfo}>
                 <View style={styles.visitDetail}>
-                  <Text style={styles.visitLabel}>Date:</Text>
+                  <Text style={styles.visitLabel}>Ngày:</Text>
                   <Text style={styles.visitValue}>{upcomingVisit.date}</Text>
                 </View>
                 <View style={styles.visitDetail}>
-                  <Text style={styles.visitLabel}>Time:</Text>
+                  <Text style={styles.visitLabel}>Giờ:</Text>
                   <Text style={styles.visitValue}>{upcomingVisit.time}</Text>
                 </View>
                 <View style={styles.visitDetail}>
-                  <Text style={styles.visitLabel}>Status:</Text>
-                  <Text style={[styles.visitValue, { color: COLORS.success }]}>{upcomingVisit.status}</Text>
+                  <Text style={styles.visitLabel}>Trạng thái:</Text>
+                  <Text style={[styles.visitValue, { color: COLORS.success }]}>{upcomingVisit.status === 'Confirmed' ? 'Đã xác nhận' : upcomingVisit.status}</Text>
                 </View>
               </View>
               <TouchableOpacity 
                 style={styles.cardButton}
-                onPress={() => navigation.navigate('Visits')}
+                onPress={() => navigation.navigate('LichTham')}
               >
-                <Text style={styles.cardButtonText}>Manage Visits</Text>
+                <Text style={styles.cardButtonText}>Quản Lý Lịch Thăm</Text>
               </TouchableOpacity>
             </Card.Content>
           </Card>
@@ -257,7 +257,7 @@ const FamilyHomeScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <MaterialIcons name="notifications" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Recent Updates</Title>
+              <Title style={styles.cardTitle}>Cập Nhật Gần Đây</Title>
             </View>
             {latestUpdates.map((update) => (
               <View key={update.id} style={styles.updateItem}>
@@ -274,7 +274,11 @@ const FamilyHomeScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.updateContent}>
                   <View style={styles.updateHeader}>
-                    <Text style={styles.updateTitle}>{update.title}</Text>
+                    <Text style={styles.updateTitle}>
+                      {update.type === 'health' ? 'Cập Nhật Sức Khỏe' : 
+                       update.type === 'activity' ? 'Hoạt Động Đã Hoàn Thành' :
+                       update.type === 'medication' ? 'Cập Nhật Thuốc' : update.title}
+                    </Text>
                     <Text style={styles.updateDate}>{formatDate(update.date)}</Text>
                   </View>
                   <Text style={styles.updateMessage}>{update.message}</Text>
@@ -284,9 +288,9 @@ const FamilyHomeScreen = ({ navigation }) => {
             ))}
             <TouchableOpacity 
               style={styles.cardButton}
-              onPress={() => navigation.navigate('Alerts')}
+              onPress={() => navigation.navigate('ThongBao')}
             >
-              <Text style={styles.cardButtonText}>View All Updates</Text>
+              <Text style={styles.cardButtonText}>Xem Tất Cả Cập Nhật</Text>
             </TouchableOpacity>
           </Card.Content>
         </Card>
@@ -296,7 +300,7 @@ const FamilyHomeScreen = ({ navigation }) => {
           <Card.Content>
             <View style={styles.cardHeader}>
               <MaterialIcons name="event" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Upcoming Activities</Title>
+              <Title style={styles.cardTitle}>Hoạt Động Sắp Tới</Title>
             </View>
             {upcomingActivities.map((activity) => (
               <View key={activity.id} style={styles.activityItem}>

@@ -8,10 +8,10 @@ const VitalDetailScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Vital Detail" />
+        <Appbar.Content title="Chi Tiết Sinh Hiệu" />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Vital Detail Screen (placeholder)</Text>
+        <Text>Màn Hình Chi Tiết Sinh Hiệu (tạm thời)</Text>
       </View>
     </View>
   );

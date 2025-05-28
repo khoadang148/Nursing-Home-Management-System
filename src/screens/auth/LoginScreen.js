@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,36 +9,110 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { TextInput, Button } from 'react-native-paper';
-import { useDispatch } from 'react-redux';
+import { TextInput, Button, Card, HelperText } from 'react-native-paper';
+import { useDispatch, useSelector } from 'react-redux';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useNotification } from '../../components/NotificationSystem';
+import { validateEmail, validatePassword } from '../../utils/validation';
+import { auditLog } from '../../utils/auditLogger';
 
 // Placeholder actions, to be implemented in redux
-import { login } from '../../redux/slices/authSlice';
+import { login, resetAuthError, resetAuthMessage } from '../../redux/slices/authSlice';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockTimeRemaining, setBlockTimeRemaining] = useState(0);
+  
   const dispatch = useDispatch();
+  const { isLoading, error, message, isAuthenticated } = useSelector((state) => state.auth);
+  const { showSuccess, showError, showWarning, showLoading, hideLoading } = useNotification();
+
+  // Clear error when component unmounts or when user starts typing
+  useEffect(() => {
+    return () => {
+      dispatch(resetAuthError());
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (email || password) {
+      dispatch(resetAuthError());
+      setEmailError('');
+      setPasswordError('');
+    }
+  }, [email, password, dispatch]);
+
+  // Handle account blocking
+  useEffect(() => {
+    if (isBlocked && blockTimeRemaining > 0) {
+      const timer = setInterval(() => {
+        setBlockTimeRemaining(prev => {
+          if (prev <= 1) {
+            setIsBlocked(false);
+            setLoginAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isBlocked, blockTimeRemaining]);
+
+  // Handle loading state
+  useEffect(() => {
+    if (isLoading) {
+      showLoading('Đang đăng nhập...');
+    } else {
+      hideLoading();
+    }
+  }, [isLoading, showLoading, hideLoading]);
+
+  // Handle success/error messages
+  useEffect(() => {
+    if (message && isAuthenticated) {
+      showSuccess(message);
+      dispatch(resetAuthMessage());
+    }
+  }, [message, isAuthenticated, showSuccess, dispatch]);
+
+  useEffect(() => {
+    if (error) {
+      showError(error);
+      dispatch(resetAuthError());
+    }
+  }, [error, showError, dispatch]);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      alert('Please enter both email and password');
+    // Validation
+    if (!email && !password) {
+      showWarning('Vui lòng nhập email và mật khẩu để đăng nhập');
+      return;
+    }
+    if (!email) {
+      showWarning('Vui lòng nhập địa chỉ email');
+      return;
+    }
+    if (!password) {
+      showWarning('Vui lòng nhập mật khẩu');
       return;
     }
 
-    setLoading(true);
-    try {
-      // In a real app, this would verify credentials with an API
-      await dispatch(login({ email, password }));
-      // Navigation will be handled by AppNavigator based on auth state
-    } catch (error) {
-      alert('Login failed: ' + error.message);
-    } finally {
-      setLoading(false);
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showWarning('Vui lòng nhập địa chỉ email hợp lệ');
+      return;
     }
+
+    // Dispatch login action - error handling is done in Redux
+    dispatch(login({ email, password }));
   };
 
   return (
@@ -54,8 +128,7 @@ const LoginScreen = ({ navigation }) => {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Nursing Home Management System</Text>
-          <Text style={styles.subtitle}>Staff Mobile Application</Text>
+          <Text style={styles.title}>Viện Dưỡng Lão</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -73,7 +146,7 @@ const LoginScreen = ({ navigation }) => {
           />
 
           <TextInput
-            label="Password"
+            label="Mật khẩu"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!passwordVisible}
@@ -92,10 +165,10 @@ const LoginScreen = ({ navigation }) => {
           />
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('ForgotPassword')}
+            onPress={() => navigation.navigate('QuenMatKhau')}
             style={styles.forgotPasswordLink}
           >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
           <Button
@@ -103,16 +176,16 @@ const LoginScreen = ({ navigation }) => {
             onPress={handleLogin}
             style={styles.loginButton}
             labelStyle={styles.loginButtonText}
-            loading={loading}
-            disabled={loading}
+            loading={isLoading}
+            disabled={isLoading}
           >
-            Log In
+            Đăng nhập
           </Button>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            © 2024 Nursing Home Management System
+            © 2025 Hệ Thống Quản Lý Viện Dưỡng Lão
           </Text>
         </View>
       </ScrollView>
@@ -158,6 +231,7 @@ const styles = StyleSheet.create({
     padding: SIZES.padding * 1.5,
     marginBottom: 30,
   },
+
   input: {
     marginBottom: SIZES.padding,
     backgroundColor: COLORS.surface,

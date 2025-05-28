@@ -17,11 +17,11 @@ const MedicationNavigator = () => {
         headerShown: false
       }}
     >
-      <Stack.Screen name="MedicationList" component={MedicationListScreen} />
-      <Stack.Screen name="MedicationDetails" component={MedicationDetailsScreen} />
-      <Stack.Screen name="AddMedication" component={AddMedicationScreen} />
-      <Stack.Screen name="MedicationSchedule" component={MedicationScheduleScreen} />
-      <Stack.Screen name="MedicationAdmin" component={MedicationAdminScreen} />
+      <Stack.Screen name="DanhSachThuoc" component={MedicationListScreen} />
+      <Stack.Screen name="ChiTietThuoc" component={MedicationDetailsScreen} />
+      <Stack.Screen name="ThemThuoc" component={AddMedicationScreen} />
+      <Stack.Screen name="LichUongThuoc" component={MedicationScheduleScreen} />
+      <Stack.Screen name="QuanLyThuoc" component={MedicationAdminScreen} />
     </Stack.Navigator>
   );
 };

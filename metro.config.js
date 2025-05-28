@@ -1,23 +1,28 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const path = require('path');
+const http = require('http');
+const originalSetHeader = http.ServerResponse.prototype.setHeader;
+http.ServerResponse.prototype.setHeader = function(name, value) {
+  if (name === 'X-React-Native-Project-Root' && typeof value === 'string') {
+    value = value
+      .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+      .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+      .replace(/[ìíịỉĩ]/g, 'i')
+      .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+      .replace(/[ùúụủũưừứựửữ]/g, 'u')
+      .replace(/[ỳýỵỷỹ]/g, 'y')
+      .replace(/[đ]/g, 'd')
+      .replace(/[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]/g, 'A')
+      .replace(/[ÈÉẸẺẼÊỀẾỆỂỄ]/g, 'E')
+      .replace(/[ÌÍỊỈĨ]/g, 'I')
+      .replace(/[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]/g, 'O')
+      .replace(/[ÙÚỤỦŨƯỪỨỰỬỮ]/g, 'U')
+      .replace(/[ỲÝỴỶỸ]/g, 'Y')
+      .replace(/[Đ]/g, 'D')
+      .replace(/[^\x00-\x7F]/g, ''); 
+  }
+  return originalSetHeader.call(this, name, value);
+};
 
 const config = getDefaultConfig(__dirname);
-
-// Customize Metro to handle non-ASCII characters in project paths
-config.server = config.server || {};
-config.server.enhanceMiddleware = (middleware) => {
-  return (req, res, next) => {
-    // Clean up X-React-Native-Project-Root header before it's set
-    const originalSetHeader = res.setHeader;
-    res.setHeader = function(name, value) {
-      if (name === 'X-React-Native-Project-Root') {
-        // Use a relative path or encode to ASCII-safe characters
-        value = path.relative(process.cwd(), __dirname);
-      }
-      return originalSetHeader.call(this, name, value);
-    };
-    return middleware(req, res, next);
-  };
-};
 
 module.exports = config; 

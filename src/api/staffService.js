@@ -1,6 +1,7 @@
 import apiService from './apiService';
 import { STAFF_ENDPOINTS } from '../constants/api';
 import { staff, tasks } from './mockData';
+import notificationService from './notificationService';
 
 // Simulated API delay
 const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 500));
@@ -92,6 +93,21 @@ const staffService = {
       status: 'Not Started',
       ...taskData,
     };
+    
+    // Tạo thông báo tiếng Việt cho việc giao nhiệm vụ
+    try {
+      await notificationService.createNotification('TASK_ASSIGNED', {
+        taskName: taskData.title || 'Nhiệm vụ mới',
+        assigneeName: 'nhân viên'
+      }, {
+        recipientId: id,
+        relatedId: newTask.id,
+        type: 'task'
+      });
+    } catch (error) {
+      console.log('Không thể tạo thông báo cho nhiệm vụ:', error);
+    }
+    
     return { data: newTask, success: true };
   },
   

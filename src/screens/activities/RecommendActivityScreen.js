@@ -103,7 +103,7 @@ const RecommendActivityScreen = () => {
         <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
         <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Activity Recommendations" titleStyle={FONTS.h2} />
+          <Appbar.Content title="Gợi ý Hoạt động" titleStyle={FONTS.h2} />
         </Appbar.Header>
         
         <View style={styles.errorContainer}>
@@ -128,7 +128,7 @@ const RecommendActivityScreen = () => {
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
       <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Activity Recommendations" titleStyle={FONTS.h2} />
+        <Appbar.Content title="Gợi ý Hoạt động" titleStyle={FONTS.h2} />
       </Appbar.Header>
       
       <ScrollView contentContainerStyle={styles.scrollContent}>

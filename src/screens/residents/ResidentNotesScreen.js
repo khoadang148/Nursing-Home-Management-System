@@ -8,11 +8,11 @@ const ResidentNotesScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Resident Notes" />
+        <Appbar.Content title="Ghi Chú Cư Dân" />
         <Appbar.Action icon="plus" onPress={() => console.log('Add note')} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Resident Notes Screen (placeholder)</Text>
+        <Text>Màn hình Ghi Chú Cư Dân (tạm thời)</Text>
       </View>
     </View>
   );

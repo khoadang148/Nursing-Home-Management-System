@@ -8,11 +8,11 @@ const AddCarePlanScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Add Care Plan" />
+        <Appbar.Content title="Thêm Kế Hoạch Chăm Sóc" />
         <Appbar.Action icon="content-save" onPress={() => navigation.goBack()} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Add Care Plan Screen (placeholder)</Text>
+        <Text>Màn hình Thêm Kế Hoạch Chăm Sóc (tạm thời)</Text>
       </View>
     </View>
   );

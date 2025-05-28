@@ -20,23 +20,23 @@ const Stack = createStackNavigator();
 const ResidentNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="ResidentList"
+      initialRouteName="DanhSachCuDan"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="ResidentList" component={ResidentListScreen} />
-      <Stack.Screen name="ResidentDetails" component={ResidentDetailScreen} />
-      <Stack.Screen name="AddResident" component={AddResidentScreen} />
-      <Stack.Screen name="EditResident" component={EditResidentScreen} />
-      <Stack.Screen name="CarePlanDetail" component={CarePlanDetailScreen} />
-      <Stack.Screen name="AddCarePlan" component={AddCarePlanScreen} />
-      <Stack.Screen name="MedicationDetail" component={MedicationDetailScreen} />
-      <Stack.Screen name="AddMedication" component={AddMedicationScreen} />
-      <Stack.Screen name="RecordVitals" component={RecordVitalsScreen} />
-      <Stack.Screen name="VitalDetail" component={VitalDetailScreen} />
-      <Stack.Screen name="ResidentNotes" component={ResidentNotesScreen} />
-      <Stack.Screen name="ResidentFamily" component={ResidentFamilyScreen} />
+      <Stack.Screen name="DanhSachCuDan" component={ResidentListScreen} />
+      <Stack.Screen name="ChiTietCuDan" component={ResidentDetailScreen} />
+      <Stack.Screen name="ThemCuDan" component={AddResidentScreen} />
+      <Stack.Screen name="SuaCuDan" component={EditResidentScreen} />
+      <Stack.Screen name="ChiTietKeHoachChamSoc" component={CarePlanDetailScreen} />
+      <Stack.Screen name="ThemKeHoachChamSoc" component={AddCarePlanScreen} />
+      <Stack.Screen name="ChiTietThuoc" component={MedicationDetailScreen} />
+      <Stack.Screen name="ThemThuoc" component={AddMedicationScreen} />
+      <Stack.Screen name="GhiNhanDauHieuSinhTon" component={RecordVitalsScreen} />
+      <Stack.Screen name="ChiTietDauHieuSinhTon" component={VitalDetailScreen} />
+      <Stack.Screen name="GhiChuCuDan" component={ResidentNotesScreen} />
+      <Stack.Screen name="GiaDinhCuDan" component={ResidentFamilyScreen} />
     </Stack.Navigator>
   );
 };

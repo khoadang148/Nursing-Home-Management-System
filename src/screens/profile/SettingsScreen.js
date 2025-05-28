@@ -22,16 +22,16 @@ const SettingsScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>Quay lại</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>Cài đặt</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionTitle}>Thông báo</Text>
         
         <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Push Notifications</Text>
+          <Text style={styles.settingLabel}>Thông báo đẩy</Text>
           <Switch
             value={pushNotifications}
             onValueChange={setPushNotifications}
@@ -41,7 +41,7 @@ const SettingsScreen = () => {
         </View>
 
         <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Email Notifications</Text>
+          <Text style={styles.settingLabel}>Thông báo email</Text>
           <Switch
             value={emailNotifications}
             onValueChange={setEmailNotifications}
@@ -52,10 +52,10 @@ const SettingsScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionTitle}>Giao diện</Text>
         
         <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Dark Mode</Text>
+          <Text style={styles.settingLabel}>Chế độ tối</Text>
           <Switch
             value={darkMode}
             onValueChange={setDarkMode}
@@ -66,26 +66,26 @@ const SettingsScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>Tài khoản</Text>
         
         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Change Password</Text>
+          <Text style={styles.menuItemText}>Đổi mật khẩu</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Privacy Policy</Text>
+          <Text style={styles.menuItemText}>Chính sách bảo mật</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Terms of Service</Text>
+          <Text style={styles.menuItemText}>Điều khoản dịch vụ</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={[styles.menuItem, styles.logoutButton]}>
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
       </View>
       
-      <Text style={styles.versionText}>Version 1.0.0</Text>
+      <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
     </ScrollView>
   );
 };

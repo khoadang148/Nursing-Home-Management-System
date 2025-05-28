@@ -5,8 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 
-const PRIORITIES = ['High', 'Medium', 'Low'];
-const CATEGORIES = ['Medication', 'Vitals', 'Therapy', 'Treatment', 'Hygiene', 'Nutrition', 'Other'];
+const PRIORITIES = ['Cao', 'Trung bình', 'Thấp'];
+const CATEGORIES = ['Thuốc', 'Dấu hiệu sinh tồn', 'Liệu pháp', 'Điều trị', 'Vệ sinh', 'Dinh dưỡng', 'Khác'];
 
 // Mock residents data - in a real app, would come from an API or Redux store
 const MOCK_RESIDENTS = [
@@ -26,9 +26,9 @@ const AddTaskScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dueTime, setDueTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [priority, setPriority] = useState('Medium');
+  const [priority, setPriority] = useState('Trung bình');
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
-  const [category, setCategory] = useState('Medication');
+      const [category, setCategory] = useState('Thuốc');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [resident, setResident] = useState(null);
   const [showResidentsMenu, setShowResidentsMenu] = useState(false);
@@ -38,10 +38,10 @@ const AddTaskScreen = () => {
   const validate = () => {
     const newErrors = {};
     
-    if (!title.trim()) newErrors.title = 'Title is required';
-    if (!description.trim()) newErrors.description = 'Description is required';
-    if (!resident) newErrors.resident = 'Resident is required';
-    if (!assignedTo.trim()) newErrors.assignedTo = 'Assigned staff is required';
+    if (!title.trim()) newErrors.title = 'Tiêu đề là bắt buộc';
+    if (!description.trim()) newErrors.description = 'Mô tả là bắt buộc';
+    if (!resident) newErrors.resident = 'Cư dân là bắt buộc';
+    if (!assignedTo.trim()) newErrors.assignedTo = 'Nhân viên được giao là bắt buộc';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -59,7 +59,7 @@ const AddTaskScreen = () => {
       description,
       dueDate: combinedDueDate.toISOString(),
       priority,
-      status: 'Pending',
+      status: 'Chờ xử lý',
       category,
       residentId: resident?.id,
       residentName: resident?.name,
@@ -72,8 +72,8 @@ const AddTaskScreen = () => {
     
     // Navigate back to task list
     Alert.alert(
-      "Task Created",
-      "The task has been created successfully!",
+      "Nhiệm vụ đã tạo",
+      "Nhiệm vụ đã được tạo thành công!",
       [
         { 
           text: "OK", 
@@ -95,15 +95,15 @@ const AddTaskScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Add Task" />
+        <Appbar.Content title="Thêm nhiệm vụ" />
         <Appbar.Action icon="check" onPress={handleCreateTask} />
       </Appbar.Header>
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Basic Information</Text>
+        <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
         
         <TextInput
-          label="Task Title"
+          label="Tiêu đề nhiệm vụ"
           value={title}
           onChangeText={setTitle}
           style={styles.input}
@@ -117,7 +117,7 @@ const AddTaskScreen = () => {
         )}
         
         <TextInput
-          label="Description"
+          label="Mô tả"
           value={description}
           onChangeText={setDescription}
           multiline
@@ -133,7 +133,7 @@ const AddTaskScreen = () => {
         )}
         
         <TextInput
-          label="Due Date"
+          label="Ngày hạn"
           value={formatDate(dueDate)}
           onPressIn={() => setShowDatePicker(true)}
           right={<TextInput.Icon icon="calendar" />}
@@ -154,7 +154,7 @@ const AddTaskScreen = () => {
         )}
         
         <TextInput
-          label="Due Time"
+          label="Giờ hạn"
           value={formatTime(dueTime)}
           onPressIn={() => setShowTimePicker(true)}
           right={<TextInput.Icon icon="clock-outline" />}
@@ -175,7 +175,7 @@ const AddTaskScreen = () => {
         )}
         
         <View style={styles.menuContainer}>
-          <Text style={styles.inputLabel}>Priority</Text>
+          <Text style={styles.inputLabel}>Độ ưu tiên</Text>
           <Menu
             visible={showPriorityMenu}
             onDismiss={() => setShowPriorityMenu(false)}
@@ -187,9 +187,9 @@ const AddTaskScreen = () => {
                 <Text style={[
                   styles.menuButtonText,
                   {
-                    color: priority === 'High' 
+                    color: priority === 'Cao' 
                       ? COLORS.error 
-                      : priority === 'Medium'
+                      : priority === 'Trung bình'
                       ? COLORS.warning
                       : COLORS.info
                   }
@@ -208,9 +208,9 @@ const AddTaskScreen = () => {
                 }}
                 title={item}
                 titleStyle={{
-                  color: item === 'High' 
+                  color: item === 'Cao' 
                     ? COLORS.error 
-                    : item === 'Medium'
+                    : item === 'Trung bình'
                     ? COLORS.warning
                     : COLORS.info
                 }}
@@ -220,7 +220,7 @@ const AddTaskScreen = () => {
         </View>
         
         <View style={styles.menuContainer}>
-          <Text style={styles.inputLabel}>Category</Text>
+          <Text style={styles.inputLabel}>Loại</Text>
           <Menu
             visible={showCategoryMenu}
             onDismiss={() => setShowCategoryMenu(false)}
@@ -248,7 +248,7 @@ const AddTaskScreen = () => {
         
         <Divider style={styles.divider} />
         
-        <Text style={styles.sectionTitle}>Resident</Text>
+        <Text style={styles.sectionTitle}>Cư dân</Text>
         <Menu
           visible={showResidentsMenu}
           onDismiss={() => setShowResidentsMenu(false)}
@@ -260,10 +260,10 @@ const AddTaskScreen = () => {
               {resident ? (
                 <View>
                   <Text style={styles.residentName}>{resident.name}</Text>
-                  <Text style={styles.roomNumber}>Room {resident.roomNumber}</Text>
+                  <Text style={styles.roomNumber}>Phòng {resident.roomNumber}</Text>
                 </View>
               ) : (
-                <Text style={styles.placeholderText}>Select a Resident</Text>
+                <Text style={styles.placeholderText}>Chọn cư dân</Text>
               )}
             </TouchableOpacity>
           }
@@ -275,7 +275,7 @@ const AddTaskScreen = () => {
                 setResident(item);
                 setShowResidentsMenu(false);
               }}
-              title={`${item.name} (Room ${item.roomNumber})`}
+              title={`${item.name} (Phòng ${item.roomNumber})`}
             />
           ))}
         </Menu>
@@ -287,9 +287,9 @@ const AddTaskScreen = () => {
         
         <Divider style={styles.divider} />
         
-        <Text style={styles.sectionTitle}>Assignment</Text>
+        <Text style={styles.sectionTitle}>Phân công</Text>
         <TextInput
-          label="Assigned To"
+          label="Được giao cho"
           value={assignedTo}
           onChangeText={setAssignedTo}
           style={styles.input}
@@ -308,7 +308,7 @@ const AddTaskScreen = () => {
           onPress={handleCreateTask}
           style={styles.createButton}
         >
-          Create Task
+Tạo nhiệm vụ
         </Button>
       </ScrollView>
     </View>

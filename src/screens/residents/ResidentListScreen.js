@@ -20,7 +20,7 @@ const ResidentListScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredResidents, setFilteredResidents] = useState([]);
-  const [filter, setFilter] = useState('All'); // All, High, Medium, Low
+  const [filter, setFilter] = useState('Tất cả'); // Tất cả, Cao, Trung bình, Thấp
 
   useEffect(() => {
     // Simulate API loading
@@ -34,8 +34,9 @@ const ResidentListScreen = ({ navigation }) => {
     let result = residents;
 
     // Filter by care level
-    if (filter !== 'All') {
-      result = result.filter(resident => resident.careLevel === filter);
+    if (filter !== 'Tất cả') {
+      const careLevel = filter === 'Cao' ? 'High' : filter === 'Trung bình' ? 'Medium' : 'Low';
+      result = result.filter(resident => resident.careLevel === careLevel);
     }
 
     // Filter by search query
@@ -68,7 +69,7 @@ const ResidentListScreen = ({ navigation }) => {
             <Text style={styles.residentName}>{`${item.firstName} ${item.lastName}`}</Text>
             <View style={styles.roomContainer}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.roomNumber}>Room {item.roomNumber}</Text>
+              <Text style={styles.roomNumber}>Phòng {item.roomNumber}</Text>
             </View>
           </View>
           <View style={styles.careLevelContainer}>
@@ -85,7 +86,7 @@ const ResidentListScreen = ({ navigation }) => {
                 },
               ]}
             >
-              {item.careLevel}
+              {item.careLevel === 'High' ? 'Cao' : item.careLevel === 'Medium' ? 'Trung bình' : 'Thấp'}
             </Badge>
           </View>
         </View>
@@ -109,7 +110,7 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                Admitted: {new Date(item.admissionDate).toLocaleDateString()}
+                Nhập viện: {new Date(item.admissionDate).toLocaleDateString()}
               </Text>
             </View>
           </View>
@@ -145,7 +146,7 @@ const ResidentListScreen = ({ navigation }) => {
             labelStyle={styles.buttonLabel}
             icon="clipboard-check"
           >
-            Care Plan
+            Kế hoạch chăm sóc
           </Button>
           <Button
             mode="text"
@@ -156,7 +157,7 @@ const ResidentListScreen = ({ navigation }) => {
             labelStyle={styles.buttonLabel}
             icon="pill"
           >
-            Medications
+            Thuốc men
           </Button>
         </View>
       </TouchableOpacity>
@@ -166,7 +167,7 @@ const ResidentListScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Residents</Text>
+        <Text style={styles.title}>Cư dân</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Profile')}
           style={styles.profileButton}
@@ -180,7 +181,7 @@ const ResidentListScreen = ({ navigation }) => {
 
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Search residents or rooms..."
+          placeholder="Tìm kiếm cư dân hoặc phòng..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
@@ -194,65 +195,65 @@ const ResidentListScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'All' && styles.activeFilterButton,
+              filter === 'Tất cả' && styles.activeFilterButton,
             ]}
-            onPress={() => setFilter('All')}
+            onPress={() => setFilter('Tất cả')}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'All' && styles.activeFilterText,
+                filter === 'Tất cả' && styles.activeFilterText,
               ]}
             >
-              All
+              Tất cả
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'High' && styles.activeFilterButton,
+              filter === 'Cao' && styles.activeFilterButton,
             ]}
-            onPress={() => setFilter('High')}
+            onPress={() => setFilter('Cao')}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'High' && styles.activeFilterText,
+                filter === 'Cao' && styles.activeFilterText,
               ]}
             >
-              High Care
+              Chăm sóc cao
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'Medium' && styles.activeFilterButton,
+              filter === 'Trung bình' && styles.activeFilterButton,
             ]}
-            onPress={() => setFilter('Medium')}
+            onPress={() => setFilter('Trung bình')}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'Medium' && styles.activeFilterText,
+                filter === 'Trung bình' && styles.activeFilterText,
               ]}
             >
-              Medium Care
+              Chăm sóc trung bình
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filter === 'Low' && styles.activeFilterButton,
+              filter === 'Thấp' && styles.activeFilterButton,
             ]}
-            onPress={() => setFilter('Low')}
+            onPress={() => setFilter('Thấp')}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === 'Low' && styles.activeFilterText,
+                filter === 'Thấp' && styles.activeFilterText,
               ]}
             >
-              Low Care
+              Chăm sóc thấp
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -273,7 +274,7 @@ const ResidentListScreen = ({ navigation }) => {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <MaterialIcons name="search-off" size={60} color={COLORS.textSecondary} />
-                <Text style={styles.emptyText}>No residents found</Text>
+                <Text style={styles.emptyText}>Không tìm thấy cư dân</Text>
               </View>
             }
           />

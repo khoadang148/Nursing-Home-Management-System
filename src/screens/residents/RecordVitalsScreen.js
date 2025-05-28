@@ -8,11 +8,11 @@ const RecordVitalsScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Record Vitals" />
+        <Appbar.Content title="Ghi nhận chỉ số sống" />
         <Appbar.Action icon="content-save" onPress={() => navigation.goBack()} />
       </Appbar.Header>
       <View style={styles.content}>
-        <Text>Record Vitals Screen (placeholder)</Text>
+        <Text>Màn hình ghi nhận chỉ số sống (đang phát triển)</Text>
       </View>
     </View>
   );

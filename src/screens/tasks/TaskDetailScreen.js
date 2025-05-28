@@ -28,12 +28,12 @@ const TaskDetailScreen = () => {
   
   const markTaskCompleted = () => {
     Alert.alert(
-      "Mark Task Complete",
-      "Are you sure you want to mark this task as completed?",
+      "Hoàn thành nhiệm vụ",
+      "Bạn có chắc chắn muốn đánh dấu nhiệm vụ này là đã hoàn thành?",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy bỏ", style: "cancel" },
         { 
-          text: "Complete", 
+          text: "Hoàn thành", 
           onPress: () => {
             // In a real app, update via API/Redux
             setTask({...task, status: 'Completed'});
@@ -49,12 +49,12 @@ const TaskDetailScreen = () => {
   
   const deleteTask = () => {
     Alert.alert(
-      "Delete Task",
-      "Are you sure you want to delete this task?",
+      "Xóa nhiệm vụ",
+      "Bạn có chắc chắn muốn xóa nhiệm vụ này?",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy bỏ", style: "cancel" },
         { 
-          text: "Delete", 
+          text: "Xóa", 
           style: "destructive",
           onPress: () => {
             // In a real app, delete via API/Redux
@@ -107,11 +107,11 @@ const TaskDetailScreen = () => {
       <View style={styles.container}>
         <Appbar.Header style={styles.appbar}>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Task Detail" />
+          <Appbar.Content title="Chi tiết nhiệm vụ" />
         </Appbar.Header>
-        <View style={styles.loadingContainer}>
-          <Text>Loading...</Text>
-        </View>
+              <View style={styles.loadingContainer}>
+        <Text>Đang tải...</Text>
+      </View>
       </View>
     );
   }
@@ -120,7 +120,7 @@ const TaskDetailScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Task Detail" />
+        <Appbar.Content title="Chi tiết nhiệm vụ" />
         <Appbar.Action icon="pencil" onPress={() => navigation.navigate('EditTask', { taskId })} />
         <Appbar.Action icon="delete" onPress={deleteTask} />
       </Appbar.Header>
@@ -133,7 +133,7 @@ const TaskDetailScreen = () => {
               style={[styles.chip, { backgroundColor: getPriorityColor(task.priority) + '20' }]}
               textStyle={{ color: getPriorityColor(task.priority) }}
             >
-              {task.priority} Priority
+              Ưu tiên {task.priority === 'High' ? 'Cao' : task.priority === 'Medium' ? 'Trung bình' : 'Thấp'}
             </Chip>
             <Chip
               style={[styles.chip, { backgroundColor: getStatusColor(task.status) + '20' }]}
@@ -147,7 +147,7 @@ const TaskDetailScreen = () => {
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
             <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Due Date:</Text>
+            <Text style={styles.infoLabel}>Hạn hoàn thành:</Text>
             <Text style={styles.infoValue}>
               {getFormattedDate(task.dueDate)} at {getFormattedTime(task.dueDate)}
             </Text>
@@ -155,7 +155,7 @@ const TaskDetailScreen = () => {
           
           <View style={styles.infoRow}>
             <MaterialIcons name="category" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Category:</Text>
+            <Text style={styles.infoLabel}>Danh mục:</Text>
             <Text style={styles.infoValue}>{task.category}</Text>
           </View>
         </View>
@@ -163,7 +163,7 @@ const TaskDetailScreen = () => {
         <Divider style={styles.divider} />
         
         <View style={styles.residentSection}>
-          <Text style={styles.sectionTitle}>Resident</Text>
+          <Text style={styles.sectionTitle}>Cư dân</Text>
           <View style={styles.residentInfo}>
             <Avatar.Text 
               size={50} 
@@ -172,7 +172,7 @@ const TaskDetailScreen = () => {
             />
             <View style={styles.residentTextInfo}>
               <Text style={styles.residentName}>{task.residentName}</Text>
-              <Text style={styles.roomNumber}>Room {task.roomNumber}</Text>
+              <Text style={styles.roomNumber}>Phòng {task.roomNumber}</Text>
             </View>
           </View>
         </View>
@@ -180,12 +180,12 @@ const TaskDetailScreen = () => {
         <Divider style={styles.divider} />
         
         <View style={styles.descriptionSection}>
-          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.sectionTitle}>Mô tả</Text>
           <Text style={styles.descriptionText}>{task.description}</Text>
         </View>
         
         <View style={styles.assigneeSection}>
-          <Text style={styles.sectionTitle}>Assigned To</Text>
+          <Text style={styles.sectionTitle}>Được giao cho</Text>
           <View style={styles.assigneeInfo}>
             <Avatar.Text 
               size={40}
@@ -205,7 +205,7 @@ const TaskDetailScreen = () => {
             onPress={markTaskCompleted}
             style={styles.completeButton}
           >
-            Mark as Complete
+            Đánh dấu hoàn thành
           </Button>
         </View>
       )}

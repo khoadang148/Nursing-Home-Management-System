@@ -75,15 +75,15 @@ const FamilyProfileScreen = ({ navigation }) => {
   
   const handleLogout = () => {
     Alert.alert(
-      "Confirm Logout",
-      "Are you sure you want to log out?",
+      "Xác nhận đăng xuất",
+      "Bạn có chắc chắn muốn đăng xuất?",
       [
         {
-          text: "Cancel",
+          text: "Hủy",
           style: "cancel"
         },
         {
-          text: "Logout",
+          text: "Đăng xuất",
           onPress: async () => {
             setLoading(true);
             try {
@@ -91,7 +91,7 @@ const FamilyProfileScreen = ({ navigation }) => {
               dispatch({ type: 'LOGOUT' });
             } catch (error) {
               console.error('Logout failed:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
+              Alert.alert('Lỗi', 'Đăng xuất thất bại. Vui lòng thử lại.');
             } finally {
               setLoading(false);
             }
@@ -104,14 +104,14 @@ const FamilyProfileScreen = ({ navigation }) => {
   const handleSaveProfile = async () => {
     // Validate inputs
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
-      Alert.alert('Error', 'All fields are required');
+      Alert.alert('Lỗi', 'Tất cả các trường đều bắt buộc');
       return;
     }
     
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ');
       return;
     }
     
@@ -134,24 +134,24 @@ const FamilyProfileScreen = ({ navigation }) => {
       setSaving(false);
       setEditMode(false);
       
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
     }, 1000);
   };
   
   const handleChangePassword = async () => {
     // Validate passwords
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'All password fields are required');
+      Alert.alert('Lỗi', 'Tất cả các trường mật khẩu đều bắt buộc');
       return;
     }
     
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match');
+      Alert.alert('Lỗi', 'Mật khẩu mới không khớp');
       return;
     }
     
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'New password must be at least 6 characters long');
+      Alert.alert('Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
     }
     
@@ -167,7 +167,7 @@ const FamilyProfileScreen = ({ navigation }) => {
       setNewPassword('');
       setConfirmPassword('');
       
-      Alert.alert('Success', 'Password changed successfully');
+      Alert.alert('Thành công', 'Đổi mật khẩu thành công');
     }, 1000);
   };
   
@@ -184,7 +184,7 @@ const FamilyProfileScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
       </SafeAreaView>
     );
   }
@@ -210,9 +210,9 @@ const FamilyProfileScreen = ({ navigation }) => {
           
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{`${user?.firstName} ${user?.lastName}`}</Text>
-            <Text style={styles.profileRole}>Family Member</Text>
+            <Text style={styles.profileRole}>Thành viên gia đình</Text>
             <Text style={styles.profileRelationship}>
-              {user?.relationship || 'Relationship'} of {user?.residentName || 'Resident'}
+              {user?.relationship || 'Mối quan hệ'} của {user?.residentName || 'Cư dân'}
             </Text>
           </View>
         </View>
@@ -221,14 +221,14 @@ const FamilyProfileScreen = ({ navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.cardHeader}>
-              <Title style={styles.cardTitle}>Personal Information</Title>
+              <Title style={styles.cardTitle}>Thông tin cá nhân</Title>
               {!editMode ? (
                 <Button
                   mode="text"
                   onPress={() => setEditMode(true)}
                   icon="pencil"
                 >
-                  Edit
+                  Chỉnh sửa
                 </Button>
               ) : (
                 <Button
@@ -236,13 +236,13 @@ const FamilyProfileScreen = ({ navigation }) => {
                   onPress={() => setEditMode(false)}
                   icon="close"
                 >
-                  Cancel
+                  Hủy
                 </Button>
               )}
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={styles.label}>Tên</Text>
               {editMode ? (
                 <TextInput
                   value={firstName}
@@ -258,7 +258,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Last Name</Text>
+              <Text style={styles.label}>Họ</Text>
               {editMode ? (
                 <TextInput
                   value={lastName}
@@ -291,7 +291,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone</Text>
+              <Text style={styles.label}>Số điện thoại</Text>
               {editMode ? (
                 <TextInput
                   value={phone}
@@ -314,7 +314,7 @@ const FamilyProfileScreen = ({ navigation }) => {
                 style={styles.saveButton}
                 loading={saving}
               >
-                Save Changes
+                Lưu thay đổi
               </Button>
             )}
           </Card.Content>
@@ -323,11 +323,11 @@ const FamilyProfileScreen = ({ navigation }) => {
         {/* Notification Settings Card */}
         <Card style={styles.card}>
           <Card.Content>
-            <Title style={styles.cardTitle}>Notification Settings</Title>
+            <Title style={styles.cardTitle}>Cài đặt thông báo</Title>
             
             <List.Item
-              title="Health Updates"
-              description="Receive notifications about health status changes"
+              title="Cập nhật sức khỏe"
+              description="Nhận thông báo về thay đổi tình trạng sức khỏe"
               right={() => (
                 <Switch
                   value={notificationSettings.healthUpdates}
@@ -340,8 +340,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             <Divider />
             
             <List.Item
-              title="Activity Updates"
-              description="Receive notifications about activity participation"
+              title="Cập nhật hoạt động"
+              description="Nhận thông báo về việc tham gia hoạt động"
               right={() => (
                 <Switch
                   value={notificationSettings.activityUpdates}
@@ -354,8 +354,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             <Divider />
             
             <List.Item
-              title="Medication Changes"
-              description="Receive notifications about medication changes"
+              title="Thay đổi thuốc"
+              description="Nhận thông báo về thay đổi thuốc"
               right={() => (
                 <Switch
                   value={notificationSettings.medicationChanges}
@@ -368,8 +368,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             <Divider />
             
             <List.Item
-              title="Visit Reminders"
-              description="Receive reminders for upcoming scheduled visits"
+              title="Nhắc nhở thăm viếng"
+              description="Nhận nhắc nhở về các cuộc thăm viếng đã lên lịch"
               right={() => (
                 <Switch
                   value={notificationSettings.visitReminders}
@@ -382,8 +382,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             <Divider />
             
             <List.Item
-              title="Messages"
-              description="Receive notifications for new messages"
+              title="Tin nhắn"
+              description="Nhận thông báo về tin nhắn mới"
               right={() => (
                 <Switch
                   value={notificationSettings.messages}
@@ -396,8 +396,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             <Divider />
             
             <List.Item
-              title="System Updates"
-              description="Receive notifications about system updates"
+              title="Cập nhật hệ thống"
+              description="Nhận thông báo về cập nhật hệ thống"
               right={() => (
                 <Switch
                   value={notificationSettings.systemUpdates}
@@ -412,7 +412,7 @@ const FamilyProfileScreen = ({ navigation }) => {
         {/* Account Settings Card */}
         <Card style={styles.card}>
           <Card.Content>
-            <Title style={styles.cardTitle}>Account Settings</Title>
+            <Title style={styles.cardTitle}>Cài đặt tài khoản</Title>
             
             <TouchableOpacity 
               style={styles.settingItem}
@@ -420,7 +420,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             >
               <View style={styles.settingInfo}>
                 <MaterialIcons name="lock" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Change Password</Text>
+                <Text style={styles.settingText}>Đổi mật khẩu</Text>
               </View>
               <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -430,7 +430,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
               <View style={styles.settingInfo}>
                 <MaterialIcons name="help-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Help & Support</Text>
+                <Text style={styles.settingText}>Trợ giúp & Hỗ trợ</Text>
               </View>
               <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -440,7 +440,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
               <View style={styles.settingInfo}>
                 <MaterialIcons name="privacy-tip" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Privacy Policy</Text>
+                <Text style={styles.settingText}>Chính sách bảo mật</Text>
               </View>
               <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -450,7 +450,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
               <View style={styles.settingInfo}>
                 <MaterialIcons name="description" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Terms of Service</Text>
+                <Text style={styles.settingText}>Điều khoản dịch vụ</Text>
               </View>
               <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -465,10 +465,10 @@ const FamilyProfileScreen = ({ navigation }) => {
           icon="logout"
           loading={loading}
         >
-          Logout
+          Đăng xuất
         </Button>
         
-        <Text style={styles.versionText}>Version 1.0.0</Text>
+        <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
       </ScrollView>
       
       {/* Password Change Dialog */}
@@ -477,10 +477,10 @@ const FamilyProfileScreen = ({ navigation }) => {
           visible={passwordDialogVisible}
           onDismiss={() => setPasswordDialogVisible(false)}
         >
-          <Dialog.Title>Change Password</Dialog.Title>
+          <Dialog.Title>Đổi mật khẩu</Dialog.Title>
           <Dialog.Content>
             <TextInput
-              label="Current Password"
+              label="Mật khẩu hiện tại"
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
@@ -491,7 +491,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             />
             
             <TextInput
-              label="New Password"
+              label="Mật khẩu mới"
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
@@ -502,7 +502,7 @@ const FamilyProfileScreen = ({ navigation }) => {
             />
             
             <TextInput
-              label="Confirm New Password"
+              label="Xác nhận mật khẩu mới"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -513,8 +513,8 @@ const FamilyProfileScreen = ({ navigation }) => {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setPasswordDialogVisible(false)}>Cancel</Button>
-            <Button onPress={handleChangePassword} loading={saving}>Save</Button>
+            <Button onPress={() => setPasswordDialogVisible(false)}>Hủy</Button>
+            <Button onPress={handleChangePassword} loading={saving}>Lưu</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

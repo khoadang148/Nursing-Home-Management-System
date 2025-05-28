@@ -190,7 +190,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      return 'Hôm qua';
     }
     
     // If the message is from this year, show the month and day
@@ -379,7 +379,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Loading messages...</Text>
+        <Text style={styles.loadingText}>Đang tải tin nhắn...</Text>
       </SafeAreaView>
     );
   }
@@ -387,162 +387,150 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Conversation List */}
-        <View style={styles.conversationListContainer}>
-          <View style={styles.conversationListHeader}>
-            <Text style={styles.screenTitle}>Messages</Text>
-            <TouchableOpacity 
-              onPress={() => setShowStaffList(!showStaffList)}
-              style={styles.newMessageButton}
-            >
-              <MaterialIcons name="edit" size={24} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Staff List for New Conversation */}
-          {showStaffList && (
-            <Card style={styles.staffListCard}>
-              <Card.Content>
-                <View style={styles.staffListHeader}>
-                  <Text style={styles.staffListTitle}>New Message</Text>
-                  <IconButton
-                    icon="close"
-                    size={20}
-                    onPress={() => setShowStaffList(false)}
-                  />
-                </View>
-                <FlatList
-                  data={mockStaff}
-                  renderItem={renderStaffItem}
-                  keyExtractor={item => item.id}
-                  style={styles.staffList}
-                />
-              </Card.Content>
-            </Card>
-          )}
-          
-          <FlatList
-            data={conversations}
-            renderItem={renderConversationItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.conversationList}
-            refreshControl={
-              <RefreshControl 
-                refreshing={refreshing} 
-                onRefresh={onRefresh} 
-                colors={[COLORS.primary]} 
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="forum" size={60} color={COLORS.border} />
-                <Text style={styles.emptyText}>No conversations yet</Text>
-                <Button 
-                  mode="contained" 
-                  onPress={() => setShowStaffList(true)}
-                  style={styles.startConversationButton}
-                >
-                  Start a conversation
-                </Button>
-              </View>
-            }
-          />
-        </View>
-        
-        {/* Chat Area */}
-        <View style={styles.chatAreaContainer}>
-          {selectedConversation ? (
-            <KeyboardAvoidingView 
-              style={styles.chatArea}
-              behavior={Platform.OS === 'ios' ? 'padding' : null}
-              keyboardVerticalOffset={80}
-            >
-              {/* Chat Header */}
-              <View style={styles.chatHeader}>
-                <View style={styles.chatHeaderInfo}>
-                  <Avatar.Image 
-                    source={{ uri: getOtherParticipant(selectedConversation).photo }}
-                    size={40}
-                  />
-                  <View style={styles.chatHeaderText}>
-                    <Text style={styles.chatHeaderName}>
-                      {getOtherParticipant(selectedConversation).name}
-                    </Text>
-                    <Text style={styles.chatHeaderRole}>
-                      {getOtherParticipant(selectedConversation).role}
-                    </Text>
-                  </View>
-                </View>
-                <IconButton
-                  icon="information-outline"
-                  size={24}
-                  onPress={() => {
-                    /* Show more information about the contact */
-                    Alert.alert(
-                      'Contact Information',
-                      `Name: ${getOtherParticipant(selectedConversation).name}\nRole: ${getOtherParticipant(selectedConversation).role}`,
-                      [{ text: 'OK' }]
-                    );
-                  }}
-                />
-              </View>
-              
-              {/* Messages List */}
-              <FlatList
-                data={selectedConversation.messages}
-                renderItem={renderMessageItem}
-                keyExtractor={item => item.id}
-                style={styles.messagesList}
-                contentContainerStyle={styles.messagesContent}
-                inverted={selectedConversation.messages.length > 0}
-                ListEmptyComponent={
-                  <View style={styles.emptyMessagesContainer}>
-                    <MaterialIcons name="chat" size={60} color={COLORS.border} />
-                    <Text style={styles.emptyMessagesText}>
-                      No messages yet. Start the conversation!
-                    </Text>
-                  </View>
-                }
-              />
-              
-              {/* Message Input */}
-              <View style={styles.messageInputContainer}>
-                <TextInput
-                  style={styles.messageInput}
-                  placeholder="Type a message..."
-                  value={messageText}
-                  onChangeText={setMessageText}
-                  multiline
-                  mode="outlined"
-                  outlineColor={COLORS.border}
-                  activeOutlineColor={COLORS.primary}
-                />
-                <IconButton
-                  icon="send"
-                  size={24}
-                  color={COLORS.primary}
-                  style={styles.sendButton}
-                  onPress={handleSendMessage}
-                  disabled={!messageText.trim()}
-                />
-              </View>
-            </KeyboardAvoidingView>
-          ) : (
-            <View style={styles.noChatSelectedContainer}>
-              <FontAwesome name="comments" size={80} color={COLORS.border} />
-              <Text style={styles.noChatSelectedText}>
-                Select a conversation or start a new one
-              </Text>
-              <Button
-                mode="contained"
-                onPress={() => setShowStaffList(true)}
-                style={{ marginTop: 16 }}
+        {/* Show either conversation list or chat area based on selection */}
+        {!selectedConversation ? (
+          <View style={styles.conversationListContainer}>
+            <View style={styles.conversationListHeader}>
+              <Text style={styles.screenTitle}>Tin Nhắn</Text>
+              <TouchableOpacity 
+                onPress={() => setShowStaffList(!showStaffList)}
+                style={styles.newMessageButton}
               >
-                New Message
-              </Button>
+                <MaterialIcons name="edit" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
+            
+            {/* Staff List for New Conversation */}
+            {showStaffList && (
+              <Card style={styles.staffListCard}>
+                <Card.Content>
+                  <View style={styles.staffListHeader}>
+                    <Text style={styles.staffListTitle}>Tin Nhắn Mới</Text>
+                    <IconButton
+                      icon="close"
+                      size={20}
+                      onPress={() => setShowStaffList(false)}
+                    />
+                  </View>
+                  <FlatList
+                    data={mockStaff}
+                    renderItem={renderStaffItem}
+                    keyExtractor={item => item.id}
+                    style={styles.staffList}
+                  />
+                </Card.Content>
+              </Card>
+            )}
+            
+            <FlatList
+              data={conversations}
+              renderItem={renderConversationItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.conversationList}
+              refreshControl={
+                <RefreshControl 
+                  refreshing={refreshing} 
+                  onRefresh={onRefresh} 
+                  colors={[COLORS.primary]} 
+                />
+              }
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <MaterialIcons name="forum" size={60} color={COLORS.border} />
+                  <Text style={styles.emptyText}>Chưa có cuộc trò chuyện nào</Text>
+                  <Button 
+                    mode="contained" 
+                    onPress={() => setShowStaffList(true)}
+                    style={styles.startConversationButton}
+                  >
+                    Bắt đầu cuộc trò chuyện
+                  </Button>
+                </View>
+              }
+            />
+          </View>
+        ) : (
+          <KeyboardAvoidingView 
+            style={styles.chatArea}
+            behavior={Platform.OS === 'ios' ? 'padding' : null}
+            keyboardVerticalOffset={80}
+          >
+            {/* Chat Header */}
+            <View style={styles.chatHeader}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => setSelectedConversation(null)}
+              >
+                <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+              <View style={styles.chatHeaderInfo}>
+                <Avatar.Image 
+                  source={{ uri: getOtherParticipant(selectedConversation).photo }}
+                  size={40}
+                />
+                <View style={styles.chatHeaderText}>
+                  <Text style={styles.chatHeaderName}>
+                    {getOtherParticipant(selectedConversation).name}
+                  </Text>
+                  <Text style={styles.chatHeaderRole}>
+                    {getOtherParticipant(selectedConversation).role}
+                  </Text>
+                </View>
+              </View>
+              <IconButton
+                icon="information-outline"
+                size={24}
+                onPress={() => {
+                  Alert.alert(
+                    'Contact Information',
+                    `Name: ${getOtherParticipant(selectedConversation).name}\nRole: ${getOtherParticipant(selectedConversation).role}`,
+                    [{ text: 'OK' }]
+                  );
+                }}
+              />
+            </View>
+            
+            {/* Messages List */}
+            <FlatList
+              data={selectedConversation.messages}
+              renderItem={renderMessageItem}
+              keyExtractor={item => item.id}
+              style={styles.messagesList}
+              contentContainerStyle={styles.messagesContent}
+              inverted={selectedConversation.messages.length > 0}
+              ListEmptyComponent={
+                <View style={styles.emptyMessagesContainer}>
+                  <MaterialIcons name="chat" size={60} color={COLORS.border} />
+                  <Text style={styles.emptyMessagesText}>
+                    Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
+                  </Text>
+                </View>
+              }
+            />
+            
+            {/* Message Input */}
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Nhập tin nhắn..."
+                value={messageText}
+                onChangeText={setMessageText}
+                multiline
+                mode="outlined"
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
+              />
+              <IconButton
+                icon="send"
+                size={24}
+                color={COLORS.primary}
+                style={styles.sendButton}
+                onPress={handleSendMessage}
+                disabled={!messageText.trim()}
+              />
+            </View>
+          </KeyboardAvoidingView>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -566,10 +554,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    flexDirection: 'row',
   },
   conversationListContainer: {
-    width: '38%',
+    flex: 1,
     borderRightWidth: 1,
     borderRightColor: COLORS.border,
   },
@@ -580,6 +567,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   screenTitle: {
     ...FONTS.h3,
@@ -596,6 +584,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   selectedConversation: {
     backgroundColor: COLORS.primary + '10',
@@ -812,6 +801,10 @@ const styles = StyleSheet.create({
   staffRole: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
   },
 });
 

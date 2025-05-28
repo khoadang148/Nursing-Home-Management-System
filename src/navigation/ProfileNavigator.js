@@ -17,11 +17,11 @@ const ProfileNavigator = () => {
         headerShown: false
       }}
     >
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="StaffDirectory" component={StaffDirectoryScreen} />
-      <Stack.Screen name="StaffDetails" component={StaffDetailsScreen} />
+      <Stack.Screen name="HoSoChinh" component={ProfileScreen} />
+      <Stack.Screen name="ChinhSuaHoSo" component={EditProfileScreen} />
+      <Stack.Screen name="CaiDat" component={SettingsScreen} />
+      <Stack.Screen name="DanhBaNhanVien" component={StaffDirectoryScreen} />
+      <Stack.Screen name="ChiTietNhanVien" component={StaffDetailsScreen} />
     </Stack.Navigator>
   );
 };

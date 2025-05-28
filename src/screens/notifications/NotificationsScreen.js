@@ -83,21 +83,21 @@ const NotificationsScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Notifications" />
+        <Appbar.Content title="Thông Báo" />
       </Appbar.Header>
 
       {isLoading && <ActivityIndicator style={styles.loader} size="large" color={COLORS.primary} />}
 
       {error && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error: {error}</Text>
+          <Text style={styles.errorText}>Lỗi: {error}</Text>
         </View>
       )}
 
       {!isLoading && notifications.length === 0 && (
         <View style={styles.emptyContainer}>
           <MaterialIcons name="notifications-off" size={64} color={COLORS.textSecondary} />
-          <Text style={styles.emptyText}>No notifications</Text>
+          <Text style={styles.emptyText}>Không có thông báo</Text>
         </View>
       )}
 
