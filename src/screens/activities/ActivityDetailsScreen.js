@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, StatusBar, Image, Alert } from 'react-native';
 import { 
   Appbar, 
   Button, 
@@ -10,13 +10,14 @@ import {
   Text, 
   Avatar,
   IconButton,
-  ActivityIndicator
+  ActivityIndicator,
+  Menu
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchActivityDetails } from '../../redux/slices/activitySlice';
+import { fetchActivityDetails, deleteActivity } from '../../redux/slices/activitySlice';
 
 import dateUtils from '../../utils/dateUtils';
 
@@ -29,17 +30,28 @@ const ActivityDetailsScreen = () => {
   
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
   
   useEffect(() => {
     setLoading(true);
     dispatch(fetchActivityDetails(activityId))
       .unwrap()
       .then(data => {
+        if (!data) {
+          throw new Error('Không tìm thấy dữ liệu hoạt động');
+        }
         setActivity(data);
         setLoading(false);
       })
       .catch(error => {
         console.error('Error fetching activity details:', error);
+        Alert.alert(
+          'Lỗi',
+          'Không thể tải thông tin hoạt động. Vui lòng thử lại sau.',
+          [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]
+        );
         setLoading(false);
       });
   }, [dispatch, activityId]);
@@ -73,11 +85,23 @@ const ActivityDetailsScreen = () => {
   };
   
   const formatDate = (dateString) => {
-    return dateUtils.formatDate(dateString, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    try {
+      if (!dateString) return 'Chưa có thông tin';
+      return dateUtils.formatDate(dateString, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Định dạng ngày không hợp lệ';
+    }
   };
   
   const formatTime = (dateString) => {
-    return dateUtils.formatTime(dateString);
+    try {
+      if (!dateString) return 'Chưa có thông tin';
+      return dateUtils.formatTime(dateString);
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'Định dạng giờ không hợp lệ';
+    }
   };
   
   const getActivityTypeInVietnamese = (type) => {
@@ -92,6 +116,29 @@ const ActivityDetailsScreen = () => {
       case 'therapeutic': return 'Trị liệu';
       default: return type || 'Khác';
     }
+  };
+  
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
+  
+  const handleDelete = () => {
+    Alert.alert(
+      'Xác nhận',
+      'Bạn có chắc muốn xóa hoạt động này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Xóa', style: 'destructive', onPress: async () => {
+            try {
+              await dispatch(deleteActivity(activityId)).unwrap();
+              Alert.alert('Thành công', 'Đã xóa hoạt động');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể xóa hoạt động');
+            }
+          }
+        }
+      ]
+    );
   };
   
   if (loading) {
@@ -126,8 +173,17 @@ const ActivityDetailsScreen = () => {
       <Appbar.Header style={{ backgroundColor: activityIconColor }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} iconColor="#fff" />
         <Appbar.Content title={activity.name} titleStyle={[FONTS.h2, { color: '#fff' }]} />
-        <Appbar.Action icon="pencil" onPress={() => navigation.navigate('EditActivity', { activityId })} iconColor="#fff" />
-        <Appbar.Action icon="dots-vertical" onPress={() => {}} iconColor="#fff" />
+        
+        <Menu
+          visible={menuVisible}
+          onDismiss={closeMenu}
+          anchor={
+            <Appbar.Action icon="dots-vertical" color="#fff" onPress={openMenu} />
+          }
+        >
+          <Menu.Item onPress={() => { closeMenu(); navigation.navigate('HoatDong', { screen: 'EditActivityScreen', params: { activityId } }); }} title="Sửa" />
+          <Menu.Item onPress={() => { closeMenu(); handleDelete(); }} title="Xóa" />
+        </Menu>
       </Appbar.Header>
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -164,29 +220,29 @@ const ActivityDetailsScreen = () => {
         <Card style={styles.detailCard}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Mô tả</Text>
-            <Text style={styles.descriptionText}>{activity.description}</Text>
+            <Text style={styles.descriptionText}>{activity.description || 'Chưa có mô tả'}</Text>
             
             <Divider style={styles.divider} />
             
             <Text style={styles.sectionTitle}>Chi tiết</Text>
             <List.Item
               title="Địa điểm"
-              description={activity.location}
+              description={activity.location || 'Chưa có thông tin'}
               left={props => <List.Icon {...props} icon="map-marker" color={COLORS.primary} />}
             />
             <List.Item
               title="Thời lượng"
-              description={`${activity.durationMinutes} phút`}
+              description={activity.durationMinutes ? `${activity.durationMinutes} phút` : 'Chưa có thông tin'}
               left={props => <List.Icon {...props} icon="clock-outline" color={COLORS.primary} />}
             />
             <List.Item
               title="Sức chứa"
-              description={`${activity.participants} người tham gia`}
+              description={activity.participants ? `${activity.participants} người tham gia` : 'Chưa có thông tin'}
               left={props => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
             />
             <List.Item
               title="Hướng dẫn viên"
-              description={activity.facilitator}
+              description={activity.facilitator || 'Chưa có thông tin'}
               left={props => <List.Icon {...props} icon="account" color={COLORS.primary} />}
             />
             

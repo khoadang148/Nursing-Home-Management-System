@@ -5,170 +5,110 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
+  TextInput,
   KeyboardAvoidingView, 
   Platform,
-  FlatList,
+  SafeAreaView,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
 import { 
   Card, 
   Title, 
   Paragraph, 
-  ActivityIndicator, 
-  TextInput, 
   Button, 
   Avatar, 
-  Divider,
   IconButton,
-  Menu,
-  Badge,
+  ActivityIndicator,
+  FAB,
 } from 'react-native-paper';
-import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { COLORS, FONTS } from '../../constants/theme';
 
-// Import constants
-import { COLORS, FONTS, SIZES } from '../../constants/theme';
-
-// Mock conversations data - in a real app this would come from an API
+// Mock data cho tin nhắn
 const mockConversations = [
   {
     id: '1',
-    participants: [
-      { id: 'f1', name: 'Jane Doe', role: 'family', photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
-      { id: 's1', name: 'Dr. Sarah Johnson', role: 'doctor', photo: 'https://randomuser.me/api/portraits/women/21.jpg' }
-    ],
-    messages: [
-      { 
-        id: '1', 
-        senderId: 's1', 
-        text: 'Hello Ms. Doe, I wanted to update you on your father\'s health status following his check-up yesterday.',
-        timestamp: '2023-11-10T09:30:00Z',
-        read: true
-      },
-      { 
-        id: '2', 
-        senderId: 'f1', 
-        text: 'Thank you, Dr. Johnson. How is he doing?', 
-        timestamp: '2023-11-10T10:15:00Z',
-        read: true 
-      },
-      { 
-        id: '3', 
-        senderId: 's1', 
-        text: 'His blood pressure has improved and he\'s responding well to the new medication. We\'ll continue to monitor him closely.',
-        timestamp: '2023-11-10T10:30:00Z',
-        read: true
-      },
-      { 
-        id: '4', 
-        senderId: 'f1', 
-        text: 'That\'s great news! Thank you for the update. I\'ll visit him this weekend.',
-        timestamp: '2023-11-10T10:35:00Z',
-        read: true
-      },
-    ],
-    lastMessage: {
-      text: 'That\'s great news! Thank you for the update. I\'ll visit him this weekend.',
-      timestamp: '2023-11-10T10:35:00Z',
-      senderId: 'f1'
-    },
-    unreadCount: 0
+    staffName: 'Bác sĩ Nguyễn Thị Lan',
+    role: 'Bác sĩ',
+    lastMessage: 'Tình trạng sức khỏe của bà ổn định. Huyết áp đã được kiểm soát tốt.',
+    timestamp: '2024-01-15T10:30:00.000Z',
+    unread: 2,
+    avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
+    online: true,
   },
   {
     id: '2',
-    participants: [
-      { id: 'f1', name: 'Jane Doe', role: 'family', photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
-      { id: 's2', name: 'Nurse Williams', role: 'nurse', photo: 'https://randomuser.me/api/portraits/men/22.jpg' }
-    ],
-    messages: [
-      { 
-        id: '1', 
-        senderId: 's2', 
-        text: 'Hello Ms. Doe, just letting you know that your father has been participating well in the group activities today.',
-        timestamp: '2023-11-12T14:20:00Z',
-        read: false
-      },
-    ],
-    lastMessage: {
-      text: 'Hello Ms. Doe, just letting you know that your father has been participating well in the group activities today.',
-      timestamp: '2023-11-12T14:20:00Z',
-      senderId: 's2'
-    },
-    unreadCount: 1
+    staffName: 'Y tá Trần Văn Minh',
+    role: 'Y tá',
+    lastMessage: 'Bà đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
+    timestamp: '2024-01-15T08:45:00.000Z',
+    unread: 0,
+    avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
+    online: false,
   },
   {
     id: '3',
-    participants: [
-      { id: 'f1', name: 'Jane Doe', role: 'family', photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
-      { id: 's3', name: 'Amy Chen', role: 'social worker', photo: 'https://randomuser.me/api/portraits/women/23.jpg' }
-    ],
-    messages: [
+    staffName: 'Điều dưỡng Lê Thị Hoa',
+    role: 'Điều dưỡng viên',
+    lastMessage: 'Cảm ơn gia đình đã quan tâm. Tôi sẽ cập nhật thường xuyên.',
+    timestamp: '2024-01-14T16:20:00.000Z',
+    unread: 0,
+    avatar: 'https://randomuser.me/api/portraits/women/28.jpg',
+    online: true,
+  },
+];
+
+const mockMessages = {
+  '1': [
       { 
         id: '1', 
-        senderId: 'f1', 
-        text: 'Hi Amy, I was wondering if we could discuss some additional activities for my father? He mentioned he used to enjoy gardening.',
-        timestamp: '2023-11-08T11:45:00Z',
-        read: true
+      senderId: 'staff_1',
+      senderName: 'Bác sĩ Nguyễn Thị Lan',
+      message: 'Chào anh/chị. Tôi là bác sĩ Lan, đang chăm sóc cho bà.',
+      timestamp: '2024-01-15T09:00:00.000Z',
+      isStaff: true,
       },
       { 
         id: '2', 
-        senderId: 's3', 
-        text: 'That\'s a great idea, Jane! We actually have a gardening program on Thursdays. I can make sure he\'s included in the next session.',
-        timestamp: '2023-11-08T13:15:00Z',
-        read: true
+      senderId: 'family_1',
+      senderName: 'Gia đình',
+      message: 'Chào bác sĩ! Tình trạng sức khỏe của mẹ tôi thế nào ạ?',
+      timestamp: '2024-01-15T09:15:00.000Z',
+      isStaff: false,
       },
       {
         id: '3',
-        senderId: 'f1',
-        text: 'That would be wonderful, thank you!',
-        timestamp: '2023-11-08T13:30:00Z',
-        read: true
-      },
-    ],
-    lastMessage: {
-      text: 'That would be wonderful, thank you!',
-      timestamp: '2023-11-08T13:30:00Z',
-      senderId: 'f1'
+      senderId: 'staff_1',
+      senderName: 'Bác sĩ Nguyễn Thị Lan',
+      message: 'Tình trạng sức khỏe của bà ổn định. Huyết áp đã được kiểm soát tốt. Bà cũng có tinh thần vui vẻ và ăn uống đều đặn.',
+      timestamp: '2024-01-15T10:30:00.000Z',
+      isStaff: true,
     },
-    unreadCount: 0
-  }
-];
-
-// Mock staff data for new conversation
-const mockStaff = [
-  { id: 's1', name: 'Dr. Sarah Johnson', role: 'doctor', photo: 'https://randomuser.me/api/portraits/women/21.jpg' },
-  { id: 's2', name: 'Nurse Williams', role: 'nurse', photo: 'https://randomuser.me/api/portraits/men/22.jpg' },
-  { id: 's3', name: 'Amy Chen', role: 'social worker', photo: 'https://randomuser.me/api/portraits/women/23.jpg' },
-  { id: 's4', name: 'Michael Brown', role: 'caregiver', photo: 'https://randomuser.me/api/portraits/men/24.jpg' },
-  { id: 's5', name: 'Lisa Wong', role: 'nutritionist', photo: 'https://randomuser.me/api/portraits/women/25.jpg' },
-];
+  ],
+};
 
 const FamilyCommunicationScreen = ({ navigation }) => {
-  const user = useSelector((state) => state.auth.user);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState(mockConversations);
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messageText, setMessageText] = useState('');
-  const [showNewConversationMenu, setShowNewConversationMenu] = useState(false);
-  const [showStaffList, setShowStaffList] = useState(false);
+  const [messages, setMessages] = useState({});
+  const [newMessage, setNewMessage] = useState('');
+  const [showChat, setShowChat] = useState(false);
   
   useEffect(() => {
     loadData();
-  }, [user]);
+  }, []);
   
   const loadData = async () => {
     setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // In a real app, this would filter conversations by the user's ID
+    // Simulate API call
+    setTimeout(() => {
     setConversations(mockConversations);
-    
+      setMessages(mockMessages);
     setLoading(false);
+    }, 1000);
   };
   
   const onRefresh = async () => {
@@ -177,202 +117,222 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     setRefreshing(false);
   };
   
-  const formatTimestamp = (timestamp) => {
+  const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
-    
-    // If the message is from today, only show the time
-    if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 60) {
+      return `${diffMins} phút`;
+    } else if (diffHours < 24) {
+      return `${diffHours} giờ`;
+    } else {
+      return `${diffDays} ngày`;
     }
-    
-    // If the message is from yesterday, show "Yesterday"
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hôm qua';
-    }
-    
-    // If the message is from this year, show the month and day
-    if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
-    
-    // Otherwise, show the full date
-    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
   };
-  
-  const handleSelectConversation = (conversation) => {
-    // Mark all messages as read
-    const updatedConversation = {
-      ...conversation,
-      messages: conversation.messages.map(msg => ({ ...msg, read: true })),
-      unreadCount: 0
-    };
+
+  const handleConversationPress = (conversation) => {
+    setSelectedConversation(conversation);
+    setShowChat(true);
     
-    // Update conversations list
-    setConversations(
-      conversations.map(conv => 
-        conv.id === updatedConversation.id ? updatedConversation : conv
-      )
+    // Mark conversation as read
+    const updatedConversations = conversations.map(conv => 
+      conv.id === conversation.id ? { ...conv, unread: 0 } : conv
     );
-    
-    setSelectedConversation(updatedConversation);
+    setConversations(updatedConversations);
   };
   
   const handleSendMessage = () => {
-    if (!messageText.trim() || !selectedConversation) return;
-    
-    // Create new message
-    const newMessage = {
-      id: (selectedConversation.messages.length + 1).toString(),
-      senderId: user.id,
-      text: messageText.trim(),
+    if (!newMessage.trim()) return;
+
+    const message = {
+      id: Date.now().toString(),
+      senderId: 'family_1',
+      senderName: 'Gia đình',
+      message: newMessage.trim(),
       timestamp: new Date().toISOString(),
-      read: false
+      isStaff: false,
     };
-    
-    // Update selected conversation
-    const updatedConversation = {
-      ...selectedConversation,
-      messages: [...selectedConversation.messages, newMessage],
-      lastMessage: {
-        text: newMessage.text,
-        timestamp: newMessage.timestamp,
-        senderId: newMessage.senderId
-      }
-    };
-    
-    // Update conversations list
-    setConversations(
-      conversations.map(conv => 
-        conv.id === updatedConversation.id ? updatedConversation : conv
-      )
+
+    const conversationMessages = messages[selectedConversation.id] || [];
+    setMessages({
+      ...messages,
+      [selectedConversation.id]: [...conversationMessages, message],
+    });
+
+    // Update last message in conversation
+    const updatedConversations = conversations.map(conv =>
+      conv.id === selectedConversation.id
+        ? { ...conv, lastMessage: newMessage.trim(), timestamp: new Date().toISOString() }
+        : conv
     );
-    
-    // Update selected conversation
-    setSelectedConversation(updatedConversation);
-    
-    // Clear input field
-    setMessageText('');
+    setConversations(updatedConversations);
+
+    setNewMessage('');
   };
-  
-  const startNewConversation = (staff) => {
-    // Create new conversation
-    const newConversation = {
-      id: (conversations.length + 1).toString(),
-      participants: [
-        { id: user.id, name: `${user.firstName} ${user.lastName}`, role: 'family', photo: user.photo },
-        { id: staff.id, name: staff.name, role: staff.role, photo: staff.photo }
-      ],
-      messages: [],
-      lastMessage: null,
-      unreadCount: 0
+
+  const handleQuickAction = (type) => {
+    // Find conversation by staff type
+    let targetConversation = null;
+    
+    switch (type) {
+      case 'doctor':
+        targetConversation = conversations.find(conv => 
+          conv.role.toLowerCase().includes('bác sĩ') || conv.role.toLowerCase().includes('doctor')
+        );
+        break;
+      case 'nurse':
+        targetConversation = conversations.find(conv => 
+          conv.role.toLowerCase().includes('y tá') || conv.role.toLowerCase().includes('nurse')
+        );
+        break;
+      case 'support':
+        targetConversation = conversations.find(conv => 
+          conv.role.toLowerCase().includes('điều dưỡng') || conv.role.toLowerCase().includes('hỗ trợ')
+        );
+        break;
+    }
+
+    if (targetConversation) {
+      handleConversationPress(targetConversation);
+    } else {
+      // Create new conversation if not exists
+      Alert.alert(
+        'Tạo cuộc hội thoại mới',
+        `Bạn có muốn bắt đầu cuộc hội thoại với ${getStaffTypeName(type)}?`,
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { 
+            text: 'Bắt đầu', 
+            onPress: () => {
+              const newConversation = createNewConversation(type);
+              const updatedConversations = [...conversations, newConversation];
+              setConversations(updatedConversations);
+              
+              // Initialize empty messages array for new conversation
+              setMessages(prev => ({
+                ...prev,
+                [newConversation.id]: []
+              }));
+              
+              handleConversationPress(newConversation);
+              
+              // Show success message
+              setTimeout(() => {
+                Alert.alert(
+                  'Thành công',
+                  `Đã tạo cuộc hội thoại với ${newConversation.staffName}. Bạn có thể bắt đầu nhắn tin ngay!`,
+                  [{ text: 'OK' }]
+                );
+              }, 500);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const getStaffTypeName = (type) => {
+    switch (type) {
+      case 'doctor': return 'Bác sĩ';
+      case 'nurse': return 'Y tá';
+      case 'support': return 'Nhân viên hỗ trợ';
+      default: return 'Nhân viên';
+    }
+  };
+
+  const createNewConversation = (type) => {
+    const staffData = {
+      doctor: {
+        staffName: 'Bác sĩ Nguyễn Văn An',
+        role: 'Bác sĩ',
+        avatar: 'https://randomuser.me/api/portraits/men/50.jpg',
+      },
+      nurse: {
+        staffName: 'Y tá Lê Thị Mai',
+        role: 'Y tá',
+        avatar: 'https://randomuser.me/api/portraits/women/60.jpg',
+      },
+      support: {
+        staffName: 'Nhân viên Hỗ trợ',
+        role: 'Hỗ trợ khách hàng',
+        avatar: 'https://randomuser.me/api/portraits/women/70.jpg',
+      },
     };
-    
-    // Add to conversations list
-    setConversations([...conversations, newConversation]);
-    
-    // Select the new conversation
-    setSelectedConversation(newConversation);
-    
-    // Hide staff list
-    setShowStaffList(false);
+
+    const staff = staffData[type];
+    const newId = (conversations.length + 1).toString();
+
+    return {
+      id: newId,
+      staffName: staff.staffName,
+      role: staff.role,
+      lastMessage: '',
+      timestamp: new Date().toISOString(),
+      unread: 0,
+      avatar: staff.avatar,
+      online: true,
+    };
   };
-  
-  const getOtherParticipant = (conversation) => {
-    return conversation.participants.find(p => p.id !== user.id);
-  };
-  
-  const renderConversationItem = ({ item }) => {
-    const otherParticipant = getOtherParticipant(item);
-    
-    return (
+
+  const renderConversationItem = (conversation) => (
       <TouchableOpacity
-        style={[
-          styles.conversationItem,
-          selectedConversation?.id === item.id && styles.selectedConversation
-        ]}
-        onPress={() => handleSelectConversation(item)}
-      >
-        <View style={styles.conversationAvatar}>
-          <Avatar.Image 
-            source={{ uri: otherParticipant.photo }} 
-            size={50} 
-          />
-          {item.unreadCount > 0 && (
-            <Badge
-              size={20}
-              style={styles.unreadBadge}
-            >
-              {item.unreadCount}
-            </Badge>
-          )}
+      key={conversation.id}
+      style={styles.conversationItem}
+      onPress={() => handleConversationPress(conversation)}
+    >
+      <View style={styles.avatarContainer}>
+        <Avatar.Image source={{ uri: conversation.avatar }} size={50} />
+        {conversation.online && <View style={styles.onlineIndicator} />}
+      </View>
+      
+      <View style={styles.conversationContent}>
+        <View style={styles.conversationHeader}>
+          <Text style={styles.staffName}>{conversation.staffName}</Text>
+          <Text style={styles.timestamp}>{formatTime(conversation.timestamp)}</Text>
         </View>
-        <View style={styles.conversationInfo}>
-          <View style={styles.conversationHeader}>
-            <Text style={styles.participantName}>{otherParticipant.name}</Text>
-            {item.lastMessage && (
-              <Text style={styles.messageTime}>
-                {formatTimestamp(item.lastMessage.timestamp)}
+        
+        <Text style={styles.role}>{conversation.role}</Text>
+        <Text style={styles.lastMessage} numberOfLines={2}>
+          {conversation.lastMessage}
               </Text>
-            )}
           </View>
-          <Text style={styles.participantRole}>{otherParticipant.role}</Text>
-          {item.lastMessage && (
-            <Text 
-              style={[
-                styles.lastMessage,
-                item.unreadCount > 0 && styles.unreadMessage
-              ]}
-              numberOfLines={1}
-            >
-              {item.lastMessage.senderId === user.id ? 'You: ' : ''}
-              {item.lastMessage.text}
-            </Text>
-          )}
+      
+      {conversation.unread > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadText}>{conversation.unread}</Text>
         </View>
+      )}
       </TouchableOpacity>
     );
-  };
-  
-  const renderMessageItem = ({ item }) => {
-    const isCurrentUser = item.senderId === user.id;
-    const messageDate = new Date(item.timestamp);
-    
-    return (
+
+  const renderMessage = (message) => (
       <View
+      key={message.id}
         style={[
           styles.messageContainer,
-          isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
-        ]}
-      >
-        <View
-          style={[
-            styles.messageBubble,
-            isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
-          ]}
-        >
-          <Text style={styles.messageText}>{item.text}</Text>
-          <Text style={styles.messageTimestamp}>
-            {messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        message.isStaff ? styles.staffMessage : styles.familyMessage,
+      ]}
+    >
+      <Text style={[
+        styles.messageText,
+        message.isStaff ? styles.staffMessageText : styles.familyMessageText,
+      ]}>
+        {message.message}
+      </Text>
+      <Text style={[
+        styles.messageTime,
+        message.isStaff ? styles.staffMessageTime : styles.familyMessageTime,
+      ]}>
+        {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
           </Text>
         </View>
-      </View>
-    );
-  };
-  
-  const renderStaffItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.staffItem}
-      onPress={() => startNewConversation(item)}
-    >
-      <Avatar.Image source={{ uri: item.photo }} size={40} />
-      <View style={styles.staffInfo}>
-        <Text style={styles.staffName}>{item.name}</Text>
-        <Text style={styles.staffRole}>{item.role}</Text>
-      </View>
-    </TouchableOpacity>
   );
   
   if (loading) {
@@ -383,155 +343,117 @@ const FamilyCommunicationScreen = ({ navigation }) => {
       </SafeAreaView>
     );
   }
+
+  if (showChat && selectedConversation) {
+    const conversationMessages = messages[selectedConversation.id] || [];
   
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Show either conversation list or chat area based on selection */}
-        {!selectedConversation ? (
-          <View style={styles.conversationListContainer}>
-            <View style={styles.conversationListHeader}>
-              <Text style={styles.screenTitle}>Tin Nhắn</Text>
-              <TouchableOpacity 
-                onPress={() => setShowStaffList(!showStaffList)}
-                style={styles.newMessageButton}
-              >
-                <MaterialIcons name="edit" size={24} color={COLORS.primary} />
-              </TouchableOpacity>
+        {/* Chat Header */}
+        <View style={styles.chatHeader}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => setShowChat(false)}
+          />
+          <View style={styles.chatHeaderInfo}>
+            <Avatar.Image source={{ uri: selectedConversation.avatar }} size={40} />
+            <View style={styles.chatHeaderText}>
+              <Text style={styles.chatHeaderName}>{selectedConversation.staffName}</Text>
+              <Text style={styles.chatHeaderRole}>{selectedConversation.role}</Text>
             </View>
-            
-            {/* Staff List for New Conversation */}
-            {showStaffList && (
-              <Card style={styles.staffListCard}>
-                <Card.Content>
-                  <View style={styles.staffListHeader}>
-                    <Text style={styles.staffListTitle}>Tin Nhắn Mới</Text>
-                    <IconButton
-                      icon="close"
-                      size={20}
-                      onPress={() => setShowStaffList(false)}
-                    />
-                  </View>
-                  <FlatList
-                    data={mockStaff}
-                    renderItem={renderStaffItem}
-                    keyExtractor={item => item.id}
-                    style={styles.staffList}
-                  />
-                </Card.Content>
-              </Card>
-            )}
-            
-            <FlatList
-              data={conversations}
-              renderItem={renderConversationItem}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.conversationList}
-              refreshControl={
-                <RefreshControl 
-                  refreshing={refreshing} 
-                  onRefresh={onRefresh} 
-                  colors={[COLORS.primary]} 
-                />
-              }
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <MaterialIcons name="forum" size={60} color={COLORS.border} />
-                  <Text style={styles.emptyText}>Chưa có cuộc trò chuyện nào</Text>
-                  <Button 
-                    mode="contained" 
-                    onPress={() => setShowStaffList(true)}
-                    style={styles.startConversationButton}
-                  >
-                    Bắt đầu cuộc trò chuyện
-                  </Button>
-                </View>
-              }
-            />
           </View>
-        ) : (
+          <IconButton icon="phone" size={24} onPress={() => {}} />
+        </View>
+
+        {/* Messages */}
           <KeyboardAvoidingView 
-            style={styles.chatArea}
-            behavior={Platform.OS === 'ios' ? 'padding' : null}
-            keyboardVerticalOffset={80}
+          style={styles.chatContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
           >
-            {/* Chat Header */}
-            <View style={styles.chatHeader}>
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => setSelectedConversation(null)}
-              >
-                <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-              <View style={styles.chatHeaderInfo}>
-                <Avatar.Image 
-                  source={{ uri: getOtherParticipant(selectedConversation).photo }}
-                  size={40}
-                />
-                <View style={styles.chatHeaderText}>
-                  <Text style={styles.chatHeaderName}>
-                    {getOtherParticipant(selectedConversation).name}
-                  </Text>
-                  <Text style={styles.chatHeaderRole}>
-                    {getOtherParticipant(selectedConversation).role}
-                  </Text>
-                </View>
-              </View>
-              <IconButton
-                icon="information-outline"
-                size={24}
-                onPress={() => {
-                  Alert.alert(
-                    'Contact Information',
-                    `Name: ${getOtherParticipant(selectedConversation).name}\nRole: ${getOtherParticipant(selectedConversation).role}`,
-                    [{ text: 'OK' }]
-                  );
-                }}
-              />
-            </View>
-            
-            {/* Messages List */}
-            <FlatList
-              data={selectedConversation.messages}
-              renderItem={renderMessageItem}
-              keyExtractor={item => item.id}
-              style={styles.messagesList}
-              contentContainerStyle={styles.messagesContent}
-              inverted={selectedConversation.messages.length > 0}
-              ListEmptyComponent={
-                <View style={styles.emptyMessagesContainer}>
-                  <MaterialIcons name="chat" size={60} color={COLORS.border} />
-                  <Text style={styles.emptyMessagesText}>
-                    Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
-                  </Text>
-                </View>
-              }
-            />
+            {conversationMessages.map(renderMessage)}
+          </ScrollView>
             
             {/* Message Input */}
             <View style={styles.messageInputContainer}>
               <TextInput
                 style={styles.messageInput}
+              value={newMessage}
+              onChangeText={setNewMessage}
                 placeholder="Nhập tin nhắn..."
-                value={messageText}
-                onChangeText={setMessageText}
                 multiline
-                mode="outlined"
-                outlineColor={COLORS.border}
-                activeOutlineColor={COLORS.primary}
-              />
-              <IconButton
-                icon="send"
-                size={24}
-                color={COLORS.primary}
-                style={styles.sendButton}
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, { opacity: newMessage.trim() ? 1 : 0.5 }]}
                 onPress={handleSendMessage}
-                disabled={!messageText.trim()}
-              />
+              disabled={!newMessage.trim()}
+            >
+              <MaterialIcons name="send" size={24} color={COLORS.surface} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Tin Nhắn</Text>
+          <Text style={styles.headerSubtitle}>
+            Trao đổi với đội ngũ chăm sóc
+          </Text>
+        </View>
+
+        {/* Quick Actions */}
+        <Card style={styles.quickActionsCard}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Liên hệ nhanh</Title>
+            <View style={styles.quickActions}>
+              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('doctor')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.primary + '20' }]}>
+                  <MaterialIcons name="local-hospital" size={24} color={COLORS.primary} />
+                </View>
+                <Text style={styles.quickActionText}>Bác sĩ</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('nurse')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.accent + '20' }]}>
+                  <FontAwesome5 name="user-nurse" size={20} color={COLORS.accent} />
+                </View>
+                <Text style={styles.quickActionText}>Y tá</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('support')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.secondary + '20' }]}>
+                  <MaterialIcons name="support-agent" size={24} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.quickActionText}>Hỗ trợ</Text>
+              </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
-        )}
-      </View>
+          </Card.Content>
+        </Card>
+
+        {/* Conversations List */}
+        <Card style={styles.conversationsCard}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Cuộc trò chuyện</Title>
+            {conversations.map(renderConversationItem)}
+          </Card.Content>
+        </Card>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -539,272 +461,305 @@ const FamilyCommunicationScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8f9fa',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8f9fa',
   },
   loadingText: {
     marginTop: 10,
-    color: COLORS.text,
-    fontSize: 16,
+    color: '#6c757d',
+    fontSize: 15,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    paddingTop: 36,
+    paddingHorizontal: 16,
+    paddingBottom: 80,
   },
-  conversationListContainer: {
-    flex: 1,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.border,
+  header: {
+    marginBottom: 24,
+    paddingHorizontal: 8,
+    paddingTop: 20,
   },
-  conversationListHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    letterSpacing: 0.3,
+  },
+  quickActionsCard: {
+    marginBottom: 20,
+    backgroundColor: 'white',
+    borderRadius: 16,
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderWidth: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  screenTitle: {
-    ...FONTS.h3,
-    color: COLORS.text,
+  conversationsCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  newMessageButton: {
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    color: '#1a1a1a',
+    letterSpacing: 0.3,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+  },
+  quickAction: {
+    alignItems: 'center',
     padding: 8,
   },
-  conversationList: {
-    flexGrow: 1,
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  quickActionText: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   conversationItem: {
     flexDirection: 'row',
-    padding: 12,
+    alignItems: 'center',
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: '#f0f0f0',
   },
-  selectedConversation: {
-    backgroundColor: COLORS.primary + '10',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-  },
-  conversationAvatar: {
-    marginRight: 12,
+  avatarContainer: {
     position: 'relative',
+    marginRight: 14,
   },
-  unreadBadge: {
+  onlineIndicator: {
     position: 'absolute',
-    top: 0,
-    right: -5,
-    backgroundColor: COLORS.primary,
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: 'white',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  conversationInfo: {
+  conversationContent: {
     flex: 1,
   },
   conversationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
-  },
-  participantName: {
-    ...FONTS.body2,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  messageTime: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-  },
-  participantRole: {
-    ...FONTS.body3,
-    color: COLORS.primary,
     marginBottom: 4,
   },
-  lastMessage: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+  staffName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
-  unreadMessage: {
+  timestamp: {
+    fontSize: 13,
+    color: '#888',
+  },
+  role: {
+    fontSize: 14,
+    color: COLORS.primary,
+    marginBottom: 4,
     fontWeight: '500',
-    color: COLORS.text,
   },
-  chatAreaContainer: {
-    flex: 1,
+  lastMessage: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 18,
   },
-  chatArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
+  unreadBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  unreadText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
   },
   chatHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: '#f0f0f0',
+    paddingTop: 45,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   chatHeaderInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 12,
   },
   chatHeaderText: {
     marginLeft: 12,
   },
   chatHeaderName: {
-    ...FONTS.body2,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
   },
   chatHeaderRole: {
-    ...FONTS.body3,
-    color: COLORS.primary,
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
   },
-  messagesList: {
+  chatContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  messagesContainer: {
+    flex: 1,
   },
   messagesContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingTop: 16,
+    padding: 16,
   },
   messageContainer: {
-    marginVertical: 4,
+    marginBottom: 16,
     maxWidth: '80%',
   },
-  currentUserMessage: {
-    alignSelf: 'flex-end',
-  },
-  otherUserMessage: {
+  staffMessage: {
     alignSelf: 'flex-start',
-  },
-  messageBubble: {
-    borderRadius: 16,
-    padding: 12,
-    paddingBottom: 8,
-  },
-  currentUserBubble: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
-  },
-  otherUserBubble: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'white',
+    borderRadius: 20,
     borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    padding: 14,
+    borderWidth: 0,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  familyMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    borderBottomRightRadius: 4,
+    padding: 14,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   messageText: {
-    ...FONTS.body2,
-    color: COLORS.surface,
+    fontSize: 15,
     marginBottom: 4,
+    lineHeight: 20,
   },
-  messageTimestamp: {
-    ...FONTS.body3,
-    color: COLORS.surface + 'CC',
-    alignSelf: 'flex-end',
+  staffMessageText: {
+    color: '#1a1a1a',
+  },
+  familyMessageText: {
+    color: 'white',
+  },
+  messageTime: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  staffMessageTime: {
+    color: '#888',
+  },
+  familyMessageTime: {
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   messageInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderTopColor: '#f0f0f0',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   messageInput: {
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 12,
     maxHeight: 100,
-    backgroundColor: COLORS.surface,
+    fontSize: 15,
+    backgroundColor: '#f8f9fa',
   },
   sendButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 6,
-  },
-  noChatSelectedContainer: {
-    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 24,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  noChatSelectedText: {
-    ...FONTS.body1,
-    color: COLORS.textSecondary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyText: {
-    ...FONTS.body1,
-    color: COLORS.textSecondary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  startConversationButton: {
-    marginTop: 16,
-  },
-  emptyMessagesContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyMessagesText: {
-    ...FONTS.body1,
-    color: COLORS.textSecondary,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  staffListCard: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    right: 16,
-    zIndex: 100,
-    elevation: 4,
-  },
-  staffListHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  staffListTitle: {
-    ...FONTS.h4,
-  },
-  staffList: {
-    maxHeight: 300,
-  },
-  staffItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  staffInfo: {
-    marginLeft: 12,
-  },
-  staffName: {
-    ...FONTS.body2,
-    fontWeight: '500',
-  },
-  staffRole: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
 });
 

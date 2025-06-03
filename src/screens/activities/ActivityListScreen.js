@@ -90,7 +90,7 @@ const ActivityListScreen = () => {
     const formattedDate = activityDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
-      <TouchableOpacity onPress={() => navigation.navigate('ActivityDetails', { activityId: item.id })}>
+      <TouchableOpacity onPress={() => navigation.navigate('ChiTietHoatDong', { activityId: item.id })}>
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.activityHeader}>
@@ -137,11 +137,6 @@ const ActivityListScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-      <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
-        <Appbar.Content title="Hoạt động" titleStyle={FONTS.h2} />
-        <Appbar.Action icon="calendar" onPress={() => navigation.navigate('ActivityCalendar')} />
-        <Appbar.Action icon="filter-variant" onPress={() => {}} />
-      </Appbar.Header>
       
       <View style={styles.searchContainer}>
         <Searchbar
@@ -194,7 +189,7 @@ const ActivityListScreen = () => {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.navigate('CreateActivity')}
+        onPress={() => navigation.navigate('TaoHoatDong')}
         color={COLORS.surface}
       />
     </View>
@@ -223,7 +218,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: SIZES.padding,
-    paddingBottom: 80, // Space for FAB
+    paddingBottom: 60, 
   },
   card: {
     marginBottom: SIZES.padding,

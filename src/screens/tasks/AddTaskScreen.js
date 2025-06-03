@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Appbar, TextInput, Button, HelperText, Divider, Text, Menu } from 'react-native-paper';
+import { Appbar, TextInput, Button, HelperText, Divider, Text, Menu, ActivityIndicator } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useDispatch, useSelector } from 'react-redux';
+import { assignTask } from '../../redux/slices/staffSlice';
+import { fetchAllStaff } from '../../redux/slices/staffSlice';
 
 const PRIORITIES = ['Cao', 'Trung bình', 'Thấp'];
 const CATEGORIES = ['Thuốc', 'Dấu hiệu sinh tồn', 'Liệu pháp', 'Điều trị', 'Vệ sinh', 'Dinh dưỡng', 'Khác'];
@@ -19,6 +22,8 @@ const MOCK_RESIDENTS = [
 
 const AddTaskScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const { isLoading, error, staff } = useSelector((state) => state.staff);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -28,82 +33,129 @@ const AddTaskScreen = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [priority, setPriority] = useState('Trung bình');
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
-      const [category, setCategory] = useState('Thuốc');
+  const [category, setCategory] = useState('Thuốc');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [resident, setResident] = useState(null);
   const [showResidentsMenu, setShowResidentsMenu] = useState(false);
-  const [assignedTo, setAssignedTo] = useState('');
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [showStaffMenu, setShowStaffMenu] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    // Fetch staff list when component mounts
+    dispatch(fetchAllStaff());
+  }, [dispatch]);
   
   const validate = () => {
     const newErrors = {};
+    const now = new Date();
+    const selectedDateTime = new Date(dueDate);
+    selectedDateTime.setHours(dueTime.getHours(), dueTime.getMinutes(), 0, 0);
     
     if (!title.trim()) newErrors.title = 'Tiêu đề là bắt buộc';
     if (!description.trim()) newErrors.description = 'Mô tả là bắt buộc';
     if (!resident) newErrors.resident = 'Cư dân là bắt buộc';
-    if (!assignedTo.trim()) newErrors.assignedTo = 'Nhân viên được giao là bắt buộc';
+    if (!selectedStaff) newErrors.staff = 'Nhân viên được giao là bắt buộc';
+    if (selectedDateTime < now) newErrors.dueDate = 'Thời gian đến hạn phải lớn hơn thời gian hiện tại';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!validate()) return;
-    
-    const combinedDueDate = new Date(dueDate);
-    combinedDueDate.setHours(dueTime.getHours(), dueTime.getMinutes(), 0, 0);
-    
-    const newTask = {
-      id: Math.random().toString(36).substring(2, 11), // Generate a random ID
-      title,
-      description,
-      dueDate: combinedDueDate.toISOString(),
-      priority,
-      status: 'Chờ xử lý',
-      category,
-      residentId: resident?.id,
-      residentName: resident?.name,
-      roomNumber: resident?.roomNumber,
-      assignedTo
-    };
-    
-    // In a real app, send to API or add to Redux
-    console.log('New task:', newTask);
-    
-    // Navigate back to task list
+
     Alert.alert(
-      "Nhiệm vụ đã tạo",
-      "Nhiệm vụ đã được tạo thành công!",
+      "Xác nhận",
+      "Bạn có chắc chắn muốn tạo nhiệm vụ này?",
       [
-        { 
-          text: "OK", 
-          onPress: () => navigation.navigate('TaskList') 
+        {
+          text: "Hủy",
+          style: "cancel"
+        },
+        {
+          text: "Tạo",
+          onPress: async () => {
+            const combinedDueDate = new Date(dueDate);
+            combinedDueDate.setHours(dueTime.getHours(), dueTime.getMinutes(), 0, 0);
+            
+            const taskData = {
+              title,
+              description,
+              dueDate: combinedDueDate.toISOString(),
+              priority,
+              status: 'Chờ xử lý',
+              category,
+              residentId: resident?.id,
+              residentName: resident?.name,
+              roomNumber: resident?.roomNumber,
+              assignedTo: selectedStaff?.id
+            };
+
+            try {
+              const result = await dispatch(assignTask({ 
+                staffId: selectedStaff.id, 
+                taskData 
+              })).unwrap();
+              
+              Alert.alert(
+                "Thành công",
+                "Nhiệm vụ đã được tạo thành công!",
+                [
+                  { 
+                    text: "OK", 
+                    onPress: () => navigation.navigate('TaskList') 
+                  }
+                ]
+              );
+            } catch (err) {
+              Alert.alert(
+                "Lỗi",
+                err.message || "Không thể tạo nhiệm vụ. Vui lòng thử lại sau."
+              );
+            }
+          }
         }
       ]
     );
   };
   
   const formatDate = (date) => {
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
   
   const formatTime = (time) => {
-    return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return time.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    });
   };
-  
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Thêm nhiệm vụ" />
-        <Appbar.Action icon="check" onPress={handleCreateTask} />
+        <Appbar.BackAction onPress={() => navigation.goBack()} color={COLORS.surface} />
+        <Appbar.Content title="Tạo Nhiệm Vụ Mới" color={COLORS.surface} />
       </Appbar.Header>
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+
+      <ScrollView style={styles.scrollContent}>
+        <Text style={styles.sectionTitle}>Thông tin nhiệm vụ</Text>
         
         <TextInput
-          label="Tiêu đề nhiệm vụ"
+          label="Tiêu đề"
           value={title}
           onChangeText={setTitle}
           style={styles.input}
@@ -115,53 +167,61 @@ const AddTaskScreen = () => {
             {errors.title}
           </HelperText>
         )}
-        
+
         <TextInput
           label="Mô tả"
           value={description}
           onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
           style={styles.input}
           error={!!errors.description}
           mode="outlined"
+          multiline
+          numberOfLines={4}
         />
         {!!errors.description && (
           <HelperText type="error" visible={!!errors.description}>
             {errors.description}
           </HelperText>
         )}
-        
-        <TextInput
-          label="Ngày hạn"
-          value={formatDate(dueDate)}
-          onPressIn={() => setShowDatePicker(true)}
-          right={<TextInput.Icon icon="calendar" />}
-          mode="outlined"
-          editable={false}
-          style={styles.input}
-        />
+
+        <View style={styles.dateTimeContainer}>
+          <TouchableOpacity
+            style={[styles.dateTimeButton, !!errors.dueDate && styles.errorBorder]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateTimeLabel}>Ngày đến hạn:</Text>
+            <Text style={styles.dateTimeValue}>{formatDate(dueDate)}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dateTimeButton, !!errors.dueDate && styles.errorBorder]}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <Text style={styles.dateTimeLabel}>Giờ đến hạn:</Text>
+            <Text style={styles.dateTimeValue}>{formatTime(dueTime)}</Text>
+          </TouchableOpacity>
+        </View>
+        {!!errors.dueDate && (
+          <HelperText type="error" visible={!!errors.dueDate}>
+            {errors.dueDate}
+          </HelperText>
+        )}
+
         {showDatePicker && (
           <DateTimePicker
             value={dueDate}
             mode="date"
             display="default"
+            minimumDate={new Date()}
             onChange={(event, selectedDate) => {
               setShowDatePicker(false);
-              if (selectedDate) setDueDate(selectedDate);
+              if (selectedDate) {
+                setDueDate(selectedDate);
+              }
             }}
           />
         )}
-        
-        <TextInput
-          label="Giờ hạn"
-          value={formatTime(dueTime)}
-          onPressIn={() => setShowTimePicker(true)}
-          right={<TextInput.Icon icon="clock-outline" />}
-          mode="outlined"
-          editable={false}
-          style={styles.input}
-        />
+
         {showTimePicker && (
           <DateTimePicker
             value={dueTime}
@@ -169,85 +229,63 @@ const AddTaskScreen = () => {
             display="default"
             onChange={(event, selectedTime) => {
               setShowTimePicker(false);
-              if (selectedTime) setDueTime(selectedTime);
+              if (selectedTime) {
+                setDueTime(selectedTime);
+              }
             }}
           />
         )}
-        
-        <View style={styles.menuContainer}>
-          <Text style={styles.inputLabel}>Độ ưu tiên</Text>
-          <Menu
-            visible={showPriorityMenu}
-            onDismiss={() => setShowPriorityMenu(false)}
-            anchor={
-              <TouchableOpacity 
-                style={styles.menuButton}
-                onPress={() => setShowPriorityMenu(true)}
-              >
-                <Text style={[
-                  styles.menuButtonText,
-                  {
-                    color: priority === 'Cao' 
-                      ? COLORS.error 
-                      : priority === 'Trung bình'
-                      ? COLORS.warning
-                      : COLORS.info
-                  }
-                ]}>
-                  {priority}
-                </Text>
-              </TouchableOpacity>
-            }
-          >
-            {PRIORITIES.map((item) => (
-              <Menu.Item
-                key={item}
-                onPress={() => {
-                  setPriority(item);
-                  setShowPriorityMenu(false);
-                }}
-                title={item}
-                titleStyle={{
-                  color: item === 'Cao' 
-                    ? COLORS.error 
-                    : item === 'Trung bình'
-                    ? COLORS.warning
-                    : COLORS.info
-                }}
-              />
-            ))}
-          </Menu>
-        </View>
-        
-        <View style={styles.menuContainer}>
-          <Text style={styles.inputLabel}>Loại</Text>
-          <Menu
-            visible={showCategoryMenu}
-            onDismiss={() => setShowCategoryMenu(false)}
-            anchor={
-              <TouchableOpacity 
-                style={styles.menuButton}
-                onPress={() => setShowCategoryMenu(true)}
-              >
-                <Text style={styles.menuButtonText}>{category}</Text>
-              </TouchableOpacity>
-            }
-          >
-            {CATEGORIES.map((item) => (
-              <Menu.Item
-                key={item}
-                onPress={() => {
-                  setCategory(item);
-                  setShowCategoryMenu(false);
-                }}
-                title={item}
-              />
-            ))}
-          </Menu>
-        </View>
-        
+
+        <Menu
+          visible={showPriorityMenu}
+          onDismiss={() => setShowPriorityMenu(false)}
+          anchor={
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => setShowPriorityMenu(true)}
+            >
+              <Text style={styles.menuButtonText}>Độ ưu tiên: {priority}</Text>
+            </TouchableOpacity>
+          }
+        >
+          {PRIORITIES.map((item) => (
+            <Menu.Item
+              key={item}
+              onPress={() => {
+                setPriority(item);
+                setShowPriorityMenu(false);
+              }}
+              title={item}
+            />
+          ))}
+        </Menu>
+
+        <Menu
+          visible={showCategoryMenu}
+          onDismiss={() => setShowCategoryMenu(false)}
+          anchor={
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => setShowCategoryMenu(true)}
+            >
+              <Text style={styles.menuButtonText}>Danh mục: {category}</Text>
+            </TouchableOpacity>
+          }
+        >
+          {CATEGORIES.map((item) => (
+            <Menu.Item
+              key={item}
+              onPress={() => {
+                setCategory(item);
+                setShowCategoryMenu(false);
+              }}
+              title={item}
+            />
+          ))}
+        </Menu>
+
         <Divider style={styles.divider} />
-        
+
         <Text style={styles.sectionTitle}>Cư dân</Text>
         <Menu
           visible={showResidentsMenu}
@@ -288,18 +326,39 @@ const AddTaskScreen = () => {
         <Divider style={styles.divider} />
         
         <Text style={styles.sectionTitle}>Phân công</Text>
-        <TextInput
-          label="Được giao cho"
-          value={assignedTo}
-          onChangeText={setAssignedTo}
-          style={styles.input}
-          error={!!errors.assignedTo}
-          mode="outlined"
-          right={<TextInput.Icon icon="account" />}
-        />
-        {!!errors.assignedTo && (
-          <HelperText type="error" visible={!!errors.assignedTo}>
-            {errors.assignedTo}
+        <Menu
+          visible={showStaffMenu}
+          onDismiss={() => setShowStaffMenu(false)}
+          anchor={
+            <TouchableOpacity 
+              style={[styles.staffSelector, !!errors.staff && styles.errorBorder]}
+              onPress={() => setShowStaffMenu(true)}
+            >
+              {selectedStaff ? (
+                <View>
+                  <Text style={styles.staffName}>{selectedStaff.name}</Text>
+                  <Text style={styles.staffRole}>{selectedStaff.role}</Text>
+                </View>
+              ) : (
+                <Text style={styles.placeholderText}>Chọn nhân viên</Text>
+              )}
+            </TouchableOpacity>
+          }
+        >
+          {staff.map((item) => (
+            <Menu.Item
+              key={item.id}
+              onPress={() => {
+                setSelectedStaff(item);
+                setShowStaffMenu(false);
+              }}
+              title={`${item.name} (${item.role})`}
+            />
+          ))}
+        </Menu>
+        {!!errors.staff && (
+          <HelperText type="error" visible={!!errors.staff}>
+            {errors.staff}
           </HelperText>
         )}
         
@@ -307,8 +366,10 @@ const AddTaskScreen = () => {
           mode="contained"
           onPress={handleCreateTask}
           style={styles.createButton}
+          loading={isLoading}
+          disabled={isLoading}
         >
-Tạo nhiệm vụ
+          Tạo Nhiệm Vụ
         </Button>
       </ScrollView>
     </View>
@@ -324,6 +385,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     elevation: 0,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     padding: SIZES.padding,
     paddingBottom: 50,
@@ -338,13 +404,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     marginBottom: 12,
   },
-  inputLabel: {
-    ...FONTS.body2,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  menuContainer: {
+  dateTimeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  dateTimeButton: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    padding: 12,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginHorizontal: 4,
+  },
+  dateTimeLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  dateTimeValue: {
+    ...FONTS.body2,
+    color: COLORS.text,
   },
   menuButton: {
     backgroundColor: COLORS.surface,
@@ -352,10 +433,11 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginBottom: 12,
   },
   menuButtonText: {
     ...FONTS.body2,
-    fontWeight: '500',
+    color: COLORS.text,
   },
   divider: {
     marginVertical: 16,
@@ -370,6 +452,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     marginBottom: 12,
   },
+  staffSelector: {
+    backgroundColor: COLORS.surface,
+    padding: 16,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 12,
+  },
   errorBorder: {
     borderColor: COLORS.error,
   },
@@ -377,7 +467,15 @@ const styles = StyleSheet.create({
     ...FONTS.h4,
     color: COLORS.text,
   },
+  staffName: {
+    ...FONTS.h4,
+    color: COLORS.text,
+  },
   roomNumber: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+  },
+  staffRole: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
   },

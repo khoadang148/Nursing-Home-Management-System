@@ -103,79 +103,84 @@ const BillDetailScreen = ({ route, navigation }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Header Compact */}
       <View style={styles.header}>
-        <Text style={styles.title}>{bill.title}</Text>
-        <View style={[
-          styles.statusBadge,
-          { 
-            backgroundColor: bill.status === 'paid' 
-              ? '#4CAF50' 
-              : isOverdue 
-                ? '#F44336' 
-                : '#FFA000'
-          }
-        ]}>
-          <Text style={styles.statusText}>
-            {bill.status === 'paid' 
-              ? 'Đã thanh toán' 
-              : isOverdue 
-                ? 'Quá hạn' 
-                : 'Chờ thanh toán'}
-          </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{bill.title}</Text>
+          <View style={[
+            styles.statusBadge,
+            { 
+              backgroundColor: bill.status === 'paid' 
+                ? '#4CAF50' 
+                : isOverdue 
+                  ? '#F44336' 
+                  : '#FFA000'
+            }
+          ]}>
+            <Text style={styles.statusText}>
+              {bill.status === 'paid' 
+                ? 'Đã thanh toán' 
+                : isOverdue 
+                  ? 'Quá hạn' 
+                  : 'Chờ thanh toán'}
+            </Text>
+          </View>
         </View>
+        <Text style={styles.amountText}>{formatCurrency(bill.amount)}</Text>
       </View>
 
+      {/* Bill Info Compact */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Thông tin hóa đơn</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Số tiền:</Text>
-          <Text style={styles.value}>
-            {formatCurrency(bill.amount)}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Hạn thanh toán:</Text>
-          <Text style={[styles.value, isOverdue && styles.overdueText]}>
-            {formatDate(bill.dueDate)}
+        <View style={styles.infoGrid}>
+          <View style={styles.infoItem}>
+            <Text style={styles.label}>Hạn thanh toán</Text>
+            <Text style={[styles.value, isOverdue && styles.overdueText]}>
+              {formatDate(bill.dueDate)}
+            </Text>
             {!bill.status === 'paid' && (
               <Text style={styles.daysRemaining}>
                 {isOverdue 
-                  ? ` (Quá hạn ${Math.abs(daysRemaining)} ngày)`
-                  : ` (Còn ${daysRemaining} ngày)`}
+                  ? `Quá hạn ${Math.abs(daysRemaining)} ngày`
+                  : `Còn ${daysRemaining} ngày`}
               </Text>
             )}
-          </Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.label}>Loại hóa đơn</Text>
+            <Text style={styles.value}>
+              {bill.type === 'monthly' ? 'Phí thuốc' : 'Phí thuốc'}
+            </Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.label}>Ngày tạo</Text>
+            <Text style={styles.value}>{formatDate(bill.createdAt)}</Text>
+          </View>
+          
+          {bill.status === 'paid' && (
+            <>
+              <View style={styles.infoItem}>
+                <Text style={styles.label}>Ngày thanh toán</Text>
+                <Text style={styles.value}>{formatDate(bill.paymentDate)}</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.label}>Phương thức thanh toán</Text>
+                <Text style={styles.value}>
+                  {bill.paymentMethod === 'card' 
+                    ? 'Thẻ ngân hàng' 
+                    : bill.paymentMethod === 'wallet' 
+                      ? 'Ví điện tử' 
+                      : 'Chuyển khoản'}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Loại hóa đơn:</Text>
-          <Text style={styles.value}>
-            {bill.type === 'monthly' ? 'Phí chăm sóc hàng tháng' : 'Phí thuốc'}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Ngày tạo:</Text>
-          <Text style={styles.value}>{formatDate(bill.createdAt)}</Text>
-        </View>
-        {bill.status === 'paid' && (
-          <>
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Ngày thanh toán:</Text>
-              <Text style={styles.value}>{formatDate(bill.paymentDate)}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Phương thức thanh toán:</Text>
-              <Text style={styles.value}>
-                {bill.paymentMethod === 'card' 
-                  ? 'Thẻ ngân hàng' 
-                  : bill.paymentMethod === 'wallet' 
-                    ? 'Ví điện tử' 
-                    : 'Chuyển khoản'}
-              </Text>
-            </View>
-          </>
-        )}
       </View>
 
+      {/* Bill Details Compact */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Chi tiết hóa đơn</Text>
         {bill.items.map((item, index) => (
@@ -190,6 +195,7 @@ const BillDetailScreen = ({ route, navigation }) => {
         </View>
       </View>
 
+      {/* Payment Methods Compact */}
       {bill.status === 'pending' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Phương thức thanh toán</Text>
@@ -205,7 +211,7 @@ const BillDetailScreen = ({ route, navigation }) => {
               >
                 <Ionicons 
                   name={method.icon} 
-                  size={24} 
+                  size={20} 
                   color={selectedPaymentMethod?.id === method.id ? colors.primary : '#666'} 
                 />
                 <Text style={[
@@ -220,6 +226,7 @@ const BillDetailScreen = ({ route, navigation }) => {
         </View>
       )}
 
+      {/* Action Button */}
       <View style={styles.buttonContainer}>
         {bill.status === 'pending' ? (
           <TouchableOpacity
@@ -243,7 +250,7 @@ const BillDetailScreen = ({ route, navigation }) => {
               <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Ionicons name="download-outline" size={20} color={colors.primary} />
+                <Ionicons name="download-outline" size={18} color={colors.primary} />
                 <Text style={[styles.exportButtonText, { color: colors.primary }]}>
                   Xuất hóa đơn
                 </Text>
@@ -259,120 +266,143 @@ const BillDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     backgroundColor: 'white',
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e9ecef',
+    paddingTop: 60,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#212529',
+    flex: 1,
+  },
   statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '500',
   },
+  amountText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1976d2',
+  },
   section: {
     backgroundColor: 'white',
-    marginTop: 16,
-    padding: 16,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 12,
+    color: '#212529',
+  },
+  infoGrid: {
+    gap: 10,
+  },
+  infoItem: {
+    marginBottom: 10,
   },
   label: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 2,
   },
   value: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
+    color: '#212529',
   },
   overdueText: {
-    color: '#F44336',
+    color: '#dc3545',
   },
   daysRemaining: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: '#6c757d',
+    marginTop: 2,
   },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
   },
   itemName: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#495057',
+    flex: 1,
   },
   itemAmount: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
+    color: '#212529',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
-    paddingTop: 16,
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#e9ecef',
   },
   totalLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    color: '#212529',
   },
   totalAmount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#1976d2',
   },
   paymentMethods: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    gap: 10,
   },
   paymentMethod: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#dee2e6',
     borderRadius: 8,
-    width: '45%',
-    marginRight: '5%',
-    marginBottom: 12,
+    minWidth: '45%',
   },
   selectedPaymentMethod: {
-    borderColor: '#2196F3',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#1976d2',
+    backgroundColor: '#e3f2fd',
   },
   paymentMethodText: {
-    marginTop: 8,
+    marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: '#495057',
   },
   selectedPaymentMethodText: {
-    color: '#2196F3',
+    color: '#1976d2',
     fontWeight: '500',
   },
   buttonContainer: {
     padding: 16,
+    paddingBottom: 24,
   },
   payButton: {
     padding: 16,
@@ -381,7 +411,7 @@ const styles = StyleSheet.create({
   },
   payButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   exportButton: {
@@ -393,7 +423,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exportButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     marginLeft: 8,
   },

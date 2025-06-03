@@ -330,6 +330,26 @@ const FamilyDrawerNavigator = () => {
         }}
       />
       <Drawer.Screen
+        name="GoiDichVu"
+        component={require('../screens/family/ServicePackageScreen').default}
+        options={{
+          title: 'Gói Dịch Vụ',
+          drawerIcon: ({ color, size }) => (
+            <MaterialIcons name="card-membership" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="HoTro"
+        component={require('../screens/family/SupportScreen').default}
+        options={{
+          title: 'Hỗ Trợ',
+          drawerIcon: ({ color, size }) => (
+            <MaterialIcons name="help-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="HoSo"
         component={require('../screens/family/FamilyProfileScreen').default}
         options={{

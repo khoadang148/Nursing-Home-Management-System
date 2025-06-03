@@ -281,7 +281,7 @@ const RecommendActivityScreen = () => {
                 <View style={styles.actionButtonsRow}>
                   <Button 
                     mode="contained" 
-                    onPress={() => navigation.navigate('CreateActivity', {
+                    onPress={() => navigation.navigate('TaoHoatDong', {
                       prefill: {
                         name: recommendation.activityName,
                         type: recommendation.category.toLowerCase(),

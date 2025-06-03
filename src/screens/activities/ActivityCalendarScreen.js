@@ -133,7 +133,7 @@ const ActivityCalendarScreen = () => {
       <MaterialIcons name="event-busy" size={64} color={COLORS.disabled} />
       <Text style={styles.emptyText}>Không có hoạt động vào ngày này</Text>
       <TouchableOpacity 
-        onPress={() => navigation.navigate('CreateActivity')}
+        onPress={() => navigation.navigate('TaoHoatDong')}
         style={styles.createButton}
       >
         <Text style={styles.createButtonText}>Tạo hoạt động</Text>
@@ -155,7 +155,7 @@ const ActivityCalendarScreen = () => {
       <Appbar.Header style={{ backgroundColor: COLORS.primary }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Lịch hoạt động" titleStyle={FONTS.h2} />
-        <Appbar.Action icon="plus" onPress={() => navigation.navigate('CreateActivity')} />
+        <Appbar.Action icon="plus" onPress={() => navigation.navigate('TaoHoatDong')} />
       </Appbar.Header>
       
       <View style={styles.calendarContainer}>

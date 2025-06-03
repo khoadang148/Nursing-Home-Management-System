@@ -30,9 +30,6 @@ const ProfileScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hồ Sơ</Text>
-      </View>
       
       <View style={styles.profileSection}>
         <View style={styles.profileImageContainer}>

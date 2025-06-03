@@ -218,6 +218,39 @@ const FamilyHomeScreen = ({ navigation }) => {
               <Text style={styles.quickActionText}>Xem Hình Ảnh</Text>
             </TouchableOpacity>
           </View>
+          
+          {/* Second row of quick actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('GoiDichVu')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.success }]}>
+                <MaterialIcons name="card-membership" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Gói Dịch Vụ</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('HoaDon')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.warning }]}>
+                <MaterialIcons name="receipt" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Hóa Đơn</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('HoTro')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.info }]}>
+                <MaterialIcons name="help-outline" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Hỗ Trợ</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Upcoming Visit */}
@@ -333,46 +366,53 @@ const FamilyHomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8f9fa',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f8f9fa',
   },
   loadingText: {
     marginTop: 10,
-    color: COLORS.text,
+    color: '#6c757d',
     fontSize: 16,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 100, // Tăng padding cho thanh tab bar cao hơn
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingTop: 8,
   },
   greeting: {
-    ...FONTS.body2,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: '#6c757d',
   },
   name: {
-    ...FONTS.h2,
-    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#212529',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.border,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#dee2e6',
   },
   residentCard: {
     marginBottom: 20,
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   residentCardContent: {
     flexDirection: 'row',
@@ -382,19 +422,21 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#dee2e6',
     marginRight: 16,
   },
   residentInfo: {
     flex: 1,
   },
   residentName: {
-    ...FONTS.h3,
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 4,
+    color: '#212529',
   },
   residentDetails: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+    fontSize: 13,
+    color: '#6c757d',
     marginBottom: 10,
   },
   viewDetailsButton: {
@@ -405,7 +447,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   viewDetailsText: {
-    color: COLORS.surface,
+    color: 'white',
     fontWeight: '500',
     fontSize: 12,
   },
@@ -413,8 +455,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    ...FONTS.h4,
-    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
     marginBottom: 12,
   },
   quickActions: {
@@ -436,12 +479,16 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     textAlign: 'center',
-    fontSize: 12,
-    color: COLORS.text,
+    fontSize: 13,
+    color: '#212529',
   },
   card: {
     marginBottom: 20,
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -449,8 +496,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardTitle: {
-    ...FONTS.h4,
+    fontSize: 16,
+    fontWeight: '600',
     marginLeft: 8,
+    color: '#212529',
   },
   visitInfo: {
     marginBottom: 16,
@@ -461,35 +510,42 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   visitLabel: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+    fontSize: 13,
+    color: '#6c757d',
   },
   visitValue: {
-    ...FONTS.body3,
+    fontSize: 13,
     fontWeight: '500',
-    color: COLORS.text,
+    color: '#212529',
+  },
+  visitNote: {
+    fontSize: 12,
+    color: '#dc3545',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   cardButton: {
-    backgroundColor: COLORS.background,
-    padding: 10,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
     borderRadius: 4,
     alignItems: 'center',
+    marginTop: 8,
   },
   cardButtonText: {
-    color: COLORS.primary,
+    color: 'white',
     fontWeight: '500',
-    fontSize: 14,
+    fontSize: 13,
   },
   updateItem: {
     flexDirection: 'row',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 12,
     position: 'relative',
   },
-  updateIconContainer: {
+  updateIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -500,25 +556,28 @@ const styles = StyleSheet.create({
   updateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
   updateTitle: {
-    ...FONTS.body3,
+    fontSize: 14,
     fontWeight: '500',
-    color: COLORS.text,
+    color: '#212529',
+    flex: 1,
   },
   updateDate: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+    fontSize: 11,
+    color: '#6c757d',
   },
   updateMessage: {
-    ...FONTS.body3,
-    color: COLORS.text,
+    fontSize: 12,
+    color: '#6c757d',
+    lineHeight: 16,
   },
   unreadIndicator: {
     position: 'absolute',
-    right: 0,
     top: 0,
+    right: 0,
     width: 8,
     height: 8,
     borderRadius: 4,
@@ -526,32 +585,31 @@ const styles = StyleSheet.create({
   },
   activityItem: {
     flexDirection: 'row',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   activityDateContainer: {
     width: 45,
-    height: 45,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   activityDay: {
-    color: COLORS.surface,
     fontSize: 16,
     fontWeight: 'bold',
+    color: COLORS.primary,
   },
   activityMonth: {
-    color: COLORS.surface,
-    fontSize: 12,
+    fontSize: 11,
+    color: '#6c757d',
+    textTransform: 'uppercase',
   },
   activityDetails: {
     flex: 1,
   },
   activityTitle: {
-    ...FONTS.body2,
+    fontSize: 14,
     fontWeight: '500',
+    color: '#212529',
     marginBottom: 4,
   },
   activityInfo: {
@@ -560,8 +618,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   activityInfoText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#6c757d',
     marginLeft: 4,
   },
 });
