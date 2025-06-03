@@ -140,7 +140,7 @@ const ResidentListScreen = ({ navigation }) => {
           <Button
             mode="text"
             onPress={() =>
-              navigation.navigate('ResidentCare', { residentId: item.id })
+              navigation.navigate('ResidentDetails', { residentId: item.id, initialTab: 'care' })
             }
             color={COLORS.primary}
             labelStyle={styles.buttonLabel}
@@ -151,7 +151,7 @@ const ResidentListScreen = ({ navigation }) => {
           <Button
             mode="text"
             onPress={() =>
-              navigation.navigate('ResidentMedications', { residentId: item.id })
+              navigation.navigate('ResidentDetails', { residentId: item.id, initialTab: 'meds' })
             }
             color={COLORS.primary}
             labelStyle={styles.buttonLabel}
@@ -169,7 +169,7 @@ const ResidentListScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.title}>Cư dân</Text>
         <TouchableOpacity
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('HoSo')}
           style={styles.profileButton}
         >
           <Avatar.Image

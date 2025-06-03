@@ -73,7 +73,7 @@ const NotificationsScreen = ({ navigation }) => {
 
   const handleMarkAsRead = (id) => {
     dispatch(markAsRead(id));
-    navigation.navigate('NotificationDetail', { id });
+    navigation.navigate('ChiTietThongBao', { id });
   };
 
   const handleDelete = (id) => {

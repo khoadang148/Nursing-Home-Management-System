@@ -18,7 +18,7 @@ const FloatingActionButton = ({ navigation, userRole = 'staff' }) => {
     {
       icon: 'assignment',
       label: 'Tạo Nhiệm Vụ',
-      onPress: () => navigation.navigate('NhiemVu', { screen: 'TaoNhiemVu' }),
+      onPress: () => navigation.navigate('NhiemVu', { screen: 'CreateTask' }),
     },
     {
       icon: 'event',

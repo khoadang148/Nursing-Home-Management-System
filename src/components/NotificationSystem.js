@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { COLORS, FONTS, SIZES } from '../constants/theme';
 const { width, height } = Dimensions.get('window');
 
 // Context for global notification system
-const NotificationContext = createContext();
+const NotificationContext = createContext(null);
 
 // Hook to use notification system
 export const useNotification = () => {
@@ -28,7 +28,7 @@ export const useNotification = () => {
 };
 
 // Toast Component
-const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
+const Toast = React.memo(({ visible, message, type, onHide, duration = 3000 }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
 
@@ -53,9 +53,9 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
 
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, duration]);
 
-  const hideToast = () => {
+  const hideToast = useCallback(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -70,9 +70,9 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
     ]).start(() => {
       onHide();
     });
-  };
+  }, [fadeAnim, slideAnim, onHide]);
 
-  const getToastStyle = () => {
+  const toastStyle = useMemo(() => {
     switch (type) {
       case 'success':
         return {
@@ -100,9 +100,9 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
           borderLeftColor: '#616161',
         };
     }
-  };
+  }, [type]);
 
-  const getIcon = () => {
+  const icon = useMemo(() => {
     switch (type) {
       case 'success':
         return '✅';
@@ -115,7 +115,7 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
       default:
         return '📢';
     }
-  };
+  }, [type]);
 
   if (!visible) return null;
 
@@ -131,11 +131,11 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
         ]}
       >
         <TouchableOpacity
-          style={[styles.toast, getToastStyle()]}
+          style={[styles.toast, toastStyle]}
           onPress={hideToast}
           activeOpacity={0.9}
         >
-          <Text style={styles.toastIcon}>{getIcon()}</Text>
+          <Text style={styles.toastIcon}>{icon}</Text>
           <Text style={styles.toastMessage}>{message}</Text>
           <TouchableOpacity onPress={hideToast} style={styles.toastCloseButton}>
             <Text style={styles.toastCloseText}>✕</Text>
@@ -144,10 +144,12 @@ const Toast = ({ visible, message, type, onHide, duration = 3000 }) => {
       </Animated.View>
     </Portal>
   );
-};
+});
+
+Toast.displayName = 'Toast';
 
 // Alert Dialog Component
-const AlertDialog = ({ visible, title, message, buttons, onDismiss }) => {
+const AlertDialog = React.memo(({ visible, title, message, buttons, onDismiss }) => {
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [fadeAnim] = useState(new Animated.Value(0));
 
@@ -199,8 +201,8 @@ const AlertDialog = ({ visible, title, message, buttons, onDismiss }) => {
       >
         <TouchableOpacity
           style={styles.alertBackdrop}
-          onPress={onDismiss}
           activeOpacity={1}
+          onPress={onDismiss}
         />
         <Animated.View
           style={[
@@ -213,38 +215,42 @@ const AlertDialog = ({ visible, title, message, buttons, onDismiss }) => {
           <View style={styles.alertContent}>
             {title && <Text style={styles.alertTitle}>{title}</Text>}
             <Text style={styles.alertMessage}>{message}</Text>
-            <View style={styles.alertButtonContainer}>
-              {buttons.map((button, index) => (
-                <Button
-                  key={index}
-                  mode={button.style === 'primary' ? 'contained' : 'outlined'}
-                  onPress={() => {
-                    button.onPress();
-                    onDismiss();
-                  }}
-                  style={[
-                    styles.alertButton,
-                    button.style === 'primary' && styles.alertPrimaryButton,
-                    button.style === 'destructive' && styles.alertDestructiveButton,
-                  ]}
-                  labelStyle={[
-                    styles.alertButtonText,
-                    button.style === 'destructive' && styles.alertDestructiveText,
-                  ]}
-                >
-                  {button.text}
-                </Button>
-              ))}
-            </View>
+          </View>
+          <View style={styles.alertActions}>
+            {buttons?.map((button, index) => (
+              <Button
+                key={index}
+                mode={button.style === 'primary' ? 'contained' : 'outlined'}
+                onPress={() => {
+                  button.onPress?.();
+                  onDismiss();
+                }}
+                style={[
+                  styles.alertButton,
+                  button.style === 'destructive' && styles.destructiveButton,
+                ]}
+                textColor={
+                  button.style === 'destructive' 
+                    ? COLORS.error 
+                    : button.style === 'primary' 
+                    ? COLORS.surface 
+                    : COLORS.primary
+                }
+              >
+                {button.text}
+              </Button>
+            ))}
           </View>
         </Animated.View>
       </Animated.View>
     </Modal>
   );
-};
+});
 
-// Loading Overlay Component
-const LoadingOverlay = ({ visible, message = 'Đang xử lý...', transparent = false }) => {
+AlertDialog.displayName = 'AlertDialog';
+
+// Loading Overlay Component  
+const LoadingOverlay = React.memo(({ visible, message = 'Đang xử lý...', transparent = false }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
 
   React.useEffect(() => {
@@ -271,26 +277,28 @@ const LoadingOverlay = ({ visible, message = 'Đang xử lý...', transparent = 
         style={[
           styles.loadingOverlay,
           {
+            backgroundColor: transparent ? 'transparent' : 'rgba(0,0,0,0.5)',
             opacity: fadeAnim,
-            backgroundColor: transparent ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.7)',
           },
         ]}
       >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>{message}</Text>
+          <Text style={styles.loadingMessage}>{message}</Text>
         </View>
       </Animated.View>
     </Portal>
   );
-};
+});
 
-// Main Notification Provider Component
-export const NotificationProvider = ({ children }) => {
+LoadingOverlay.displayName = 'LoadingOverlay';
+
+export const NotificationProvider = React.memo(({ children }) => {
   const [toast, setToast] = useState({
     visible: false,
     message: '',
     type: 'info',
+    duration: 3000,
   });
 
   const [alert, setAlert] = useState({
@@ -406,7 +414,7 @@ export const NotificationProvider = ({ children }) => {
     );
   }, [showAlert]);
 
-  const value = {
+  const contextValue = useMemo(() => ({
     // Toast methods
     showToast,
     hideToast,
@@ -424,10 +432,14 @@ export const NotificationProvider = ({ children }) => {
     // Loading methods
     showLoading,
     hideLoading,
-  };
+  }), [
+    showToast, hideToast, showSuccess, showError, showWarning, showInfo,
+    showAlert, hideAlert, confirmAction, confirmDelete,
+    showLoading, hideLoading
+  ]);
 
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider value={contextValue}>
       {children}
       
       <Toast
@@ -453,7 +465,9 @@ export const NotificationProvider = ({ children }) => {
       />
     </NotificationContext.Provider>
   );
-};
+});
+
+NotificationProvider.displayName = 'NotificationProvider';
 
 const styles = StyleSheet.create({
   // Toast styles
@@ -545,7 +559,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  alertButtonContainer: {
+  alertActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
@@ -554,18 +568,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
   },
-  alertPrimaryButton: {
-    backgroundColor: COLORS.primary,
-  },
-  alertDestructiveButton: {
+  destructiveButton: {
     borderColor: COLORS.error,
-  },
-  alertButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  alertDestructiveText: {
-    color: COLORS.error,
   },
 
   // Loading styles
@@ -594,7 +598,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  loadingText: {
+  loadingMessage: {
     marginTop: 16,
     fontSize: 16,
     color: COLORS.text,

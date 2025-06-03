@@ -16,6 +16,9 @@ import FamilyVisitScreen from '../screens/family/FamilyVisitScreen';
 import FamilyPhotoGalleryScreen from '../screens/family/FamilyPhotoGalleryScreen';
 import FamilyNotificationsScreen from '../screens/family/FamilyNotificationsScreen';
 import FamilyProfileScreen from '../screens/family/FamilyProfileScreen';
+import BillingScreen from '../screens/family/BillingScreen';
+import BillDetailScreen from '../screens/family/BillDetailScreen';
+import PaymentHistoryScreen from '../screens/family/PaymentHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -60,6 +63,14 @@ const NotificationsStack = () => (
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="FamilyProfileScreen" component={FamilyProfileScreen} />
+  </Stack.Navigator>
+);
+
+const BillingStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="BillingScreen" component={BillingScreen} />
+    <Stack.Screen name="BillDetail" component={BillDetailScreen} />
+    <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
   </Stack.Navigator>
 );
 
@@ -125,22 +136,12 @@ const FamilyNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="LichTham"
-        component={VisitStack}
+        name="HoaDon"
+        component={BillingStack}
         options={{
-          tabBarLabel: 'Lịch Thăm',
+          tabBarLabel: 'Hóa Đơn',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="event" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="HinhAnh"
-        component={GalleryStack}
-        options={{
-          tabBarLabel: 'Hình Ảnh',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="photo-library" size={size} color={color} />
+            <MaterialIcons name="receipt" size={size} color={color} />
           ),
         }}
       />

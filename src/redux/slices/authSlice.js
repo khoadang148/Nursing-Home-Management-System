@@ -46,9 +46,16 @@ export const register = createAsyncThunk(
 // Logout user
 export const logout = createAsyncThunk(
   'auth/logout',
-  async () => {
-    const response = await authService.logout();
-    return response;
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await authService.logout();
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Đăng xuất thất bại');
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Đăng xuất thất bại');
+    }
   }
 );
 

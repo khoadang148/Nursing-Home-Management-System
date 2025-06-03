@@ -68,11 +68,11 @@ const TaskDetailScreen = () => {
   
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High':
+      case 'Cao':
         return COLORS.error;
-      case 'Medium':
+      case 'Trung bình':
         return COLORS.warning;
-      case 'Low':
+      case 'Thấp':
         return COLORS.info;
       default:
         return COLORS.info;
@@ -133,7 +133,7 @@ const TaskDetailScreen = () => {
               style={[styles.chip, { backgroundColor: getPriorityColor(task.priority) + '20' }]}
               textStyle={{ color: getPriorityColor(task.priority) }}
             >
-              Ưu tiên {task.priority === 'High' ? 'Cao' : task.priority === 'Medium' ? 'Trung bình' : 'Thấp'}
+              Ưu tiên {task.priority}
             </Chip>
             <Chip
               style={[styles.chip, { backgroundColor: getStatusColor(task.status) + '20' }]}

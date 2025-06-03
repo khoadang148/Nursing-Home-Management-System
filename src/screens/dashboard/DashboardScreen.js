@@ -197,7 +197,7 @@ const DashboardScreen = ({ navigation }) => {
                 icon="calendar"
                 color={COLORS.primary}
                 size={24}
-                onPress={() => navigation.navigate('LichTrinh')}
+                onPress={() => navigation.navigate('NhiemVu')}
               />
             )}
           />

@@ -60,7 +60,7 @@ const EditTaskScreen = () => {
     'Other'
   ];
   
-  const priorities = ['Low', 'Medium', 'High'];
+  const priorities = ['Thấp', 'Trung bình', 'Cao'];
   
   useEffect(() => {
     // Simulating API loading
@@ -292,9 +292,9 @@ const EditTaskScreen = () => {
                   <Text style={[
                     styles.menuButtonText,
                     {
-                      color: priority === 'High' 
+                      color: priority === 'Cao' 
                         ? COLORS.error 
-                        : priority === 'Medium'
+                        : priority === 'Trung bình'
                         ? COLORS.warning
                         : COLORS.info
                     }
@@ -313,9 +313,9 @@ const EditTaskScreen = () => {
                   }}
                   title={item}
                   titleStyle={{
-                    color: item === 'High' 
+                    color: item === 'Cao' 
                       ? COLORS.error 
-                      : item === 'Medium'
+                      : item === 'Trung bình'
                       ? COLORS.warning
                       : COLORS.info
                   }}

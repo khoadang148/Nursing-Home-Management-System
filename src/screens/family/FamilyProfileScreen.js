@@ -6,8 +6,8 @@ import {
   ScrollView, 
   Image,
   TouchableOpacity,
-  Alert,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -32,15 +32,19 @@ import { COLORS, FONTS } from '../../constants/theme';
 // Import actions
 import { logout } from '../../redux/slices/authSlice';
 
-// Import auth service
-import authService from '../../api/authService';
+// Import notification system
+import { useNotification } from '../../components/NotificationSystem';
 
 const FamilyProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const authLoading = useSelector((state) => state.auth.isLoading);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  
+  // Notification system
+  const { showSuccess, showError, confirmAction, showLoading, hideLoading } = useNotification();
   
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -75,47 +79,41 @@ const FamilyProfileScreen = ({ navigation }) => {
   
   const handleLogout = () => {
     Alert.alert(
-      "Xác nhận đăng xuất",
-      "Bạn có chắc chắn muốn đăng xuất?",
+      'Xác nhận đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất?',
       [
         {
-          text: "Hủy",
-          style: "cancel"
+          text: 'Hủy',
+          style: 'cancel',
         },
         {
-          text: "Đăng xuất",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await authService.logout();
-              dispatch({ type: 'LOGOUT' });
-            } catch (error) {
-              console.error('Logout failed:', error);
-              Alert.alert('Lỗi', 'Đăng xuất thất bại. Vui lòng thử lại.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(logout());
+          },
+        },
+      ],
+      { cancelable: false }
     );
   };
   
   const handleSaveProfile = async () => {
     // Validate inputs
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
-      Alert.alert('Lỗi', 'Tất cả các trường đều bắt buộc');
+      showError('Tất cả các trường đều bắt buộc');
       return;
     }
     
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ');
+      showError('Vui lòng nhập địa chỉ email hợp lệ');
       return;
     }
     
     setSaving(true);
+    showLoading('Đang cập nhật hồ sơ...');
     
     // In a real app, this would call an API to update the user profile
     setTimeout(() => {
@@ -133,41 +131,44 @@ const FamilyProfileScreen = ({ navigation }) => {
       
       setSaving(false);
       setEditMode(false);
+      hideLoading();
       
-      Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
+      showSuccess('Cập nhật hồ sơ thành công');
     }, 1000);
   };
   
   const handleChangePassword = async () => {
     // Validate passwords
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Lỗi', 'Tất cả các trường mật khẩu đều bắt buộc');
+      showError('Tất cả các trường mật khẩu đều bắt buộc');
       return;
     }
     
     if (newPassword !== confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu mới không khớp');
+      showError('Mật khẩu mới không khớp');
       return;
     }
     
     if (newPassword.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự');
+      showError('Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
     }
     
     setSaving(true);
+    showLoading('Đang đổi mật khẩu...');
     
     // In a real app, this would call an API to change the password
     setTimeout(() => {
       setSaving(false);
       setPasswordDialogVisible(false);
+      hideLoading();
       
       // Clear form
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       
-      Alert.alert('Thành công', 'Đổi mật khẩu thành công');
+      showSuccess('Đổi mật khẩu thành công');
     }, 1000);
   };
   
@@ -463,7 +464,8 @@ const FamilyProfileScreen = ({ navigation }) => {
           onPress={handleLogout}
           style={styles.logoutButton}
           icon="logout"
-          loading={loading}
+          loading={authLoading}
+          disabled={authLoading}
         >
           Đăng xuất
         </Button>

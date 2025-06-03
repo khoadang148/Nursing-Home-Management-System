@@ -117,14 +117,23 @@ const authService = {
   
   // Logout user
   logout: async () => {
-    await simulateNetworkDelay();
-    
-    // Remove tokens from AsyncStorage
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('refreshToken');
-    await AsyncStorage.removeItem('userData');
-    
-    return { data: null, success: true };
+    try {
+      await simulateNetworkDelay();
+      
+      // Remove tokens from AsyncStorage
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('refreshToken');
+      await AsyncStorage.removeItem('userData');
+      
+      return { data: null, success: true };
+    } catch (error) {
+      console.error('Logout error:', error);
+      return { 
+        data: null, 
+        success: false, 
+        error: 'Không thể đăng xuất. Vui lòng thử lại sau.' 
+      };
+    }
   },
   
   // Check if user is authenticated

@@ -156,7 +156,7 @@ const MedicationListScreen = () => {
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="pill-off" size={60} color={COLORS.textSecondary} />
+      <MaterialCommunityIcons name="pill" size={60} color={COLORS.textSecondary} />
       <Text style={styles.emptyText}>Không tìm thấy thuốc</Text>
       <Text style={styles.emptySubtext}>Thử thay đổi tìm kiếm hoặc bộ lọc</Text>
     </View>

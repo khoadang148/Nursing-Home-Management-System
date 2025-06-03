@@ -870,7 +870,7 @@ export const tasks = [
     description: 'Distribute morning medications to residents',
     assignedTo: '1', // Jane Wilson
     status: 'In Progress',
-    priority: 'High',
+    priority: 'Cao',
     dueDate: '2023-03-15T08:30:00',
     category: 'Medication',
     relatedTo: { type: 'Floor', id: '1', name: 'First Floor' },
@@ -881,7 +881,7 @@ export const tasks = [
     description: 'Check vital signs for all residents on first floor',
     assignedTo: '2', // Mark Thompson
     status: 'Completed',
-    priority: 'High',
+    priority: 'Cao',
     dueDate: '2023-03-15T09:00:00',
     category: 'Vital Signs',
     relatedTo: { type: 'Floor', id: '1', name: 'First Floor' },
@@ -893,7 +893,7 @@ export const tasks = [
     description: 'One-on-one PT with William Johnson',
     assignedTo: '4', // David Brown
     status: 'Scheduled',
-    priority: 'Medium',
+    priority: 'Trung bình',
     dueDate: '2023-03-15T11:00:00',
     category: 'Therapy',
     relatedTo: { type: 'Resident', id: '3', name: 'William Johnson' },
@@ -904,7 +904,7 @@ export const tasks = [
     description: 'Restock east wing supply cart with fresh linens and hygiene products',
     assignedTo: '3', // Sarah Martinez
     status: 'Not Started',
-    priority: 'Medium',
+    priority: 'Trung bình',
     dueDate: '2023-03-15T14:00:00',
     category: 'Housekeeping',
     relatedTo: { type: 'Wing', id: 'East', name: 'East Wing' },
@@ -915,7 +915,7 @@ export const tasks = [
     description: 'Document fall incident for Mary Smith that occurred on night shift',
     assignedTo: '5', // Lisa Chen
     status: 'Completed',
-    priority: 'High',
+    priority: 'Cao',
     dueDate: '2023-03-15T10:00:00',
     category: 'Documentation',
     relatedTo: { type: 'Resident', id: '2', name: 'Mary Smith' },
@@ -1659,7 +1659,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-18",
     scheduledTime: "08:30",
     duration: 30,
-    priority: "Medium",
+    priority: "Trung bình",
     status: "Pending",
     category: "Activity Preparation",
     relatedActivityId: 1
@@ -1672,7 +1672,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-18",
     scheduledTime: "10:15",
     duration: 20,
-    priority: "High",
+    priority: "Cao",
     status: "Completed",
     category: "Resident Care",
     relatedResidentId: 1
@@ -1685,7 +1685,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-18",
     scheduledTime: "14:00",
     duration: 45,
-    priority: "High",
+    priority: "Cao",
     status: "Pending",
     category: "Family Communication",
     relatedResidentId: 2
@@ -1698,7 +1698,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-19",
     scheduledTime: "11:00",
     duration: 60,
-    priority: "Medium",
+    priority: "Trung bình",
     status: "Pending",
     category: "Inventory Management",
     relatedActivityId: 3
@@ -1711,7 +1711,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-19",
     scheduledTime: "09:30",
     duration: 45,
-    priority: "Medium",
+    priority: "Trung bình",
     status: "Pending",
     category: "Resident Care",
     relatedResidentId: 3
@@ -1724,7 +1724,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-19",
     scheduledTime: "13:00",
     duration: 30,
-    priority: "Low",
+    priority: "Thấp",
     status: "Pending",
     category: "Inventory Management",
     relatedActivityId: 5
@@ -1737,7 +1737,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-20",
     scheduledTime: "10:00",
     duration: 90,
-    priority: "High",
+    priority: "Cao",
     status: "Pending",
     category: "Staff Development",
     relatedStaffIds: [1, 2, 3, 4, 6, 7]
@@ -1750,7 +1750,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-20",
     scheduledTime: "14:00",
     duration: 60,
-    priority: "Medium",
+    priority: "Trung bình",
     status: "Pending",
     category: "Facility Management",
     relatedResidentId: 4
@@ -1763,7 +1763,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-21",
     scheduledTime: "10:00",
     duration: 120,
-    priority: "Medium",
+    priority: "Trung bình",
     status: "Pending",
     category: "Nutrition Management"
   },
@@ -1775,7 +1775,7 @@ export const mockTasks = [
     scheduledDate: "2023-09-22",
     scheduledTime: "13:30",
     duration: 90,
-    priority: "High",
+    priority: "Cao",
     status: "Pending",
     category: "Activity Planning"
   }

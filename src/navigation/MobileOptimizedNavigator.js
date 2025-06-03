@@ -22,6 +22,7 @@ import MedicationNavigator from './MedicationNavigator';
 import FamilyNavigator from './FamilyNavigator';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import NotificationDetailScreen from '../screens/notifications/NotificationDetailScreen';
+import FamilyBillStack from './FamilyBillStack';
 
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
@@ -243,6 +244,16 @@ const MobileFamilyTabs = () => {
           tabBarLabel: 'Tin Nhắn',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="message-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="HoaDon"
+        component={FamilyBillStack}
+        options={{
+          tabBarLabel: 'Hóa Đơn',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="receipt" size={size} color={color} />
           ),
         }}
       />

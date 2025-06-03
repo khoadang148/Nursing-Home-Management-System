@@ -15,28 +15,44 @@ import VitalDetailScreen from '../screens/residents/VitalDetailScreen';
 import ResidentNotesScreen from '../screens/residents/ResidentNotesScreen';
 import ResidentFamilyScreen from '../screens/residents/ResidentFamilyScreen';
 
+// Import medication screens
+import MedicationDetailsScreen from '../screens/medications/MedicationDetailsScreen';
+import MedicationScheduleScreen from '../screens/medications/MedicationScheduleScreen';
+import MedicationAdminScreen from '../screens/medications/MedicationAdminScreen';
+
+// Import task screens
+import EditTaskScreen from '../screens/tasks/EditTaskScreen';
+
 const Stack = createStackNavigator();
 
 const ResidentNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="DanhSachCuDan"
+      initialRouteName="ResidentList"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="DanhSachCuDan" component={ResidentListScreen} />
-      <Stack.Screen name="ChiTietCuDan" component={ResidentDetailScreen} />
-      <Stack.Screen name="ThemCuDan" component={AddResidentScreen} />
-      <Stack.Screen name="SuaCuDan" component={EditResidentScreen} />
-      <Stack.Screen name="ChiTietKeHoachChamSoc" component={CarePlanDetailScreen} />
-      <Stack.Screen name="ThemKeHoachChamSoc" component={AddCarePlanScreen} />
-      <Stack.Screen name="ChiTietThuoc" component={MedicationDetailScreen} />
-      <Stack.Screen name="ThemThuoc" component={AddMedicationScreen} />
-      <Stack.Screen name="GhiNhanDauHieuSinhTon" component={RecordVitalsScreen} />
-      <Stack.Screen name="ChiTietDauHieuSinhTon" component={VitalDetailScreen} />
-      <Stack.Screen name="GhiChuCuDan" component={ResidentNotesScreen} />
-      <Stack.Screen name="GiaDinhCuDan" component={ResidentFamilyScreen} />
+      <Stack.Screen name="ResidentList" component={ResidentListScreen} />
+      <Stack.Screen name="ResidentDetails" component={ResidentDetailScreen} />
+      <Stack.Screen name="AddResident" component={AddResidentScreen} />
+      <Stack.Screen name="EditResident" component={EditResidentScreen} />
+      <Stack.Screen name="CarePlanDetail" component={CarePlanDetailScreen} />
+      <Stack.Screen name="AddCarePlan" component={AddCarePlanScreen} />
+      <Stack.Screen name="MedicationDetail" component={MedicationDetailScreen} />
+      <Stack.Screen name="AddMedication" component={AddMedicationScreen} />
+      <Stack.Screen name="RecordVitals" component={RecordVitalsScreen} />
+      <Stack.Screen name="VitalDetail" component={VitalDetailScreen} />
+      <Stack.Screen name="ResidentNotes" component={ResidentNotesScreen} />
+      <Stack.Screen name="ResidentFamily" component={ResidentFamilyScreen} />
+      
+      {/* Add missing medication screens */}
+      <Stack.Screen name="MedicationDetails" component={MedicationDetailsScreen} />
+      <Stack.Screen name="MedicationSchedule" component={MedicationScheduleScreen} />
+      <Stack.Screen name="MedicationAdmin" component={MedicationAdminScreen} />
+      
+      {/* Add missing task screens */}
+      <Stack.Screen name="EditTask" component={EditTaskScreen} />
     </Stack.Navigator>
   );
 };

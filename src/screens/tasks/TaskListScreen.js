@@ -248,21 +248,23 @@ const TaskListScreen = ({ navigation }) => {
                 styles.priorityChip,
                 {
                   backgroundColor:
-                    item.priority === 'High'
+                    item.priority === 'Cao'
                       ? COLORS.error + '20'
-                      : item.priority === 'Medium'
+                      : item.priority === 'Trung bình'
                       ? COLORS.warning + '20'
                       : COLORS.info + '20',
                 },
               ]}
               textStyle={{
                 color:
-                  item.priority === 'High'
+                  item.priority === 'Cao'
                     ? COLORS.error
-                    : item.priority === 'Medium'
+                    : item.priority === 'Trung bình'
                     ? COLORS.warning
                     : COLORS.info,
                 ...FONTS.body3,
+                fontSize: 10,
+                fontWeight: 'bold',
               }}
             >
               {item.priority}
@@ -290,6 +292,8 @@ const TaskListScreen = ({ navigation }) => {
                     ? COLORS.error
                     : COLORS.primary,
                 ...FONTS.body3,
+                fontSize: 10,
+                fontWeight: 'bold',
               }}
             >
               {item.status === 'Hoàn thành' ? 'Hoàn thành' : isOverdue ? 'Quá hạn' : 'Chờ xử lý'}
@@ -366,7 +370,7 @@ const TaskListScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.Content title="Nhiệm vụ" />
-        <Appbar.Action icon="bell" onPress={() => navigation.navigate('Notifications')} />
+        <Appbar.Action icon="bell" onPress={() => navigation.navigate('ThongBao')} />
         <Menu
           visible={sortMenuVisible}
           onDismiss={() => setSortMenuVisible(false)}
@@ -499,7 +503,7 @@ Quá hạn
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => navigation.navigate('AddTask')}
+        onPress={() => navigation.navigate('CreateTask')}
         color={COLORS.surface}
       />
     </View>
@@ -541,11 +545,13 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: 10,
     backgroundColor: COLORS.surface,
+    minWidth: 80,
+    alignItems: 'center',
     ...SHADOWS.small,
   },
   activeFilterButton: {
@@ -554,6 +560,8 @@ const styles = StyleSheet.create({
   filterText: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
   },
   activeFilterText: {
     color: COLORS.surface,
@@ -573,28 +581,38 @@ const styles = StyleSheet.create({
   taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
+    minHeight: 40,
   },
   taskTitleContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   taskTitle: {
     ...FONTS.h4,
     color: COLORS.text,
     flex: 1,
     marginRight: 8,
+    flexWrap: 'wrap',
   },
   priorityChip: {
-    height: 24,
+    height: 30,
+    paddingHorizontal: 10,
+    minWidth: 60,
+    marginRight: 4,
   },
   taskStatusContainer: {
-    marginLeft: 8,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 90,
   },
   statusChip: {
-    height: 24,
+    height: 30,
+    paddingHorizontal: 10,
+    minWidth: 90,
   },
   taskResidentInfo: {
     flexDirection: 'row',

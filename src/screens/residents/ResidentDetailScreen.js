@@ -16,11 +16,11 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { residents, carePlans, medications, vitals } from '../../api/mockData';
 
 const ResidentDetailScreen = ({ route, navigation }) => {
-  const { residentId } = route.params;
+  const { residentId, initialTab = 'overview' } = route.params;
   const [resident, setResident] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, care, meds, vitals
+  const [activeTab, setActiveTab] = useState(initialTab); // overview, care, meds, vitals
 
   useEffect(() => {
     // In a real app, this would be an API call
@@ -35,6 +35,13 @@ const ResidentDetailScreen = ({ route, navigation }) => {
 
     fetchData();
   }, [residentId]);
+
+  // Update active tab when initialTab changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   if (loading || !resident) {
     return (
@@ -309,7 +316,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                     Thời Gian Dùng Thuốc:
                   </Text>
                   <View style={styles.timeContainer}>
-                    {med.timeOfAdministration.map((time, index) => (
+                    {(med.schedule?.times || []).map((time, index) => (
                       <Chip key={index} style={styles.timeChip}>
                         {time}
                       </Chip>
