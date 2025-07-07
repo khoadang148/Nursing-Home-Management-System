@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { billingService } from '../../api/billingService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
+import { COLORS } from '../../constants/theme';
 
 const PaymentHistoryScreen = ({ navigation }) => {
   const { colors } = useTheme();
@@ -84,7 +86,7 @@ const PaymentHistoryScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -104,7 +106,7 @@ const PaymentHistoryScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

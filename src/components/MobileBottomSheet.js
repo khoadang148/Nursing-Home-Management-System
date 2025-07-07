@@ -32,7 +32,7 @@ const MobileBottomSheet = ({ visible, onClose, navigation, userRole = 'staff' })
   ];
 
   const familyMenuItems = [
-    { icon: 'event', title: 'Lịch Thăm', subtitle: 'Đặt lịch thăm viếng', route: 'LichTham' },
+    { icon: 'event', title: 'Lịch Thăm', subtitle: 'Đặt lịch thăm người thân', route: 'LichTham' },
     { icon: 'photo-library', title: 'Thư Viện Ảnh', subtitle: 'Xem ảnh của người thân', route: 'HinhAnh' },
     { icon: 'history', title: 'Lịch Sử', subtitle: 'Xem lịch sử chăm sóc', route: 'LichSu' },
     { icon: 'help', title: 'Hỗ Trợ', subtitle: 'Liên hệ hỗ trợ', route: 'HoTro' },

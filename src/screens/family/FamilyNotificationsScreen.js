@@ -8,8 +8,8 @@ import {
   RefreshControl,
   Alert,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
@@ -20,39 +20,39 @@ import NativeButton from '../../components/NativeButton';
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
-// Mock notifications data - in a real app this would come from an API
+// Mock notifications data - filtered for family members only
 const mockNotifications = [
   {
     id: '1',
-    title: 'Cập Nhật Thuốc',
-    message: 'Thuốc huyết áp đã được dùng lúc 9:00 sáng. Người thân cần lưu ý về tình trạng sức khỏe.',
-    type: 'medication',
-    date: '2023-11-12T09:15:00Z',
-    read: false,
-    priority: 'normal'
-  },
-  {
-    id: '2',
-    title: 'Nhắc Nhở Uống Thuốc',
-    message: 'Đến giờ uống thuốc tim mạch Metoprolol lúc 20:00. Vui lòng nhắc nhở.',
-    type: 'medication',
-    date: '2023-11-12T19:45:00Z',
-    read: true,
-    priority: 'high'
-  },
-  {
-    id: '3',
     title: 'Thay Đổi Liều Thuốc',
-    message: 'Bác sĩ đã điều chỉnh liều thuốc tiểu đường từ 5mg xuống 2.5mg theo chỉ định mới.',
+    message: 'Bác sĩ đã điều chỉnh liều thuốc tiểu đường từ 5mg xuống 2.5mg theo chỉ định mới. Gia đình cần lưu ý theo dõi.',
     type: 'medication',
     date: '2023-11-11T15:20:00Z',
     read: false,
     priority: 'high'
   },
   {
+    id: '2',
+    title: 'Nhắc Nhở Thanh Toán',
+    message: 'Hóa đơn tháng 11 sẽ đến hạn thanh toán vào ngày 25/11. Tổng số tiền: 17.500.000 VND.',
+    type: 'payment',
+    date: '2023-11-12T09:15:00Z',
+    read: false,
+    priority: 'high'
+  },
+  {
+    id: '3',
+    title: 'Đề Xuất Thay Đổi Gói Dịch Vụ',
+    message: 'Dựa trên tình trạng sức khỏe hiện tại, chúng tôi đề xuất nâng cấp lên gói chăm sóc đặc biệt.',
+    type: 'service_recommendation',
+    date: '2023-11-10T14:30:00Z',
+    read: false,
+    priority: 'normal'
+  },
+  {
     id: '4',
-    title: 'Cập Nhật Sức Khỏe',
-    message: 'Kiểm tra dấu hiệu sinh tồn định kỳ đã hoàn thành. Mọi thứ đều bình thường. Huyết áp: 120/80, Nhịp tim: 72 bpm.',
+    title: 'Báo Cáo Sức Khỏe Hàng Tuần',
+    message: 'Báo cáo sức khỏe tuần này: Các chỉ số sinh hiệu ổn định. Huyết áp: 120/80, Nhịp tim: 72 bpm. Người thân yên tâm.',
     type: 'health',
     date: '2023-11-11T14:30:00Z',
     read: true,
@@ -61,7 +61,7 @@ const mockNotifications = [
   {
     id: '5',
     title: 'Kết Quả Xét Nghiệm',
-    message: 'Kết quả xét nghiệm máu định kỳ đã có. Các chỉ số đều trong giới hạn bình thường.',
+    message: 'Kết quả xét nghiệm máu định kỳ đã có. Các chỉ số đều trong giới hạn bình thường. Gia đình có thể xem chi tiết trong hồ sơ.',
     type: 'health',
     date: '2023-11-10T16:00:00Z',
     read: false,
@@ -69,75 +69,66 @@ const mockNotifications = [
   },
   {
     id: '6',
-    title: 'Đo Huyết Áp',
-    message: 'Huyết áp buổi sáng: 125/82 mmHg. Chỉ số hơi cao, cần theo dõi thêm.',
+    title: 'Cảnh Báo Sức Khỏe',
+    message: 'Huyết áp buổi sáng hơi cao: 145/90 mmHg. Đã thông báo bác sĩ và điều chỉnh thuốc. Gia đình lưu ý theo dõi.',
     type: 'health',
     date: '2023-11-09T08:30:00Z',
-    read: true,
-    priority: 'normal'
+    read: false,
+    priority: 'high'
   },
   {
     id: '7',
-    title: 'Tham Gia Hoạt Động',
-    message: 'Đã tham gia liệu pháp âm nhạc nhóm và thể hiện sự tham gia tích cực. Thời gian: 10:00-11:30.',
+    title: 'Ảnh Mới Được Tải Lên',
+    message: 'Có 5 ảnh mới của hoạt động tập thể dục buổi sáng. Hãy xem trong thư viện ảnh.',
+    type: 'photo_upload',
+    date: '2023-11-12T10:15:00Z',
+    read: false,
+    priority: 'normal'
+  },
+  {
+    id: '8',
+    title: 'Tham Gia Hoạt Động Tích Cực',
+    message: 'Người thân của bạn đã tham gia liệu pháp âm nhạc nhóm và thể hiện sự tham gia rất tích cực. Thời gian: 10:00-11:30.',
     type: 'activity',
     date: '2023-11-10T11:45:00Z',
     read: true,
     priority: 'normal'
   },
   {
-    id: '8',
-    title: 'Hoạt Động Thể Thao',
-    message: 'Tham gia tập thể dục nhẹ buổi sáng với sự nhiệt tình. Thời gian: 30 phút.',
+    id: '9',
+    title: 'Hoạt Động Thể Dục Buổi Sáng',
+    message: 'Tham gia tập thể dục nhẹ buổi sáng với sự nhiệt tình cao. Điều này rất tốt cho sức khỏe. Thời gian: 30 phút.',
     type: 'activity',
     date: '2023-11-09T09:00:00Z',
     read: false,
     priority: 'normal'
   },
   {
-    id: '9',
-    title: 'Lớp Học Vẽ',
-    message: 'Hoàn thành bức tranh phong cảnh đầu tiên trong lớp học nghệ thuật.',
+    id: '10',
+    title: 'Thành Tích Nghệ Thuật',
+    message: 'Hoàn thành bức tranh phong cảnh đầu tiên trong lớp học nghệ thuật. Gia đình có thể yêu cầu xem ảnh tác phẩm.',
     type: 'activity',
     date: '2023-11-08T14:00:00Z',
     read: true,
     priority: 'normal'
   },
   {
-    id: '10',
+    id: '11',
     title: 'Lịch Thăm Đã Xác Nhận',
-    message: 'Yêu cầu thăm của bạn vào ngày 15 tháng 11 lúc 14:00 đã được xác nhận. Vui lòng đến đúng giờ.',
+    message: 'Yêu cầu thăm của bạn vào ngày 15 tháng 11 lúc 14:00 đã được xác nhận. Vui lòng đến đúng giờ và mang theo giấy tờ tùy thân.',
     type: 'visit',
     date: '2023-11-09T16:20:00Z',
     read: false,
     priority: 'high'
   },
   {
-    id: '11',
-    title: 'Thăm Viếng Hoàn Thành',
-    message: 'Cuộc thăm viếng với gia đình đã kết thúc sau 2 giờ. Cảm xúc tích cực.',
-    type: 'visit',
-    date: '2023-11-07T17:00:00Z',
-    read: true,
-    priority: 'normal'
-  },
-  {
     id: '12',
-    title: 'Cuộc Hẹn Y Tế',
-    message: 'Lịch khám định kỳ với bác sĩ Tim mạch vào thứ 5 tuần tới đã được sắp xếp.',
+    title: 'Lịch Khám Định Kỳ',
+    message: 'Lịch khám định kỳ với bác sĩ Tim mạch vào thứ 5 tuần tới đã được sắp xếp. Gia đình có thể tham dự nếu muốn.',
     type: 'appointment',
     date: '2023-11-08T10:00:00Z',
     read: false,
     priority: 'high'
-  },
-  {
-    id: '13',
-    title: 'Khám Mắt Định Kỳ',
-    message: 'Lịch hẹn khám mắt với bác sĩ chuyên khoa vào ngày 20/11 lúc 9:30.',
-    type: 'appointment',
-    date: '2023-11-06T13:15:00Z',
-    read: true,
-    priority: 'normal'
   }
 ];
 
@@ -150,6 +141,9 @@ const getNotificationCounts = (notifications) => {
     activity: notifications.filter(n => n.type === 'activity').length,
     visit: notifications.filter(n => n.type === 'visit').length,
     appointment: notifications.filter(n => n.type === 'appointment').length,
+    payment: notifications.filter(n => n.type === 'payment').length,
+    photo_upload: notifications.filter(n => n.type === 'photo_upload').length,
+    service_recommendation: notifications.filter(n => n.type === 'service_recommendation').length,
   };
 };
 
@@ -216,8 +210,12 @@ const FamilyNotificationsScreen = ({ navigation }) => {
         return { name: 'event', library: MaterialIcons, color: COLORS.secondary };
       case 'appointment':
         return { name: 'event-available', library: MaterialIcons, color: COLORS.info };
-      case 'photo':
+      case 'photo_upload':
         return { name: 'photo', library: MaterialIcons, color: COLORS.accent };
+      case 'payment':
+        return { name: 'payment', library: MaterialIcons, color: COLORS.warning };
+      case 'service_recommendation':
+        return { name: 'recommend', library: MaterialIcons, color: COLORS.primary };
       default:
         return { name: 'notifications', library: MaterialIcons, color: COLORS.textSecondary };
     }
@@ -351,11 +349,11 @@ const FamilyNotificationsScreen = ({ navigation }) => {
   const filters = [
     { id: 'all', label: 'Tất cả', count: counts.all, icon: 'notifications', color: COLORS.primary },
     { id: 'unread', label: 'Chưa đọc', count: counts.unread, icon: 'mark-chat-unread', color: COLORS.error },
-    { id: 'medication', label: 'Thuốc', count: counts.medication, icon: 'medication', color: COLORS.secondary },
     { id: 'health', label: 'Sức khỏe', count: counts.health, icon: 'favorite', color: COLORS.accent },
     { id: 'activity', label: 'Hoạt động', count: counts.activity, icon: 'directions-run', color: COLORS.success },
     { id: 'visit', label: 'Thăm viếng', count: counts.visit, icon: 'event', color: COLORS.info },
     { id: 'appointment', label: 'Hẹn khám', count: counts.appointment, icon: 'event-available', color: COLORS.warning },
+    { id: 'payment', label: 'Thanh toán', count: counts.payment, icon: 'payment', color: COLORS.warning },
   ];
 
   return (
@@ -364,96 +362,97 @@ const FamilyNotificationsScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Thông Báo</Text>
         {unreadCount > 0 && (
-          <NativeButton
-            title="Đánh dấu tất cả"
-            mode="text"
-            onPress={handleMarkAllAsRead}
-            textStyle={styles.markAllReadText}
-          />
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+          </View>
         )}
       </View>
 
-      {/* Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersContainer}
-      >
-        {filters.map((item) => {
-          const isActive = activeFilter === item.id;
-          
-          return (
-            <View key={item.id} style={styles.chipWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  isActive && styles.activeFilterChip,
-                  isActive && { backgroundColor: item.color, borderColor: item.color }
-                ]}
-                onPress={() => setActiveFilter(item.id)}
-              >
-                <MaterialIcons 
-                  name={item.icon} 
-                  size={16} 
-                  color={isActive ? COLORS.surface : item.color}
-                  style={styles.chipIcon}
-                />
-                <Text 
+      {/* Filter Chips - Fixed Position */}
+      <View style={styles.filtersWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContainer}
+        >
+          {filters.map((item) => {
+            const isActive = activeFilter === item.id;
+            
+            return (
+              <View key={item.id} style={styles.chipWrapper}>
+                <TouchableOpacity
                   style={[
-                    styles.filterChipText,
-                    isActive && styles.activeFilterChipText
+                    styles.filterChip,
+                    isActive && styles.activeFilterChip,
+                    isActive && { backgroundColor: item.color, borderColor: item.color }
                   ]}
-                  numberOfLines={1}
+                  onPress={() => setActiveFilter(item.id)}
                 >
-                  {item.label}
-                </Text>
-                {item.count > 0 && (
-                  <View style={[
-                    styles.countBadge,
-                    isActive && styles.activeCountBadge
-                  ]}>
-                    <Text style={[
-                      styles.countText,
-                      isActive && styles.activeCountText
+                  <MaterialIcons 
+                    name={item.icon} 
+                    size={16} 
+                    color={isActive ? COLORS.surface : item.color}
+                    style={styles.chipIcon}
+                  />
+                  <Text 
+                    style={[
+                      styles.filterChipText,
+                      isActive && styles.activeFilterChipText
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.label}
+                  </Text>
+                  {item.count > 0 && (
+                    <View style={[
+                      styles.countBadge,
+                      isActive && styles.activeCountBadge
                     ]}>
-                      {item.count}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
+                      <Text style={[
+                        styles.countText,
+                        isActive && styles.activeCountText
+                      ]}>
+                        {item.count}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-      {/* Notifications List */}
-      <FlatList
-        data={filteredNotifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.notificationsList}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
-            colors={[COLORS.primary]} 
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialIcons name="notifications-off" size={80} color={COLORS.border} />
-            <Text style={styles.emptyTitle}>
-              {activeFilter === 'all' ? 'Chưa có thông báo' : 'Không có thông báo'}
-            </Text>
-            <Text style={styles.emptySubtext}>
-              {activeFilter === 'all' 
-                ? 'Bạn sẽ nhận được thông báo về tình trạng sức khỏe và hoạt động tại đây' 
-                : `Không có thông báo nào trong danh mục "${filters.find(f => f.id === activeFilter)?.label}"`
-              }
-            </Text>
-          </View>
-        }
-      />
+      {/* Notifications List - Flex container */}
+      <View style={styles.notificationsContainer}>
+        <FlatList
+          data={filteredNotifications}
+          renderItem={renderNotificationItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.notificationsList}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              colors={[COLORS.primary]} 
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="notifications-off" size={80} color={COLORS.border} />
+              <Text style={styles.emptyTitle}>
+                {activeFilter === 'all' ? 'Chưa có thông báo' : 'Không có thông báo'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {activeFilter === 'all' 
+                  ? 'Bạn sẽ nhận được thông báo về tình trạng sức khỏe và hoạt động tại đây' 
+                  : `Không có thông báo nào trong danh mục "${filters.find(f => f.id === activeFilter)?.label}"`
+                }
+              </Text>
+            </View>
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -487,10 +486,26 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '700',
   },
-  markAllReadText: {
-    color: COLORS.primary,
-    fontSize: 14,
+  unreadBadge: {
+    backgroundColor: COLORS.error,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
+  },
+  filtersWrapper: {
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: 8,
   },
   filtersContainer: {
     paddingHorizontal: 16,
@@ -556,8 +571,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     minWidth: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 6,
   },
   activeCountBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -567,14 +584,20 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
     fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
   },
   activeCountText: {
     color: COLORS.surface,
     fontWeight: '700',
   },
+  notificationsContainer: {
+    flex: 1,
+  },
   notificationsList: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingTop: 16,
+    paddingBottom: 20,
     flexGrow: 1,
   },
   notificationWrapper: {

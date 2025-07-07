@@ -1,16 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
   Image,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
   ScrollView,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useNotification } from '../../components/NotificationSystem';
@@ -24,10 +28,16 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  
+
   const dispatch = useDispatch();
   const { isLoading, error, message, isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showWarning } = useNotification();
+
+  // Animation values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const titleAnim = useRef(new Animated.Value(0)).current;
 
   // Clear error when component unmounts
   useEffect(() => {
@@ -57,6 +67,72 @@ const LoginScreen = ({ navigation }) => {
       dispatch(resetAuthError());
     }
   }, [error, showError, dispatch]);
+
+  useEffect(() => {
+    // Pulse animation for logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Float animation for elements
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Glow animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+
+    // Title animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(titleAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(titleAnim, {
+          toValue: 0,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   const handleLogin = useCallback(async () => {
     // Validation
@@ -90,116 +166,231 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Background Waves */}
-      <View style={styles.waveContainer}>
-        <View style={[styles.wave, styles.wave1]} />
-        <View style={[styles.wave, styles.wave2]} />
-        <View style={[styles.wave, styles.wave3]} />
-      </View>
+      {/* Animated Background */}
+      <LinearGradient
+        colors={['#f9e7c4', '#fbc2eb', '#a8d8ff']}
+        style={styles.backgroundGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      {/* Glassmorphism overlay */}
+      <View style={styles.glassOverlay} />
 
-      {/* Main Content */}
-      <KeyboardAvoidingView
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      {/* Floating Elements */}
+      <Animated.View 
+        style={[
+          styles.floatingElement1,
+          {
+            transform: [{
+              translateY: floatAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -15]
+              })
+            }, {
+              scale: pulseAnim
+            }]
+          }
+        ]}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <MaterialCommunityIcons name="heart" size={40} color="#ff6b6b" />
+      </Animated.View>
+
+      <Animated.View 
+        style={[
+          styles.floatingElement2,
+          {
+            transform: [{
+              translateY: floatAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 10]
+              })
+            }]
+          }
+        ]}
+      >
+        <MaterialCommunityIcons name="account-group" size={35} color="#4ecdc4" />
+      </Animated.View>
+
+      <Animated.View 
+        style={[
+          styles.floatingElement3,
+          {
+            transform: [{
+              translateY: floatAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -8]
+              })
+            }]
+          }
+        ]}
+      >
+        <MaterialCommunityIcons name="shield-check" size={30} color="#45b7d1" />
+      </Animated.View>
+
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          {/* Logo Section */}
-          <View style={styles.logoSection}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={require('../../../assets/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.appTitle}>VIỆN DƯỠNG LÃO</Text>
-            <Text style={styles.appSubtitle}>Hệ Thống Quản Lý Chăm Sóc</Text>
-          </View>
-
-          {/* Login Form */}
-          <View style={styles.formSection}>
-            <View style={styles.formContainer}>
-              <Text style={styles.welcomeText}>Đăng nhập</Text>
-              <Text style={styles.welcomeSubtext}>Vui lòng nhập thông tin để tiếp tục</Text>
-
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-                mode="outlined"
-                outlineStyle={styles.inputOutline}
-                activeOutlineColor={COLORS.primary}
-                outlineColor="transparent"
-                left={<TextInput.Icon icon="email" iconColor={COLORS.primary} />}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                theme={{
-                  colors: {
-                    surface: COLORS.surface,
-                    onSurface: COLORS.text,
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Logo and Welcome Section */}
+            <View style={styles.headerSection}>
+              <Animated.View
+                style={[
+                  styles.logoContainer,
+                  {
+                    transform: [{ scale: pulseAnim }]
                   }
-                }}
-              />
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="hospital-building"
+                  size={60}
+                  color="#00A551"
+                />
+              </Animated.View>
+              
+              <Animated.Text 
+                style={[
+                  styles.appTitle,
+                  {
+                    transform: [{
+                      scale: titleAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.02]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                CareHome
+              </Animated.Text>
+              
+              <Animated.Text 
+                style={[
+                  styles.appSubtitle,
+                  {
+                    opacity: titleAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1]
+                    })
+                  }
+                ]}
+              >
+                Hệ thống quản lý viện dưỡng lão
+              </Animated.Text>
+              
+              <Animated.Text 
+                style={[
+                  styles.appSlogan,
+                  {
+                    transform: [{
+                      translateY: titleAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -2]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                Chuyên nghiệp • An toàn • Tận tâm
+              </Animated.Text>
+            </View>
 
-              <TextInput
-                label="Mật khẩu"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!passwordVisible}
-                style={styles.input}
-                mode="outlined"
-                outlineStyle={styles.inputOutline}
-                activeOutlineColor={COLORS.primary}
-                outlineColor="transparent"
-                left={<TextInput.Icon icon="lock" iconColor={COLORS.primary} />}
-                right={
-                  <TextInput.Icon
-                    icon={passwordVisible ? "eye-off" : "eye"}
-                    iconColor={COLORS.primary}
-                    onPress={togglePasswordVisibility}
-                  />
+            {/* Illustration Section */}
+            <View style={styles.illustrationSection}>
+              <View style={styles.illustrationContainer}>
+                <Image
+                  source={require('../../../assets/elderly-care.jpg')}
+                  style={styles.illustration}
+                  resizeMode="cover"
+                />
+              </View>
+            </View>
+
+            {/* Login Form */}
+            <View style={styles.formSection}>
+              <View style={styles.formContainer}>
+                <TextInput
+                  mode="outlined"
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  outlineColor="#00A551"
+                  activeOutlineColor="#00A551"
+                  left={<TextInput.Icon icon="email" color="#00A551" />}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                <TextInput
+                  mode="outlined"
+                  label="Mật khẩu"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!passwordVisible}
+                  style={styles.input}
+                  outlineColor="#00A551"
+                  activeOutlineColor="#00A551"
+                  left={<TextInput.Icon icon="lock" color="#00A551" />}
+                  right={
+                    <TextInput.Icon
+                      icon={passwordVisible ? "eye-off" : "eye"}
+                      color="#00A551"
+                      onPress={togglePasswordVisibility}
+                    />
+                  }
+                />
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('QuenMatKhau')}
+                  style={styles.forgotPassword}
+                >
+                  <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
+                </TouchableOpacity>
+
+                <Button
+                  mode="contained"
+                  onPress={handleLogin}
+                  style={styles.loginButton}
+                  contentStyle={styles.loginButtonContent}
+                  labelStyle={styles.loginButtonLabel}
+                  loading={isLoading}
+                  disabled={isLoading}
+                >
+                  Đăng nhập
+                </Button>
+              </View>
+            </View>
+
+            {/* Security Note */}
+            <Animated.View 
+              style={[
+                styles.securityNote,
+                {
+                  opacity: glowAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.7, 1]
+                  })
                 }
-                theme={{
-                  colors: {
-                    surface: COLORS.surface,
-                    onSurface: COLORS.text,
-                  }
-                }}
-              />
+              ]}
+            >
+              <MaterialCommunityIcons name="shield-check" size={20} color="#00A551" />
+              <Text style={styles.securityText}>
+                Dữ liệu được mã hóa và bảo mật theo tiêu chuẩn y tế quốc tế
+              </Text>
+            </Animated.View>
 
-              <TouchableOpacity
-                onPress={() => navigation.navigate('QuenMatKhau')}
-                style={styles.forgotPasswordLink}
-              >
-                <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
-              </TouchableOpacity>
-
-              <Button
-                mode="contained"
-                onPress={handleLogin}
-                style={styles.loginButton}
-                labelStyle={styles.loginButtonText}
-                loading={isLoading}
-                disabled={isLoading}
-                buttonColor={COLORS.primary}
-              >
-                Đăng nhập
-              </Button>
-            </View>
-          </View>
-
-          {/* Version */}
-          <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>Version: 1.0.0</Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            {/* Version */}
+            <Text style={styles.version}>Version: 1.0.0</Text>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 };
@@ -207,150 +398,175 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
-  waveContainer: {
+  backgroundGradient: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
   },
-  wave: {
+  glassOverlay: {
     position: 'absolute',
-    borderRadius: width,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  wave1: {
-    width: width * 1.8,
-    height: height * 0.7,
-    backgroundColor: COLORS.primary + '15',
-    top: -height * 0.3,
-    right: -width * 0.5,
-    transform: [{ rotate: '15deg' }],
-  },
-  wave2: {
-    width: width * 1.6,
-    height: height * 0.6,
-    backgroundColor: COLORS.primary + '25',
-    top: -height * 0.25,
-    right: -width * 0.4,
-    transform: [{ rotate: '10deg' }],
-  },
-  wave3: {
-    width: width * 1.4,
-    height: height * 0.5,
-    backgroundColor: COLORS.primary + '35',
-    top: -height * 0.2,
-    right: -width * 0.3,
-    transform: [{ rotate: '5deg' }],
-  },
-  content: {
-    flex: 1,
+  floatingElement1: {
+    position: 'absolute',
+    top: '15%',
+    left: '10%',
     zIndex: 1,
+    opacity: 0.6,
+  },
+  floatingElement2: {
+    position: 'absolute',
+    top: '60%',
+    right: '15%',
+    zIndex: 1,
+    opacity: 0.5,
+  },
+  floatingElement3: {
+    position: 'absolute',
+    bottom: '25%',
+    left: '5%',
+    zIndex: 1,
+    opacity: 0.4,
+  },
+  safeArea: {
+    flex: 1,
+    zIndex: 2,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'space-between',
-    minHeight: height,
-    paddingHorizontal: SIZES.large,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
-  logoSection: {
+  headerSection: {
     alignItems: 'center',
-    paddingTop: height * 0.15,
-    paddingBottom: SIZES.xxlarge,
+    marginTop: 40,
+    marginBottom: 50,
   },
   logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.surface,
+    width: 100,
+    height: 100,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SIZES.large,
-    ...SHADOWS.large,
+    marginBottom: 20,
+    shadowColor: '#00A551',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 8,
   },
-  logo: {
-    width: 80,
-    height: 80,
-  },
   appTitle: {
-    ...FONTS.h1,
-    fontSize: SIZES.h1 * 0.9,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#00A551',
     textAlign: 'center',
-    marginBottom: SIZES.small / 2,
-    letterSpacing: 1,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   appSubtitle: {
-    ...FONTS.body1,
-    color: COLORS.textSecondary,
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
-    fontWeight: '400',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  appSlogan: {
+    fontSize: 14,
+    color: '#00A551',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  illustrationSection: {
+    marginBottom: 30,
+    paddingHorizontal: 0, // Remove padding to match form width
+  },
+  illustrationContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  illustration: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
   },
   formSection: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: SIZES.large,
+    marginTop: 24,
   },
   formContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: SIZES.large,
-    padding: SIZES.large,
-    paddingVertical: SIZES.xxlarge,
-    ...SHADOWS.large,
-    elevation: 10,
-  },
-  welcomeText: {
-    ...FONTS.h2,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: SIZES.small,
-    fontWeight: '700',
-  },
-  welcomeSubtext: {
-    ...FONTS.body2,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: SIZES.xxlarge,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
   },
   input: {
-    marginBottom: SIZES.large,
-    backgroundColor: COLORS.background,
+    marginBottom: 16,
+    backgroundColor: '#fff',
   },
-  inputOutline: {
-    borderRadius: SIZES.medium,
-    borderWidth: 0,
-  },
-  forgotPasswordLink: {
+  forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: SIZES.large,
-    marginTop: -SIZES.small,
+    marginBottom: 24,
   },
   forgotPasswordText: {
-    ...FONTS.body2,
-    color: COLORS.primary,
-    fontWeight: '600',
+    color: '#00A551',
+    fontSize: 14,
   },
   loginButton: {
-    borderRadius: SIZES.medium,
-    paddingVertical: SIZES.small / 2,
-    elevation: 3,
+    backgroundColor: '#00A551',
+    borderRadius: 8,
+    elevation: 2,
   },
-  loginButtonText: {
-    ...FONTS.h5,
+  loginButtonContent: {
+    height: 48,
+  },
+  loginButtonLabel: {
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.surface,
   },
-  versionContainer: {
+  securityNote: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: SIZES.xxlarge,
+    justifyContent: 'center',
+    marginTop: 24,
+    paddingHorizontal: 24,
   },
-  versionText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    fontWeight: '400',
+  securityText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    textAlign: 'center',
+  },
+  version: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 16,
   },
 });
 

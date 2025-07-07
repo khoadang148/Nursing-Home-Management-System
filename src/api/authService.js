@@ -12,6 +12,7 @@ const mockUsers = [
     id: staffMember.id,
     email: staffMember.email,
     password: 'password123', // In a real app, this would be hashed
+    full_name: `${staffMember.firstName} ${staffMember.lastName}`,
     firstName: staffMember.firstName,
     lastName: staffMember.lastName,
     role: staffMember.role,
@@ -21,12 +22,18 @@ const mockUsers = [
     id: familyMember.id,
     email: familyMember.email,
     password: familyMember.password,
-    firstName: familyMember.firstName,
-    lastName: familyMember.lastName,
+    full_name: familyMember.full_name,
+    firstName: familyMember.full_name.split(' ').slice(-1)[0], // Last name
+    lastName: familyMember.full_name.split(' ').slice(0, -1).join(' '), // First and middle names
     role: 'family',
     photo: familyMember.photo,
     relationship: familyMember.relationship,
-    residentId: familyMember.residentId,
+    residentId: familyMember.residentIds?.[0], // For backward compatibility
+    residentIds: familyMember.residentIds,
+    phone: familyMember.phone,
+    address: familyMember.address,
+    username: familyMember.username,
+    notes: familyMember.notes,
   }))
 ];
 
@@ -55,22 +62,38 @@ const authService = {
     await AsyncStorage.setItem('refreshToken', refreshToken);
     await AsyncStorage.setItem('userData', JSON.stringify({
       id: user.id,
+      full_name: user.full_name,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       role: user.role,
       photo: user.photo,
+      relationship: user.relationship,
+      residentId: user.residentId,
+      residentIds: user.residentIds,
+      phone: user.phone,
+      address: user.address,
+      username: user.username,
+      notes: user.notes,
     }));
     
     return {
       data: {
         user: {
           id: user.id,
+          full_name: user.full_name,
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
           role: user.role,
           photo: user.photo,
+          relationship: user.relationship,
+          residentId: user.residentId,
+          residentIds: user.residentIds,
+          phone: user.phone,
+          address: user.address,
+          username: user.username,
+          notes: user.notes,
         },
         tokens: {
           authToken,
@@ -105,6 +128,7 @@ const authService = {
       data: {
         user: {
           id: newUser.id,
+          full_name: newUser.full_name,
           firstName: newUser.firstName,
           lastName: newUser.lastName,
           email: newUser.email,

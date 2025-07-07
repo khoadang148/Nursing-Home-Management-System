@@ -11,15 +11,12 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ServicePackageService } from '../../api/servicePackageService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
-
-// Import mock data (for now)
-import { carePlans, carePlanAssignments, residents } from '../../api/mockData';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -52,35 +49,18 @@ const ServicePackageScreen = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      console.log('=== Fetch Data Debug ===');
-      console.log('Available care plans:', carePlans.length);
-      console.log('Available care plan assignments:', carePlanAssignments.length);
-      console.log('Available residents:', residents.length);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Get registered packages (care plan assignments for current user)
-      const userRegisteredPackages = carePlanAssignments.filter(
-        assignment => assignment.family_member_id === 'f1' // Current user
-      );
-      console.log('User registered packages:', userRegisteredPackages.length);
-      console.log('User registered packages data:', userRegisteredPackages);
-      setRegisteredPackages(userRegisteredPackages);
-      
-      // Get available packages (all care plans)
-      const mainPackages = carePlans.filter(plan => plan.category === 'main');
-      const supplementaryPackages = carePlans.filter(plan => plan.category === 'supplementary');
-      
-      console.log('Main packages:', mainPackages.length);
-      console.log('Supplementary packages:', supplementaryPackages.length);
-      
-      setAvailablePackages({
-        main_packages: mainPackages,
-        supplementary_packages: supplementaryPackages
-      });
-      
+      const [registeredResult, availableResult] = await Promise.all([
+        ServicePackageService.getRegisteredPackages('current_user'),
+        ServicePackageService.getAllServicePackages()
+      ]);
+
+      if (registeredResult.success) {
+        setRegisteredPackages(registeredResult.data);
+      }
+
+      if (availableResult.success) {
+        setAvailablePackages(availableResult.data);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu gói dịch vụ');
@@ -132,27 +112,12 @@ const ServicePackageScreen = ({ navigation }) => {
   };
 
   const handlePackagePress = (packageData) => {
-    console.log('=== Package Press Debug ===');
-    console.log('Package pressed:', packageData);
-    console.log('Package type:', packageData.resident ? 'registered' : 'available');
-    console.log('Package name:', packageData.plan_name || packageData.main_care_plan?.plan_name);
-    console.log('Navigation params:', {
-      packageData: packageData,
-      packageType: packageData.resident ? 'registered' : 'available'
-    });
-    console.log('Navigating to ServicePackageDetail screen...');
-    
-    try {
-      // Navigate to dedicated detail screen
-      navigation.navigate('ServicePackageDetail', {
-        packageData: packageData,
-        packageType: packageData.resident ? 'registered' : 'available'
-      });
-      console.log('Navigation successful!');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Lỗi', 'Không thể mở chi tiết gói dịch vụ');
-    }
+    // Xóa console.log để tránh log không cần thiết
+    // Cập nhật state trong một cú pháp duy nhất để tránh render nhiều lần
+    setSelectedPackage(packageData);
+    setTimeout(() => {
+      setShowPackageDetail(true);
+    }, 100); // Thêm một chút độ trễ để đảm bảo state đã cập nhật
   };
 
   const handleRegisterPress = async (packageData) => {
@@ -375,20 +340,14 @@ const ServicePackageScreen = ({ navigation }) => {
   );
 
   const renderPackageDetailModal = () => {
-    console.log('renderPackageDetailModal called:', { selectedPackage: !!selectedPackage, showPackageDetail, hasSelectedPackage: !!selectedPackage });
-    if (!selectedPackage || !showPackageDetail) {
-      console.log('Modal not showing because:', { selectedPackage: !!selectedPackage, showPackageDetail });
-      return null;
-    }
-    console.log('Modal should show now!');
+    if (!selectedPackage || !showPackageDetail) return null;
     
     return (
       <Modal
         visible={showPackageDetail}
         animationType="slide"
         transparent={true}
-        onShow={() => console.log('Modal onShow triggered!')}
-        statusBarTranslucent={true}
+        onRequestClose={() => setShowPackageDetail(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -406,217 +365,216 @@ const ServicePackageScreen = ({ navigation }) => {
 
             <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
               {selectedPackage?.resident ? (
-                // Hiển thị chi tiết gói đã đăng ký
-                <View>
-                  <View style={styles.residentSection}>
-                    <Text style={styles.sectionTitle}>👤 Thông tin người thân</Text>
-                    <View style={styles.residentDetailCard}>
-                      <Text style={styles.residentDetailName}>{selectedPackage.resident?.full_name || 'Không có tên'}</Text>
-                      <Text style={styles.residentDetailInfo}>
-                        📍 Phòng {selectedPackage.resident?.room_number || '--'} • Giường {selectedPackage.resident?.bed_number || '--'}
-                      </Text>
-                      <Text style={styles.residentDetailInfo}>
-                        🎂 Ngày sinh: {safeFormatDate(selectedPackage.resident?.date_of_birth)}
-                      </Text>
-                      <Text style={styles.residentDetailInfo}>
-                        ⚕️ Trạng thái: {selectedPackage.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
-                      </Text>
-                    </View>
+              // Hiển thị chi tiết gói đã đăng ký
+              <View>
+                <View style={styles.residentSection}>
+                  <Text style={styles.sectionTitle}>👤 Thông tin người thân</Text>
+                  <View style={styles.residentDetailCard}>
+                    <Text style={styles.residentDetailName}>{selectedPackage.resident?.full_name || 'Không có tên'}</Text>
+                    <Text style={styles.residentDetailInfo}>
+                      📍 Phòng {selectedPackage.resident?.room_number || '--'} • Giường {selectedPackage.resident?.bed_number || '--'}
+                    </Text>
+                    <Text style={styles.residentDetailInfo}>
+                      🎂 Ngày sinh: {safeFormatDate(selectedPackage.resident?.date_of_birth)}
+                    </Text>
+                    <Text style={styles.residentDetailInfo}>
+                      ⚕️ Trạng thái: {selectedPackage.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+                    </Text>
                   </View>
-
-                  <View style={styles.packageSection}>
-                    <Text style={styles.sectionTitle}>📦 Gói dịch vụ chính</Text>
-                    <View style={styles.mainPackageDetail}>
-                      <View style={styles.packageDetailInfo}>
-                        <Text style={styles.mainPackageDetailName}>{selectedPackage.main_care_plan?.plan_name || 'Không có tên gói'}</Text>
-                        <Text style={styles.packageDetailDescription}>{selectedPackage.main_care_plan?.description || 'Gói chăm sóc cơ bản'}</Text>
-                      </View>
-                      <Text style={styles.mainPackageDetailPrice}>{formatCurrency(selectedPackage.main_care_plan?.monthly_price || 0)}/tháng</Text>
-                    </View>
-                    
-                    {selectedPackage.main_care_plan?.services_included && selectedPackage.main_care_plan.services_included.length > 0 && (
-                      <View style={styles.servicesSection}>
-                        <Text style={styles.servicesTitle}>Dịch vụ bao gồm:</Text>
-                        {selectedPackage.main_care_plan.services_included.map((service, index) => (
-                          <View key={index} style={styles.serviceItem}>
-                            <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                            <Text style={styles.serviceText}>{service}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-
-                  {selectedPackage.supplementary_plans && selectedPackage.supplementary_plans.length > 0 && (
-                    <View style={styles.packageSection}>
-                      <Text style={styles.sectionTitle}>➕ Gói dịch vụ bổ sung ({selectedPackage.supplementary_plans.length})</Text>
-                      {selectedPackage.supplementary_plans.map((plan, index) => (
-                        <View key={index} style={styles.supplementaryDetailCard}>
-                          <View style={styles.supplementaryDetailHeader}>
-                            <Text style={styles.supplementaryDetailName}>{plan.plan_name || 'Không có tên'}</Text>
-                            <Text style={styles.supplementaryDetailPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
-                          </View>
-                          <Text style={styles.supplementaryDescription}>{plan.description || 'Dịch vụ bổ sung'}</Text>
-                          
-                          {plan.services_included && plan.services_included.length > 0 && (
-                            <View style={styles.supplementaryServices}>
-                              {plan.services_included.slice(0, 3).map((service, serviceIndex) => (
-                                <View key={serviceIndex} style={styles.serviceItem}>
-                                  <Ionicons name="checkmark-circle" size={14} color="#607D8B" />
-                                  <Text style={styles.supplementaryServiceText}>{service}</Text>
-                                </View>
-                              ))}
-                              {plan.services_included.length > 3 && (
-                                <Text style={styles.moreServicesText}>
-                                  +{plan.services_included.length - 3} dịch vụ khác
-                                </Text>
-                              )}
-                            </View>
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  <View style={styles.packageSection}>
-                    <Text style={styles.sectionTitle}>💰 Thông tin thanh toán</Text>
-                    <View style={styles.paymentInfo}>
-                      <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Tổng chi phí hàng tháng:</Text>
-                        <Text style={styles.paymentValue}>{formatCurrency(selectedPackage.total_monthly_cost || 0)}</Text>
-                      </View>
-                      <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Trạng thái thanh toán:</Text>
-                        <Text style={[styles.paymentValue, { color: selectedPackage.payment_status === 'fully_paid' ? '#4CAF50' : '#FF9800' }]}>
-                          {selectedPackage.payment_status === 'fully_paid' ? '✅ Đã thanh toán đầy đủ' : '⏳ Chưa hoàn tất'}
-                        </Text>
-                      </View>
-                      <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Thời gian áp dụng:</Text>
-                        <Text style={styles.paymentValue}>
-                          {safeFormatDate(selectedPackage.start_date)} - {safeFormatDate(selectedPackage.end_date)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {selectedPackage.notes && (
-                    <View style={styles.packageSection}>
-                      <Text style={styles.sectionTitle}>📝 Ghi chú</Text>
-                      <Text style={styles.notesText}>{selectedPackage.notes}</Text>
-                    </View>
-                  )}
                 </View>
-              ) : (
-                // Hiển thị chi tiết gói có sẵn
-                <View>
-                  <View style={styles.packageOverview}>
-                    <View style={[styles.largeIconContainer, { backgroundColor: getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main') + '20' }]}>
-                      <Ionicons 
-                        name={getPackageIcon(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
-                        size={32} 
-                        color={getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
-                      />
-                    </View>
-                    <Text style={styles.packageOverviewName}>{selectedPackage?.plan_name || 'Gói dịch vụ'}</Text>
-                    <Text style={styles.packageOverviewPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
-                    <Text style={styles.packageOverviewDesc}>{selectedPackage?.description || 'Không có mô tả'}</Text>
-                    <View style={[styles.categoryIndicator, { backgroundColor: selectedPackage?.category === 'main' ? '#2196F3' : '#607D8B' }]}>
-                      <Text style={styles.categoryIndicatorText}>
-                        {selectedPackage?.category === 'main' ? '🏆 Gói chăm sóc chính' : '➕ Gói dịch vụ bổ sung'}
-                      </Text>
-                    </View>
-                  </View>
 
-                  <View style={styles.packageSection}>
-                    <Text style={styles.sectionTitle}>✅ Dịch vụ bao gồm</Text>
-                    {selectedPackage?.services_included && selectedPackage.services_included.length > 0 ? (
-                      selectedPackage.services_included.map((service, index) => (
+                <View style={styles.packageSection}>
+                  <Text style={styles.sectionTitle}>📦 Gói dịch vụ chính</Text>
+                  <View style={styles.mainPackageDetail}>
+                    <View style={styles.packageDetailInfo}>
+                      <Text style={styles.mainPackageDetailName}>{selectedPackage.main_care_plan?.plan_name || 'Không có tên gói'}</Text>
+                      <Text style={styles.packageDetailDescription}>{selectedPackage.main_care_plan?.description || 'Gói chăm sóc cơ bản'}</Text>
+                    </View>
+                    <Text style={styles.mainPackageDetailPrice}>{formatCurrency(selectedPackage.main_care_plan?.monthly_price || 0)}/tháng</Text>
+                  </View>
+                  
+                  {selectedPackage.main_care_plan?.services_included && selectedPackage.main_care_plan.services_included.length > 0 && (
+                    <View style={styles.servicesSection}>
+                      <Text style={styles.servicesTitle}>Dịch vụ bao gồm:</Text>
+                      {selectedPackage.main_care_plan.services_included.map((service, index) => (
                         <View key={index} style={styles.serviceItem}>
                           <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
                           <Text style={styles.serviceText}>{service}</Text>
                         </View>
-                      ))
-                    ) : (
-                      <View style={styles.emptyServiceState}>
-                        <Text style={styles.emptyServiceText}>Không có thông tin dịch vụ</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.packageSection}>
-                    <Text style={styles.sectionTitle}>ℹ️ Thông tin chi tiết</Text>
-                    <View style={styles.detailInfo}>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>👥 Tỷ lệ nhân viên:</Text>
-                        <Text style={styles.detailValue}>{selectedPackage?.staff_ratio || 'Không xác định'}</Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>📋 Loại gói:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedPackage?.category === 'main' ? 'Gói chăm sóc chính (bắt buộc)' : 'Gói dịch vụ bổ sung (tùy chọn)'}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>💳 Chu kỳ thanh toán:</Text>
-                        <Text style={styles.detailValue}>Hàng tháng</Text>
-                      </View>
-                      {selectedPackage?.duration && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>⏱️ Thời gian tối thiểu:</Text>
-                          <Text style={styles.detailValue}>{selectedPackage.duration}</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {selectedPackage?.prerequisites && selectedPackage.prerequisites.length > 0 && (
-                    <View style={styles.packageSection}>
-                      <Text style={styles.sectionTitle}>📋 Điều kiện áp dụng</Text>
-                      {selectedPackage.prerequisites.map((prereq, index) => (
-                        <View key={index} style={styles.prereqItem}>
-                          <Ionicons name="information-circle" size={16} color="#2196F3" />
-                          <Text style={styles.prereqText}>{prereq}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {selectedPackage?.contraindications && selectedPackage.contraindications.length > 0 && (
-                    <View style={styles.packageSection}>
-                      <Text style={styles.sectionTitle}>⚠️ Chống chỉ định</Text>
-                      {selectedPackage.contraindications.map((contraind, index) => (
-                        <View key={index} style={styles.contraindicationItem}>
-                          <Ionicons name="warning" size={16} color="#FF9800" />
-                          <Text style={styles.contraindicationText}>{contraind}</Text>
-                        </View>
                       ))}
                     </View>
                   )}
                 </View>
-              )}
-            </ScrollView>
 
-            {!selectedPackage?.resident && (
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.registerButton}
-                  onPress={() => handleRegisterPress(selectedPackage)}
-                  disabled={actionLoading}
-                  activeOpacity={0.8}
-                >
-                  {actionLoading ? (
-                    <ActivityIndicator color="white" />
+                {selectedPackage.supplementary_plans && selectedPackage.supplementary_plans.length > 0 && (
+                  <View style={styles.packageSection}>
+                    <Text style={styles.sectionTitle}>➕ Gói dịch vụ bổ sung ({selectedPackage.supplementary_plans.length})</Text>
+                    {selectedPackage.supplementary_plans.map((plan, index) => (
+                      <View key={index} style={styles.supplementaryDetailCard}>
+                        <View style={styles.supplementaryDetailHeader}>
+                          <Text style={styles.supplementaryDetailName}>{plan.plan_name || 'Không có tên'}</Text>
+                          <Text style={styles.supplementaryDetailPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
+                        </View>
+                        <Text style={styles.supplementaryDescription}>{plan.description || 'Dịch vụ bổ sung'}</Text>
+                        
+                        {plan.services_included && plan.services_included.length > 0 && (
+                          <View style={styles.supplementaryServices}>
+                            {plan.services_included.slice(0, 3).map((service, serviceIndex) => (
+                              <View key={serviceIndex} style={styles.serviceItem}>
+                                <Ionicons name="checkmark-circle" size={14} color="#607D8B" />
+                                <Text style={styles.supplementaryServiceText}>{service}</Text>
+                              </View>
+                            ))}
+                            {plan.services_included.length > 3 && (
+                              <Text style={styles.moreServicesText}>
+                                +{plan.services_included.length - 3} dịch vụ khác
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.packageSection}>
+                  <Text style={styles.sectionTitle}>💰 Thông tin thanh toán</Text>
+                  <View style={styles.paymentInfo}>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.paymentLabel}>Tổng chi phí hàng tháng:</Text>
+                      <Text style={styles.paymentValue}>{formatCurrency(selectedPackage.total_monthly_cost || 0)}</Text>
+                    </View>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.paymentLabel}>Trạng thái thanh toán:</Text>
+                      <Text style={[styles.paymentValue, { color: selectedPackage.payment_status === 'fully_paid' ? '#4CAF50' : '#FF9800' }]}>
+                        {selectedPackage.payment_status === 'fully_paid' ? '✅ Đã thanh toán đầy đủ' : '⏳ Chưa hoàn tất'}
+                      </Text>
+                    </View>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.paymentLabel}>Thời gian áp dụng:</Text>
+                      <Text style={styles.paymentValue}>
+                        {safeFormatDate(selectedPackage.start_date)} - {safeFormatDate(selectedPackage.end_date)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {selectedPackage.notes && (
+                  <View style={styles.packageSection}>
+                    <Text style={styles.sectionTitle}>📝 Ghi chú</Text>
+                    <Text style={styles.notesText}>{selectedPackage.notes}</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              // Hiển thị chi tiết gói có sẵn
+              <View>
+                <View style={styles.packageOverview}>
+                  <View style={[styles.largeIconContainer, { backgroundColor: getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main') + '20' }]}>
+                    <Ionicons 
+                      name={getPackageIcon(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
+                      size={32} 
+                      color={getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
+                    />
+                  </View>
+                  <Text style={styles.packageOverviewName}>{selectedPackage?.plan_name || 'Gói dịch vụ'}</Text>
+                  <Text style={styles.packageOverviewPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
+                  <Text style={styles.packageOverviewDesc}>{selectedPackage?.description || 'Không có mô tả'}</Text>
+                  <View style={[styles.categoryIndicator, { backgroundColor: selectedPackage?.category === 'main' ? '#2196F3' : '#607D8B' }]}>
+                    <Text style={styles.categoryIndicatorText}>
+                      {selectedPackage?.category === 'main' ? '🏆 Gói chăm sóc chính' : '➕ Gói dịch vụ bổ sung'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.packageSection}>
+                  <Text style={styles.sectionTitle}>✅ Dịch vụ bao gồm</Text>
+                  {selectedPackage?.services_included && selectedPackage.services_included.length > 0 ? (
+                    selectedPackage.services_included.map((service, index) => (
+                      <View key={index} style={styles.serviceItem}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.serviceText}>{service}</Text>
+                      </View>
+                    ))
                   ) : (
-                    <>
-                      <Ionicons name="add-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                      <Text style={styles.registerButtonText}>Đăng ký gói này</Text>
-                    </>
+                    <View style={styles.emptyServiceState}>
+                      <Text style={styles.emptyServiceText}>Không có thông tin dịch vụ</Text>
+                    </View>
                   )}
-                </TouchableOpacity>
+                </View>
+
+                <View style={styles.packageSection}>
+                  <Text style={styles.sectionTitle}>ℹ️ Thông tin chi tiết</Text>
+                  <View style={styles.detailInfo}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>👥 Tỷ lệ nhân viên:</Text>
+                      <Text style={styles.detailValue}>{selectedPackage?.staff_ratio || 'Không xác định'}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>📋 Loại gói:</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedPackage?.category === 'main' ? 'Gói chăm sóc chính (bắt buộc)' : 'Gói dịch vụ bổ sung (tùy chọn)'}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>💳 Chu kỳ thanh toán:</Text>
+                      <Text style={styles.detailValue}>Hàng tháng</Text>
+                    </View>
+                    {selectedPackage?.duration && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>⏱️ Thời gian tối thiểu:</Text>
+                        <Text style={styles.detailValue}>{selectedPackage.duration}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {selectedPackage?.prerequisites && selectedPackage.prerequisites.length > 0 && (
+                  <View style={styles.packageSection}>
+                    <Text style={styles.sectionTitle}>📋 Điều kiện áp dụng</Text>
+                    {selectedPackage.prerequisites.map((prereq, index) => (
+                      <View key={index} style={styles.prereqItem}>
+                        <Ionicons name="information-circle" size={16} color="#2196F3" />
+                        <Text style={styles.prereqText}>{prereq}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {selectedPackage?.contraindications && selectedPackage.contraindications.length > 0 && (
+                  <View style={styles.packageSection}>
+                    <Text style={styles.sectionTitle}>⚠️ Chống chỉ định</Text>
+                    {selectedPackage.contraindications.map((contraind, index) => (
+                      <View key={index} style={styles.contraindicationItem}>
+                        <Ionicons name="warning" size={16} color="#FF9800" />
+                        <Text style={styles.contraindicationText}>{contraind}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
-          </View>
+          </ScrollView>
+
+          {!selectedPackage?.resident && (
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.registerButton}
+                onPress={() => handleRegisterPress(selectedPackage)}
+                disabled={actionLoading}
+                activeOpacity={0.8}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="add-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={styles.registerButtonText}>Đăng ký gói này</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
     );
@@ -627,123 +585,123 @@ const ServicePackageScreen = ({ navigation }) => {
     if (!showResidentSelection || !selectedPackage) return null;
     
     return (
-      <Modal
-        visible={showResidentSelection}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                👥 Chọn người thân đăng ký
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowResidentSelection(false)}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
+    <Modal
+      visible={showResidentSelection}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowResidentSelection(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              👥 Chọn người thân đăng ký
+            </Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowResidentSelection(false)}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.modalContent}>
-              <View style={styles.packageInfoBanner}>
-                <View style={[styles.iconContainer, { backgroundColor: getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main') + '20' }]}>
-                  <Ionicons 
-                    name={getPackageIcon(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
-                    size={24} 
-                    color={getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
-                  />
-                </View>
-                <View style={styles.packageInfoText}>
-                  <Text style={styles.packageInfoName}>{selectedPackage?.plan_name}</Text>
-                  <Text style={styles.packageInfoPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
-                </View>
+          <View style={styles.modalContent}>
+            <View style={styles.packageInfoBanner}>
+              <View style={[styles.iconContainer, { backgroundColor: getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main') + '20' }]}>
+                <Ionicons 
+                  name={getPackageIcon(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
+                  size={24} 
+                  color={getPackageColor(selectedPackage?.plan_type || 'default', selectedPackage?.category || 'main')} 
+                />
               </View>
-
-              <Text style={styles.instructionText}>
-                Chọn người thân bạn muốn đăng ký gói dịch vụ này:
-              </Text>
-
-              {residentsLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={COLORS.primary} />
-                  <Text style={styles.loadingText}>Đang tải danh sách...</Text>
-                </View>
-              ) : availableResidents.length > 0 ? (
-                <ScrollView style={styles.residentsList} showsVerticalScrollIndicator={false}>
-                  {availableResidents.map((resident) => (
-                    <TouchableOpacity
-                      key={resident._id}
-                      style={[
-                        styles.residentCard,
-                        selectedResident === resident._id && styles.selectedResidentCard
-                      ]}
-                      onPress={() => setSelectedResident(resident._id)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.residentCardContent}>
-                        <View style={styles.residentAvatar}>
-                          <Ionicons name="person" size={24} color="#666" />
-                        </View>
-                        <View style={styles.residentInfo}>
-                          <Text style={styles.residentName}>{resident.full_name}</Text>
-                          <Text style={styles.residentDetails}>
-                            📍 Phòng {resident.room_number} • Giường {resident.bed_number}
-                          </Text>
-                          <Text style={styles.residentDetails}>
-                            🎂 {safeFormatDate(resident.date_of_birth)}
-                          </Text>
-                        </View>
-                        {selectedResident === resident._id && (
-                          <View style={styles.selectedIcon}>
-                            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              ) : (
-                <View style={styles.emptyResidents}>
-                  <Ionicons name="people-outline" size={64} color="#ccc" />
-                  <Text style={styles.emptyResidentsTitle}>Không có người thân phù hợp</Text>
-                  <Text style={styles.emptyResidentsDesc}>
-                    Tất cả người thân đã đăng ký gói dịch vụ này hoặc gói tương tự.
-                  </Text>
-                </View>
-              )}
+              <View style={styles.packageInfoText}>
+                <Text style={styles.packageInfoName}>{selectedPackage?.plan_name}</Text>
+                <Text style={styles.packageInfoPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
+              </View>
             </View>
 
-            {availableResidents.length > 0 && (
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={[
-                    styles.registerButton,
-                    !selectedResident && styles.disabledButton
-                  ]}
-                  onPress={() => handleRegisterPackage(selectedResident)}
-                  disabled={!selectedResident || actionLoading}
-                  activeOpacity={0.8}
-                >
-                  {actionLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <>
-                      <Ionicons name="add-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                      <Text style={styles.registerButtonText}>
-                        Đăng ký cho {availableResidents.find(r => r._id === selectedResident)?.full_name || 'người thân'}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+            <Text style={styles.instructionText}>
+              Chọn người thân bạn muốn đăng ký gói dịch vụ này:
+            </Text>
+
+            {residentsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách...</Text>
+              </View>
+            ) : availableResidents.length > 0 ? (
+              <ScrollView style={styles.residentsList} showsVerticalScrollIndicator={false}>
+                {availableResidents.map((resident) => (
+                  <TouchableOpacity
+                    key={resident._id}
+                    style={[
+                      styles.residentCard,
+                      selectedResident === resident._id && styles.selectedResidentCard
+                    ]}
+                    onPress={() => setSelectedResident(resident._id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.residentCardContent}>
+                      <View style={styles.residentAvatar}>
+                        <Ionicons name="person" size={24} color="#666" />
+                      </View>
+                      <View style={styles.residentInfo}>
+                        <Text style={styles.residentName}>{resident.full_name}</Text>
+                        <Text style={styles.residentDetails}>
+                          📍 Phòng {resident.room_number} • Giường {resident.bed_number}
+                        </Text>
+                        <Text style={styles.residentDetails}>
+                          🎂 {safeFormatDate(resident.date_of_birth)}
+                        </Text>
+                      </View>
+                      {selectedResident === resident._id && (
+                        <View style={styles.selectedIcon}>
+                          <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyResidents}>
+                <Ionicons name="people-outline" size={64} color="#ccc" />
+                <Text style={styles.emptyResidentsTitle}>Không có người thân phù hợp</Text>
+                <Text style={styles.emptyResidentsDesc}>
+                  Tất cả người thân đã đăng ký gói dịch vụ này hoặc gói tương tự.
+                </Text>
               </View>
             )}
           </View>
+
+          {availableResidents.length > 0 && (
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.registerButton,
+                  !selectedResident && styles.disabledButton
+                ]}
+                onPress={() => handleRegisterPackage(selectedResident)}
+                disabled={!selectedResident || actionLoading}
+                activeOpacity={0.8}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="add-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={styles.registerButtonText}>
+                      Đăng ký cho {availableResidents.find(r => r._id === selectedResident)?.full_name || 'người thân'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-      </Modal>
-    );
-  };
+      </View>
+    </Modal>
+  );
 
   if (loading) {
     return (

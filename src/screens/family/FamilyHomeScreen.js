@@ -1,33 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
-  Image,
   TouchableOpacity,
   RefreshControl,
+  Image,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { Card, Title, Paragraph, ActivityIndicator, useTheme } from 'react-native-paper';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { Card, Title, Paragraph, ActivityIndicator, useTheme, Chip } from 'react-native-paper';
+import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import mock data (for now)
-import { residents, medications, activities, familyMembers } from '../../api/mockData';
+import { residents as mockResidents, medications, activities, familyMembers, recentUpdates } from '../../api/mockData';
 
 const FamilyHomeScreen = ({ navigation }) => {
   const theme = useTheme();
   const user = useSelector((state) => state.auth.user);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [resident, setResident] = useState(null);
+  const [userResidents, setUserResidents] = useState([]);
+  const [selectedResident, setSelectedResident] = useState(null);
   const [upcomingVisit, setUpcomingVisit] = useState(null);
   const [latestUpdates, setLatestUpdates] = useState([]);
   const [upcomingActivities, setUpcomingActivities] = useState([]);
+  
+  // Get user data with fallback to mock data
+  const getUserData = () => {
+    if (user) {
+      // If user has full_name (from mock data structure)
+      if (user.full_name) {
+        return user;
+      }
+      // If user has firstName/lastName (from auth service structure)
+      if (user.firstName && user.lastName) {
+        return {
+          ...user,
+          full_name: `${user.firstName} ${user.lastName}`,
+          phone: user.phone || 'Chưa cập nhật',
+          address: user.address || 'Chưa cập nhật',
+          relationship: user.relationship || 'Chưa cập nhật'
+        };
+      }
+    }
+    
+    // Fallback to mock data
+    const mockUser = familyMembers.find(fm => fm.id === 'f1');
+    return mockUser || {
+      id: 'f1',
+      full_name: 'Trần Lê Chi Bảo',
+      email: 'bao@gmail.com',
+      phone: '0764634650',
+      address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
+      relationship: 'Con trai',
+      photo: 'https://randomuser.me/api/portraits/men/20.jpg'
+    };
+  };
+
+  const userData = getUserData();
   
   useEffect(() => {
     loadData();
@@ -38,65 +73,158 @@ const FamilyHomeScreen = ({ navigation }) => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    // Find the family member's assigned resident
-    if (user?.residentId) {
-      const residentData = residents.find(r => r.id === user.residentId);
-      setResident(residentData);
+    // Find all residents assigned to this family member
+    if (userData?.residentIds && userData.residentIds.length > 0) {
+      const familyResidents = mockResidents.filter(r => userData.residentIds.includes(r.id));
+      setUserResidents(familyResidents);
       
-      // Mock upcoming visit
+      // Select first resident by default
+      if (familyResidents.length > 0) {
+        setSelectedResident(familyResidents[0]);
+      }
+      
+      // Mock upcoming visit for selected resident
       setUpcomingVisit({
-        id: '1',
-        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now
+        id: 'visit_001',
+        residentId: familyResidents[0]?.id,
+        residentName: familyResidents[0]?.full_name || 'Không có tên',
+        date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '15:00',
-        duration: 60, // minutes
-        status: 'Confirmed'
+        duration: 60,
+        status: 'Confirmed',
+        purpose: 'Thăm viếng định kỳ',
+        notes: 'Đã được phê duyệt bởi quản lý'
       });
       
-      // Mock latest updates
-      setLatestUpdates([
-        { 
-          id: '1', 
-          type: 'health', 
-          title: 'Cập Nhật Sức Khỏe', 
-          message: `${residentData?.firstName} có một ngày tuyệt vời hôm nay. Huyết áp bình thường ở mức 120/80.`,
-          date: new Date().toISOString(),
-          read: false
+      // Use mock recent updates data with real resident data
+      const updatedRecentUpdates = [
+        {
+          id: 'update_001',
+          type: 'assessment',
+          title: 'Đánh giá trong ngày',
+          residentName: 'Nguyễn Văn Nam',
+          residentId: 'res_001',
+          message: 'Tình trạng ổn định, cần theo dõi đường huyết. Tinh thần tốt, ăn uống bình thường.',
+          date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          time: '14:30',
+          read: false,
+          staffName: 'Bác sĩ Phạm Thị Doctor'
         },
-        { 
-          id: '2', 
-          type: 'activity', 
-          title: 'Hoạt Động Đã Hoàn Thành', 
-          message: `${residentData?.firstName} đã tham gia vào liệu pháp âm nhạc nhóm và thích thú hát theo.`,
-          date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-          read: true
+        {
+          id: 'update_002',
+          type: 'vital_signs',
+          title: 'Đo chỉ số sinh hiệu',
+          residentName: 'Lê Thị Hoa',
+          residentId: 'res_002',
+          message: 'Huyết áp: 140/85 mmHg, Nhịp tim: 78 BPM, Nhiệt độ: 36.7°C. Cần theo dõi huyết áp.',
+          date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+          time: '12:15',
+          read: false,
+          staffName: 'Y tá Lê Văn Nurse'
         },
-        { 
-          id: '3', 
-          type: 'medication', 
-          title: 'Cập Nhật Thuốc', 
-          message: 'Tất cả thuốc đã được dùng theo lịch trình hôm nay.',
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          read: true
+        {
+          id: 'update_003',
+          type: 'activity',
+          title: 'Tham gia hoạt động',
+          residentName: 'Trần Văn Bình',
+          residentId: 'res_003',
+          message: 'Tham gia tập thể dục buổi sáng rất tích cực. Thời gian: 30 phút.',
+          date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+          time: '09:00',
+          read: false,
+          staffName: 'Nhân viên Hoàng Văn Caregiver'
         },
-      ]);
+        {
+          id: 'update_004',
+          type: 'medication',
+          title: 'Uống thuốc theo lịch',
+          residentName: 'Nguyễn Văn Nam',
+          residentId: 'res_001',
+          message: 'Đã uống đầy đủ thuốc theo chỉ định: Metformin 500mg, Amlodipine 5mg.',
+          date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+          time: '08:00',
+          read: true,
+          staffName: 'Y tá Lê Văn Nurse'
+        },
+        {
+          id: 'update_005',
+          type: 'assessment',
+          title: 'Đánh giá tình trạng giấc ngủ',
+          residentName: 'Lê Thị Hoa',
+          residentId: 'res_002',
+          message: 'Ngủ được 6 tiếng, thức giấc 2 lần trong đêm. Cần theo dõi thêm.',
+          date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+          time: '07:30',
+          read: true,
+          staffName: 'Y tá Lê Văn Nurse'
+        }
+      ];
       
-      // Mock upcoming activities
+      setLatestUpdates(updatedRecentUpdates);
+      
+      // Mock upcoming activities for today (not yet completed)
+      const currentTime = new Date();
+      const todayStr = currentTime.toISOString().split('T')[0];
+      const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
       setUpcomingActivities([
         { 
-          id: '1', 
-          title: 'Liệu Pháp Âm Nhạc', 
-          date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          time: '10:00 AM',
-          location: 'Phòng Giải Trí'
+          id: 'act_001', 
+          title: 'Liệu pháp âm nhạc nhóm', 
+          residentName: 'Nguyễn Văn Nam',
+          date: todayStr,
+          time: '15:30',
+          location: 'Phòng Giải Trí',
+          residentId: 'res_001'
         },
         { 
-          id: '2', 
-          title: 'Đi Dạo Vườn', 
+          id: 'act_002', 
+          title: 'Khám sức khỏe định kỳ', 
+          residentName: 'Lê Thị Hoa',
+          date: todayStr,
+          time: '16:30',
+          location: 'Phòng Y Tế',
+          residentId: 'res_002'
+        },
+        { 
+          id: 'act_003', 
+          title: 'Tập thể dục buổi sáng', 
+          residentName: 'Trần Văn Bình',
+          date: tomorrowStr,
+          time: '07:30',
+          location: 'Sân Tập',
+          residentId: 'res_003'
+        },
+        { 
+          id: 'act_004', 
+          title: 'Đi dạo vườn', 
+          residentName: 'Nguyễn Văn Nam & Lê Thị Hoa',
+          date: tomorrowStr,
+          time: '09:00',
+          location: 'Sân Vườn',
+          residentId: 'multiple'
+        },
+        { 
+          id: 'act_005', 
+          title: 'Hoạt động vẽ tranh', 
+          residentName: 'Trần Văn Bình',
           date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-          time: '2:30 PM',
-          location: 'Sân Vườn'
+          time: '14:00',
+          location: 'Phòng Nghệ Thuật',
+          residentId: 'res_003'
         },
       ]);
+    } else if (userData?.residentId) {
+      // Fallback for single resident (backward compatibility)
+      const residentData = mockResidents.find(r => r.id === userData.residentId);
+      if (residentData) {
+        setUserResidents([residentData]);
+        setSelectedResident(residentData);
+      }
+    } else {
+      // No residents assigned - show empty state
+      setUserResidents([]);
+      setSelectedResident(null);
     }
     
     setLoading(false);
@@ -115,19 +243,60 @@ const FamilyHomeScreen = ({ navigation }) => {
     return 'Chào Buổi Tối';
   };
   
-  // Format date to friendly format (Today, Yesterday, or actual date)
-  const formatDate = (dateString) => {
+  // Format date to friendly format with time
+  const formatDateTime = (dateString, timeString) => {
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     
+    let dateStr;
     if (date.toDateString() === today.toDateString()) {
-      return 'Hôm nay';
+      dateStr = 'Hôm nay';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hôm qua';
+      dateStr = 'Hôm qua';
     } else {
-      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+      dateStr = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    }
+    
+    return `${timeString} ${dateStr}`;
+  };
+
+  // Navigate to detailed view based on update type
+  const handleUpdatePress = (update) => {
+    const tabMapping = {
+      'vital_signs': 'vitals',
+      'assessment': 'assessments', 
+      'activity': 'activities',
+      'medication': 'medications',
+      'meal': 'overview'
+    };
+    
+    const targetTab = tabMapping[update.type] || 'overview';
+    
+    // Navigate directly to FamilyResidentDetail (not nested)
+    navigation.navigate('FamilyResidentDetail', {
+      residentId: update.residentId,
+      residentName: update.residentName,
+      initialTab: targetTab
+    });
+  };
+
+  // Get icon for update type
+  const getUpdateIcon = (type) => {
+    switch (type) {
+      case 'vital_signs':
+        return <FontAwesome5 name="heartbeat" size={16} color={COLORS.error} />;
+      case 'assessment':
+        return <MaterialIcons name="assignment" size={18} color={COLORS.primary} />;
+      case 'activity':
+        return <MaterialIcons name="directions-run" size={18} color={COLORS.accent} />;
+      case 'medication':
+        return <FontAwesome5 name="pills" size={16} color={COLORS.secondary} />;
+      case 'meal':
+        return <MaterialIcons name="restaurant" size={18} color={COLORS.success} />;
+      default:
+        return <MaterialIcons name="info" size={18} color={COLORS.info} />;
     }
   };
   
@@ -152,32 +321,109 @@ const FamilyHomeScreen = ({ navigation }) => {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.name}>{user?.firstName || 'User'}</Text>
+            <Text style={styles.name}>{userData.full_name || 'Trần Lê Chi Bảo'}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('HoSo')}>
             <Image 
-              source={{ uri: user?.photo || 'https://randomuser.me/api/portraits/women/11.jpg' }}
+              source={{ uri: userData.photo || 'https://randomuser.me/api/portraits/men/20.jpg' }}
               style={styles.avatar}
             />
           </TouchableOpacity>
         </View>
         
-        {/* Resident Card */}
-        {resident && (
-          <Card style={styles.residentCard} mode="elevated">
-            <Card.Content style={styles.residentCardContent}>
+        {/* Resident Selection & Info Section */}
+        {userResidents.length > 0 ? (
+          <Card style={styles.residentSectionCard} mode="elevated">
+            <Card.Content>
+              <Title style={styles.sectionTitle}>Thông Tin Người Thân</Title>
+              
+              {/* Resident Selection Chips (if multiple residents) */}
+              {userResidents.length > 1 && (
+                <View style={styles.residentChipsContainer}>
+                  <Text style={styles.chipLabel}>Chọn người thân:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScrollView}>
+                    {userResidents.map((resident) => (
+                      <Chip
+                        key={resident.id}
+                        mode={selectedResident?.id === resident.id ? 'flat' : 'outlined'}
+                        selected={selectedResident?.id === resident.id}
+                        onPress={() => setSelectedResident(resident)}
+                        style={[
+                          styles.residentChip,
+                          selectedResident?.id === resident.id && styles.selectedChip
+                        ]}
+                        textStyle={[
+                          styles.chipText,
+                          selectedResident?.id === resident.id && styles.selectedChipText
+                        ]}
+                      >
+                        {resident.full_name || 'Không có tên'}
+                      </Chip>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              
+              {/* Selected Resident Info */}
+              {selectedResident && (
+                <View style={styles.selectedResidentInfo}>
+                  <View style={styles.residentCardContent}>
               <Image 
-                source={{ uri: resident.photo || 'https://randomuser.me/api/portraits/men/1.jpg' }}
+                      source={{ uri: selectedResident.photo || 'https://randomuser.me/api/portraits/men/1.jpg' }}
                 style={styles.residentPhoto}
               />
               <View style={styles.residentInfo}>
-                <Title style={styles.residentName}>{`${resident.firstName} ${resident.lastName}`}</Title>
-                <Paragraph style={styles.residentDetails}>Phòng {resident.roomNumber}</Paragraph>
+                      <Text style={styles.residentName}>
+                        {selectedResident.full_name || 'Không có tên'}
+                      </Text>
+                      <View style={styles.residentDetailRow}>
+                        <MaterialIcons name="room" size={16} color={COLORS.textSecondary} />
+                        <Text style={styles.residentDetails}>Phòng {selectedResident.roomNumber}</Text>
+                      </View>
+                      <View style={styles.residentDetailRow}>
+                        <MaterialIcons name="cake" size={16} color={COLORS.textSecondary} />
+                        <Text style={styles.residentDetails}>
+                          {selectedResident.age || 75} tuổi
+                        </Text>
+                      </View>
+                      <View style={styles.residentDetailRow}>
+                        <MaterialIcons name="favorite" size={16} color={COLORS.error} />
+                        <Text style={[styles.residentDetails, { color: COLORS.success }]}>
+                          Tình trạng: Ổn định
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 <TouchableOpacity 
                   style={styles.viewDetailsButton}
-                  onPress={() => navigation.navigate('NguoiThan')}
+                  onPress={() => navigation.navigate('FamilyResidentDetail', {
+                    residentId: selectedResident.id,
+                    residentName: selectedResident.full_name || 'Không có tên',
+                    initialTab: 'overview'
+                  })}
                 >
-                  <Text style={styles.viewDetailsText}>Xem Chi Tiết</Text>
+                  <Text style={styles.viewDetailsText}>Xem Chi Tiết Đầy Đủ</Text>
+                  <MaterialIcons name="arrow-forward" size={16} color="white" />
+                </TouchableOpacity>
+              </View>
+              )}
+            </Card.Content>
+          </Card>
+        ) : (
+          <Card style={styles.residentSectionCard} mode="elevated">
+            <Card.Content>
+              <View style={styles.noResidentsContainer}>
+                <MaterialIcons name="family-restroom" size={64} color={COLORS.textSecondary} />
+                <Text style={styles.noResidentsTitle}>Chưa có thông tin người thân</Text>
+                <Text style={styles.noResidentsText}>
+                  Hiện tại chưa có người cao tuổi nào được gán cho tài khoản của bạn. 
+                  Vui lòng liên hệ với ban quản lý để được hỗ trợ.
+                </Text>
+                <TouchableOpacity 
+                  style={styles.contactButton}
+                  onPress={() => navigation.navigate('HoTro')}
+                >
+                  <Text style={styles.contactButtonText}>Liên Hệ Hỗ Trợ</Text>
                 </TouchableOpacity>
               </View>
             </Card.Content>
@@ -272,7 +518,9 @@ const FamilyHomeScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Trạng thái:</Text>
-                  <Text style={[styles.visitValue, { color: COLORS.success }]}>{upcomingVisit.status === 'Confirmed' ? 'Đã xác nhận' : upcomingVisit.status}</Text>
+                  <Text style={[styles.visitValue, { color: COLORS.success }]}>
+                    {upcomingVisit.status === 'Confirmed' ? 'Đã xác nhận' : upcomingVisit.status}
+                  </Text>
                 </View>
               </View>
               <TouchableOpacity 
@@ -285,39 +533,39 @@ const FamilyHomeScreen = ({ navigation }) => {
           </Card>
         )}
         
-        {/* Latest Updates */}
+        {/* Enhanced Latest Updates */}
         <Card style={styles.card} mode="elevated">
           <Card.Content>
             <View style={styles.cardHeader}>
               <MaterialIcons name="notifications" size={24} color={COLORS.primary} />
               <Title style={styles.cardTitle}>Cập Nhật Gần Đây</Title>
             </View>
-            {latestUpdates.map((update) => (
-              <View key={update.id} style={styles.updateItem}>
+            {latestUpdates.slice(0, 5).map((update) => (
+              <TouchableOpacity 
+                key={update.id} 
+                style={styles.updateItem}
+                onPress={() => handleUpdatePress(update)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.updateIconContainer}>
-                  {update.type === 'health' && (
-                    <FontAwesome5 name="heartbeat" size={16} color={COLORS.error} />
-                  )}
-                  {update.type === 'activity' && (
-                    <MaterialIcons name="directions-run" size={18} color={COLORS.accent} />
-                  )}
-                  {update.type === 'medication' && (
-                    <FontAwesome5 name="pills" size={16} color={COLORS.secondary} />
-                  )}
+                  {getUpdateIcon(update.type)}
                 </View>
                 <View style={styles.updateContent}>
                   <View style={styles.updateHeader}>
                     <Text style={styles.updateTitle}>
-                      {update.type === 'health' ? 'Cập Nhật Sức Khỏe' : 
-                       update.type === 'activity' ? 'Hoạt Động Đã Hoàn Thành' :
-                       update.type === 'medication' ? 'Cập Nhật Thuốc' : update.title}
+                      {update.title} cho {update.residentName}
                     </Text>
-                    <Text style={styles.updateDate}>{formatDate(update.date)}</Text>
+                    <Text style={styles.updateDateTime}>
+                      {formatDateTime(update.date, update.time)}
+                    </Text>
                   </View>
-                  <Text style={styles.updateMessage}>{update.message}</Text>
+                  <Text style={styles.updateMessage} numberOfLines={2}>
+                    {update.message}
+                  </Text>
                 </View>
                 {!update.read && <View style={styles.unreadIndicator} />}
-              </View>
+                <MaterialIcons name="chevron-right" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
             ))}
             <TouchableOpacity 
               style={styles.cardButton}
@@ -328,23 +576,28 @@ const FamilyHomeScreen = ({ navigation }) => {
           </Card.Content>
         </Card>
         
-        {/* Upcoming Activities */}
+        {/* Enhanced Upcoming Activities */}
         <Card style={styles.card} mode="elevated">
           <Card.Content>
             <View style={styles.cardHeader}>
-              <MaterialIcons name="event" size={24} color={COLORS.primary} />
+              <MaterialIcons name="schedule" size={24} color={COLORS.accent} />
               <Title style={styles.cardTitle}>Hoạt Động Sắp Tới</Title>
             </View>
-            {upcomingActivities.map((activity) => (
+            {upcomingActivities.filter(activity => {
+              // Only show activities that haven't happened yet
+              const activityDateTime = new Date(`${activity.date} ${activity.time}`);
+              return activityDateTime > new Date();
+            }).slice(0, 3).map((activity) => (
               <View key={activity.id} style={styles.activityItem}>
                 <View style={styles.activityDateContainer}>
                   <Text style={styles.activityDay}>{new Date(activity.date).getDate()}</Text>
                   <Text style={styles.activityMonth}>
-                    {new Date(activity.date).toLocaleString('default', { month: 'short' })}
+                    Th{new Date(activity.date).getMonth() + 1}
                   </Text>
                 </View>
                 <View style={styles.activityDetails}>
                   <Text style={styles.activityTitle}>{activity.title}</Text>
+                  <Text style={styles.activityResident}>{activity.residentName}</Text>
                   <View style={styles.activityInfo}>
                     <MaterialIcons name="access-time" size={14} color={COLORS.textSecondary} />
                     <Text style={styles.activityInfoText}>{activity.time}</Text>
@@ -356,6 +609,15 @@ const FamilyHomeScreen = ({ navigation }) => {
                 </View>
               </View>
             ))}
+            {upcomingActivities.filter(activity => {
+              const activityDateTime = new Date(`${activity.date} ${activity.time}`);
+              return activityDateTime > new Date();
+            }).length === 0 && (
+              <View style={styles.noActivitiesContainer}>
+                <MaterialIcons name="event-available" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.noActivitiesText}>Không có hoạt động nào sắp tới</Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
       </ScrollView>
@@ -382,7 +644,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 20,
     paddingHorizontal: 16,
-    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
@@ -406,17 +667,49 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#dee2e6',
   },
-  residentCard: {
+  
+  // New Resident Section Styles
+  residentSectionCard: {
     marginBottom: 20,
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
+  residentChipsContainer: {
+    marginBottom: 16,
+  },
+  chipLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    marginBottom: 8,
+  },
+  chipsScrollView: {
+    flexDirection: 'row',
+  },
+  residentChip: {
+    marginRight: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  selectedChip: {
+    backgroundColor: COLORS.primary,
+  },
+  chipText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  selectedChipText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  selectedResidentInfo: {
+    marginTop: 8,
+  },
   residentCardContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
   residentPhoto: {
     width: 80,
@@ -431,26 +724,35 @@ const styles = StyleSheet.create({
   residentName: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
     color: '#212529',
+  },
+  residentDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   residentDetails: {
     fontSize: 13,
     color: '#6c757d',
-    marginBottom: 10,
+    marginLeft: 4,
   },
   viewDetailsButton: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 6,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   viewDetailsText: {
     color: 'white',
     fontWeight: '500',
-    fontSize: 12,
+    fontSize: 14,
+    marginRight: 8,
   },
+  
   quickActionContainer: {
     marginBottom: 20,
   },
@@ -463,6 +765,7 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
   quickActionButton: {
     flex: 1,
@@ -479,14 +782,14 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: 12,
     color: '#212529',
+    lineHeight: 16,
   },
   card: {
     marginBottom: 20,
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
@@ -518,56 +821,58 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#212529',
   },
-  visitNote: {
-    fontSize: 12,
-    color: '#dc3545',
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
   cardButton: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 8,
-    borderRadius: 4,
+    paddingVertical: 10,
+    borderRadius: 6,
     alignItems: 'center',
     marginTop: 8,
   },
   cardButtonText: {
     color: 'white',
     fontWeight: '500',
-    fontSize: 13,
+    fontSize: 14,
   },
+  
+  // Enhanced Update Item Styles
   updateItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
     position: 'relative',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
   },
-  updateIcon: {
+  updateIconContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   updateContent: {
     flex: 1,
+    marginRight: 8,
   },
   updateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 4,
   },
   updateTitle: {
     fontSize: 14,
     fontWeight: '500',
     color: '#212529',
-    flex: 1,
+    marginBottom: 2,
   },
-  updateDate: {
+  updateDateTime: {
     fontSize: 11,
-    color: '#6c757d',
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   updateMessage: {
     fontSize: 12,
@@ -576,32 +881,41 @@ const styles = StyleSheet.create({
   },
   unreadIndicator: {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    top: 8,
+    right: 8,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.error,
   },
+  
+  // Enhanced Activity Styles
   activityItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
   },
   activityDateContainer: {
     width: 45,
     alignItems: 'center',
     marginRight: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 6,
   },
   activityDay: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: 'white',
   },
   activityMonth: {
-    fontSize: 11,
-    color: '#6c757d',
-    textTransform: 'uppercase',
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '500',
   },
   activityDetails: {
     flex: 1,
@@ -610,6 +924,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#212529',
+    marginBottom: 2,
+  },
+  activityResident: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '500',
     marginBottom: 4,
   },
   activityInfo: {
@@ -621,6 +941,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6c757d',
     marginLeft: 4,
+  },
+  noActivitiesContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  noActivitiesText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  
+  // Empty State Styles
+  noResidentsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noResidentsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noResidentsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  contactButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  contactButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

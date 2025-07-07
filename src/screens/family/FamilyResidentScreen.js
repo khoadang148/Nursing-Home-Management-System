@@ -7,29 +7,105 @@ import {
   Image,
   TouchableOpacity,
   RefreshControl,
+  FlatList,
+  Dimensions,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { Card, Title, Paragraph, Divider, ActivityIndicator, Chip } from 'react-native-paper';
+import { Card, Title, Paragraph, Divider, ActivityIndicator, Chip, Searchbar } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import mock data
-import { residents, medications, carePlans } from '../../api/mockData';
+import { residents as mockResidents, familyMembers, carePlans, carePlanAssignments } from '../../api/mockData';
+
+const { width } = Dimensions.get('window');
+
+// Mock recent updates tích hợp từ MongoDB collections
+const mockRecentUpdates = [
+  {
+    id: '1',
+    type: 'assessment',
+    title: 'Đánh giá trong ngày cho Nguyễn Văn Nam',
+    subtitle: 'Tình trạng ổn định, cần theo dõi đường huyết',
+    time: '2 giờ trước',
+    resident_id: 'res_001',
+    icon: 'assignment',
+    color: COLORS.primary
+  },
+  {
+    id: '2',
+    type: 'vital_signs',
+    title: 'Đo chỉ số sinh hiệu cho Lê Thị Hoa',
+    subtitle: 'Huyết áp 140/85, cần theo dõi',
+    time: '4 giờ trước',
+    resident_id: 'res_002',
+    icon: 'favorite',
+    color: COLORS.error
+  },
+  {
+    id: '3',
+    type: 'activity',
+    title: 'Hoạt động mới cho Trần Văn Bình',
+    subtitle: 'Tham gia tập thể dục buổi sáng',
+    time: '6 giờ trước',
+    resident_id: 'res_003',
+    icon: 'directions-run',
+    color: COLORS.success
+  }
+];
 
 const FamilyResidentScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [resident, setResident] = useState(null);
-  const [activeMedications, setActiveMedications] = useState([]);
-  const [carePlanData, setCarePlanData] = useState([]);
+  const [residents, setResidents] = useState([]);
+  const [recentUpdates, setRecentUpdates] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredResidents, setFilteredResidents] = useState([]);
+  
+  // Get user data with fallback to mock data
+  const getUserData = () => {
+    if (user) {
+      // If user has full_name (from mock data structure)
+      if (user.full_name) {
+        return user;
+      }
+      // If user has firstName/lastName (from auth service structure)
+      if (user.firstName && user.lastName) {
+        return {
+          ...user,
+          full_name: `${user.firstName} ${user.lastName}`,
+          phone: user.phone || 'Chưa cập nhật',
+          address: user.address || 'Chưa cập nhật',
+          relationship: user.relationship || 'Chưa cập nhật'
+        };
+      }
+    }
+    
+    // Fallback to mock data
+    return {
+      id: 'f1',
+      full_name: 'Trần Lê Chi Bảo',
+      email: 'bao@gmail.com',
+      phone: '0764634650',
+      address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
+      relationship: 'Con trai',
+      photo: 'https://randomuser.me/api/portraits/men/20.jpg'
+    };
+  };
+
+  const userData = getUserData();
   
   useEffect(() => {
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    filterResidents();
+  }, [searchQuery, residents]);
   
   const loadData = async () => {
     setLoading(true);
@@ -37,21 +113,65 @@ const FamilyResidentScreen = ({ navigation }) => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    if (user?.residentId) {
-      // Get resident information
-      const residentData = residents.find(r => r.id === user.residentId);
-      setResident(residentData);
+    // Load residents for current family member based on imported mock data
+    const userResidentIds = userData?.residentIds || [];
+    const familyResidents = mockResidents.filter(r => userResidentIds.includes(r.id));
+    
+    // Transform data to match new schema expectations
+    const transformedResidents = familyResidents.map(resident => {
+      // Find care plan assignment for this resident
+      const assignment = carePlanAssignments.find(ca => ca.resident_id === resident.id);
+      const carePlan = assignment ? carePlans.find(cp => cp._id === assignment.care_plan_id) : null;
       
-      // Get active medications for the resident
-      const residentMedications = medications
-        .filter(med => med.residentId === user.residentId && med.status === 'Active')
-        .slice(0, 5); // Just get the first 5 for display
-      setActiveMedications(residentMedications);
-      
-      // Get care plans
-      const residentCarePlans = carePlans.filter(cp => cp.residentId === user.residentId);
-      setCarePlanData(residentCarePlans);
-    }
+      return {
+        _id: resident.id,
+        full_name: resident.full_name,
+        date_of_birth: resident.date_of_birth,
+        gender: resident.gender,
+        avatar: resident.avatar || resident.photo,
+        admission_date: resident.admission_date,
+        family_member_id: resident.family_member_id,
+        medical_history: resident.medical_history,
+        allergies: resident.allergies,
+        emergency_contact: resident.emergency_contact,
+        care_level: resident.care_level,
+        status: resident.status,
+        room: { 
+          room_number: resident.room_number,
+          bed_number: `${resident.room_number}-${resident.bed_number}` 
+        },
+        care_plan: carePlan ? {
+          plan_name: carePlan.plan_name,
+          total_monthly_cost: assignment?.total_monthly_cost || carePlan.monthly_price,
+          status: assignment?.status || 'active'
+        } : {
+          plan_name: 'Gói Chăm Sóc Tiêu Chuẩn',
+          total_monthly_cost: 15000000,
+          status: 'active'
+        },
+        latest_vital: {
+          temperature: 36.5 + Math.random() * 1,
+          heart_rate: 70 + Math.floor(Math.random() * 20),
+          blood_pressure: '130/80',
+          date: new Date()
+        },
+        recent_activities: ['Tập thể dục buổi sáng', 'Bữa ăn tối'],
+        payment_status: assignment?.payment_status || 'paid'
+      };
+    });
+    
+    setResidents(transformedResidents);
+    
+    // Update recent updates with actual resident names
+    const updatedRecentUpdates = mockRecentUpdates.map(update => {
+      const resident = mockResidents.find(r => r.id === update.resident_id);
+      return {
+        ...update,
+        title: `${update.title.split(' cho ')[0]} cho ${resident?.full_name || 'Không tìm thấy'}`
+      };
+    });
+    
+    setRecentUpdates(updatedRecentUpdates);
     
     setLoading(false);
   };
@@ -61,14 +181,28 @@ const FamilyResidentScreen = ({ navigation }) => {
     await loadData();
     setRefreshing(false);
   };
+
+  const filterResidents = () => {
+    if (!searchQuery.trim()) {
+      setFilteredResidents(residents);
+      return;
+    }
+
+    const filtered = residents.filter(resident =>
+      resident.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.room.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.care_plan.plan_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredResidents(filtered);
+  };
   
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('vi-VN', { 
       year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+      month: '2-digit', 
+      day: '2-digit' 
     });
   };
   
@@ -84,243 +218,219 @@ const FamilyResidentScreen = ({ navigation }) => {
     
     return age;
   };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
+  };
+
+  const handleResidentPress = (resident) => {
+    navigation.navigate('FamilyResidentDetail', { 
+      residentId: resident._id,
+      residentName: resident.full_name 
+    });
+  };
+
+  const handleRecentUpdatePress = (update) => {
+    // Navigate to specific section of resident detail
+    const residentName = mockResidents.find(r => r.id === update.resident_id)?.full_name || 'Không tìm thấy';
+    
+    const tabMapping = {
+      'assessment': 'assessments',
+      'vital_signs': 'vitals', 
+      'activity': 'activities'
+    };
+    
+    const initialTab = tabMapping[update.type] || 'overview';
+    
+    navigation.navigate('FamilyResidentDetail', { 
+      residentId: update.resident_id,
+      residentName: residentName,
+      initialTab: initialTab
+    });
+  };
+
+  const renderResidentCard = ({ item: resident }) => (
+    <TouchableOpacity
+      style={styles.residentCard}
+      onPress={() => handleResidentPress(resident)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardHeader}>
+        <Image 
+          source={{ uri: resident.avatar }}
+          style={styles.residentPhoto}
+        />
+        <View style={styles.residentInfo}>
+          <Text style={styles.residentName}>{resident.full_name}</Text>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="room" size={14} color={COLORS.primary} />
+            <Text style={styles.infoText}>
+              Phòng {resident.room.room_number} • Giường {resident.room.bed_number}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="cake" size={14} color={COLORS.primary} />
+            <Text style={styles.infoText}>
+              {calculateAge(resident.date_of_birth)} tuổi
+            </Text>
+          </View>
+        </View>
+        <View style={styles.cardActions}>
+          <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+        </View>
+      </View>
+
+      <Divider style={styles.divider} />
+
+      <View style={styles.cardContent}>
+        {/* Status chips */}
+        <View style={styles.statusContainer}>
+          <Chip 
+            icon={() => <MaterialIcons name="check-circle" size={14} color={COLORS.success} />} 
+            style={[styles.statusChip, {backgroundColor: COLORS.success + '20'}]}
+            textStyle={{color: COLORS.success, fontSize: 11}}
+          >
+            {resident.status === 'active' ? 'Đang chăm sóc' : resident.status}
+          </Chip>
+          <Chip 
+            style={[styles.statusChip, {backgroundColor: 
+              resident.payment_status === 'paid' ? COLORS.success + '20' : COLORS.warning + '20'
+            }]}
+            textStyle={{color: 
+              resident.payment_status === 'paid' ? COLORS.success : COLORS.warning, 
+              fontSize: 11
+            }}
+          >
+            {resident.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+          </Chip>
+        </View>
+
+        {/* Care plan info */}
+        <View style={styles.carePlanInfo}>
+          <Text style={styles.carePlanName}>{resident.care_plan.plan_name}</Text>
+          <Text style={styles.carePlanCost}>
+            {formatCurrency(resident.care_plan.total_monthly_cost)}/tháng
+          </Text>
+        </View>
+
+        {/* Latest vital signs */}
+        {resident.latest_vital && (
+          <View style={styles.vitalPreview}>
+            <Text style={styles.vitalTitle}>Chỉ số gần nhất:</Text>
+            <View style={styles.vitalRow}>
+              <Text style={styles.vitalText}>
+                🌡️ {resident.latest_vital.temperature || '--'}°C
+              </Text>
+              <Text style={styles.vitalText}>
+                ❤️ {resident.latest_vital.heart_rate || '--'} bpm
+              </Text>
+              <Text style={styles.vitalText}>
+                🩸 {resident.latest_vital.blood_pressure || '--'} mmHg
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderRecentUpdateCard = ({ item: update }) => (
+    <TouchableOpacity
+      style={styles.updateCard}
+      onPress={() => handleRecentUpdatePress(update)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.updateHeader}>
+        <View style={[styles.updateIcon, { backgroundColor: update.color + '20' }]}>
+          <MaterialIcons name={update.icon} size={20} color={update.color} />
+        </View>
+        <View style={styles.updateInfo}>
+          <Text style={styles.updateTitle}>{update.title}</Text>
+          <Text style={styles.updateSubtitle}>{update.subtitle}</Text>
+          <Text style={styles.updateTime}>{update.time}</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={20} color={COLORS.textSecondary} />
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderHeader = () => (
+    <View style={styles.headerSection}>
+      <Text style={styles.sectionTitle}>Cập nhật gần đây</Text>
+      <FlatList
+        data={recentUpdates}
+        renderItem={renderRecentUpdateCard}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+      />
+    </View>
+  );
   
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Đang tải thông tin cư dân...</Text>
-      </SafeAreaView>
-    );
-  }
-  
-  if (!resident) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <FontAwesome5 name="exclamation-circle" size={50} color={COLORS.error} />
-        <Text style={styles.errorText}>Không tìm thấy thông tin cư dân</Text>
+        <Text style={styles.loadingText}>Đang tải thông tin người thân...</Text>
       </SafeAreaView>
     );
   }
   
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Người Thân</Text>
+        <Text style={styles.headerSubtitle}>
+          {residents.length} người đang được chăm sóc
+        </Text>
+        
+        {/* Search bar */}
+        <Searchbar
+          placeholder="Tìm kiếm người thân, phòng, gói dịch vụ..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+          inputStyle={styles.searchInput}
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Image 
-            source={{ uri: resident.photo || 'https://randomuser.me/api/portraits/men/1.jpg' }}
-            style={styles.photo}
-          />
-          <View style={styles.headerInfo}>
-            <Text style={styles.name}>{`${resident.firstName} ${resident.lastName}`}</Text>
-            <View style={styles.infoRow}>
-              <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>Phòng {resident.roomNumber}</Text>
+        {/* Recent Updates Header */}
+        <View style={styles.headerSection}>
+          <Text style={styles.sectionTitle}>Cập nhật gần đây</Text>
+          {recentUpdates.map((update, index) => (
+            <View key={update.id}>
+              {renderRecentUpdateCard({ item: update })}
+              {index < recentUpdates.length - 1 && <View style={{ height: 8 }} />}
             </View>
-            <View style={styles.infoRow}>
-              <MaterialIcons name="cake" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>
-                {formatDate(resident.dateOfBirth)} ({calculateAge(resident.dateOfBirth)} tuổi)
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <MaterialIcons name="event" size={16} color={COLORS.primary} />
-              <Text style={styles.infoText}>
-                Ngày tiếp nhận: {formatDate(resident.admissionDate)}
-              </Text>
-            </View>
-            <View style={styles.statusChipContainer}>
-              <Chip 
-                icon={() => <MaterialIcons name="check-circle" size={16} color={COLORS.success} />} 
-                style={[styles.statusChip, {backgroundColor: COLORS.success + '20'}]}
-                textStyle={{color: COLORS.success}}
-              >
-                {resident.status === 'Active' ? 'Đang Ở' : resident.status}
-              </Chip>
-              <Chip 
-                icon={() => <MaterialIcons name="local-hospital" size={16} color={COLORS.primary} />} 
-                style={[styles.statusChip, {backgroundColor: COLORS.primary + '20'}]}
-                textStyle={{color: COLORS.primary}}
-              >
-                Chăm sóc {resident.careLevel === 'Intensive' ? 'Tích cực' : 
-                          resident.careLevel === 'Moderate' ? 'Vừa phải' : 
-                          resident.careLevel === 'Standard' ? 'Tiêu chuẩn' : 
-                          resident.careLevel}
-              </Chip>
-            </View>
-          </View>
+          ))}
         </View>
         
-        {/* Medical Information Card */}
-        <Card style={styles.card} mode="elevated">
-          <Card.Content>
-            <View style={styles.cardHeader}>
-              <FontAwesome5 name="heartbeat" size={20} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Thông Tin Y Tế</Title>
-            </View>
-            
-            <Text style={styles.sectionTitle}>Tình Trạng Bệnh</Text>
-            <View style={styles.tagsContainer}>
-              {resident.medicalConditions?.map((condition, index) => (
-                <Chip 
-                  key={index} 
-                  style={styles.tag}
-                  textStyle={styles.tagText}
-                >
-                  {condition}
-                </Chip>
-              ))}
-            </View>
-            
-            <Text style={styles.sectionTitle}>Dị Ứng</Text>
-            <View style={styles.tagsContainer}>
-              {resident.allergies?.map((allergy, index) => (
-                <Chip 
-                  key={index} 
-                  icon={() => <MaterialIcons name="warning" size={16} color={COLORS.error} />}
-                  style={[styles.tag, {backgroundColor: COLORS.error + '20'}]}
-                  textStyle={{color: COLORS.error}}
-                >
-                  {allergy}
-                </Chip>
-              ))}
-            </View>
-            
-            <Text style={styles.sectionTitle}>Hạn Chế Ăn Uống</Text>
-            <Text style={styles.detailText}>{resident.dietaryRestrictions || 'Không có hạn chế'}</Text>
-            
-            <Text style={styles.sectionTitle}>Bác Sĩ Chính</Text>
-            <Text style={styles.detailText}>{resident.doctor || 'Chưa được chỉ định'}</Text>
-          </Card.Content>
-        </Card>
-        
-        {/* Medications Card */}
-        <Card style={styles.card} mode="elevated">
-          <Card.Content>
-            <View style={styles.cardHeader}>
-              <MaterialCommunityIcons name="pill" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Thuốc Hiện Tại</Title>
-            </View>
-            
-            {activeMedications.length > 0 ? (
-              activeMedications.map((med) => (
-                <View key={med.id} style={styles.medicationItem}>
-                  <View style={styles.medicationHeader}>
-                    <Text style={styles.medicationName}>{med.name}</Text>
-                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
-                  </View>
-                  <View style={styles.medicationDetails}>
-                    <View style={styles.medDetailItem}>
-                      <MaterialIcons name="schedule" size={14} color={COLORS.textSecondary} />
-                      <Text style={styles.medDetailText}>{med.frequency}</Text>
-                    </View>
-                    <View style={styles.medDetailItem}>
-                      <MaterialIcons name="arrow-forward" size={14} color={COLORS.textSecondary} />
-                      <Text style={styles.medDetailText}>{med.route}</Text>
-                    </View>
-                  </View>
-                  {med.notes && (
-                    <Text style={styles.medicationNotes}>Ghi chú: {med.notes}</Text>
-                  )}
-                  <Divider style={styles.divider} />
+        {/* Residents List */}
+        {filteredResidents.length > 0 ? (
+          filteredResidents.map((resident, index) => (
+            <View key={resident._id}>
+              {renderResidentCard({ item: resident })}
+              {index < filteredResidents.length - 1 && <View style={{ height: 16 }} />}
                 </View>
               ))
             ) : (
-              <Text style={styles.noDataText}>Không có thuốc đang sử dụng</Text>
-            )}
-          </Card.Content>
-        </Card>
-        
-        {/* Care Plan Card */}
-        <Card style={styles.card} mode="elevated">
-          <Card.Content>
-            <View style={styles.cardHeader}>
-              <MaterialIcons name="assignment" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Kế Hoạch Chăm Sóc</Title>
-            </View>
-            
-            {carePlanData.length > 0 ? (
-              carePlanData.map((plan) => (
-                <View key={plan.id} style={styles.carePlanItem}>
-                  <View style={styles.carePlanHeader}>
-                    <Text style={styles.carePlanTitle}>{plan.title}</Text>
-                    <Chip 
-                      style={[
-                        styles.statusChip, 
-                        {backgroundColor: plan.status === 'Active' ? COLORS.success + '20' : COLORS.warning + '20'}
-                      ]}
-                      textStyle={{
-                        color: plan.status === 'Active' ? COLORS.success : COLORS.warning
-                      }}
-                    >
-                      {plan.status === 'Active' ? 'Đang áp dụng' : 
-                       plan.status === 'Pending' ? 'Đang chờ' : 
-                       plan.status === 'Completed' ? 'Đã hoàn thành' : plan.status}
-                    </Chip>
-                  </View>
-                  
-                  <Text style={styles.carePlanDescription}>{plan.description}</Text>
-                  
-                  <Text style={styles.carePlanSubtitle}>Mục tiêu:</Text>
-                  {plan.goals.map((goal, index) => (
-                    <View key={index} style={styles.goalItem}>
-                      <MaterialIcons name="check" size={16} color={COLORS.success} />
-                      <Text style={styles.goalText}>{goal}</Text>
-                    </View>
-                  ))}
-                  
-                  <View style={styles.carePlanDates}>
-                    <Text style={styles.carePlanDateText}>
-                      Bắt đầu: {formatDate(plan.startDate)}
-                    </Text>
-                    <Text style={styles.carePlanDateText}>
-                      Đánh giá: {formatDate(plan.reviewDate)}
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'Không tìm thấy người thân nào' : 'Chưa có người thân nào được đăng ký'}
                     </Text>
                   </View>
-                  
-                  <Divider style={styles.divider} />
-                </View>
-              ))
-            ) : (
-              <Text style={styles.noDataText}>Không có kế hoạch chăm sóc</Text>
-            )}
-          </Card.Content>
-        </Card>
-        
-        {/* Emergency Contact Card */}
-        <Card style={styles.card} mode="elevated">
-          <Card.Content>
-            <View style={styles.cardHeader}>
-              <Ionicons name="call" size={24} color={COLORS.primary} />
-              <Title style={styles.cardTitle}>Liên Hệ Khẩn Cấp</Title>
-            </View>
-            
-            {resident.contactInfo?.emergency ? (
-              <View style={styles.contactContainer}>
-                <Text style={styles.contactName}>{resident.contactInfo.emergency.name}</Text>
-                <Text style={styles.contactRelationship}>{resident.contactInfo.emergency.relationship}</Text>
-                
-                <View style={styles.contactItem}>
-                  <Ionicons name="call-outline" size={16} color={COLORS.primary} />
-                  <Text style={styles.contactDetail}>{resident.contactInfo.emergency.phone}</Text>
-                </View>
-                
-                <View style={styles.contactItem}>
-                  <MaterialIcons name="email" size={16} color={COLORS.primary} />
-                  <Text style={styles.contactDetail}>{resident.contactInfo.emergency.email}</Text>
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.noDataText}>Không có thông tin liên hệ khẩn cấp</Text>
-            )}
-          </Card.Content>
-        </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -329,219 +439,195 @@ const FamilyResidentScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    marginTop: 10,
-    color: COLORS.text,
+    marginTop: 16,
+    color: '#666',
     fontSize: 16,
   },
-  errorText: {
-    marginTop: 16,
-    color: COLORS.error,
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 100, // Tăng padding cho thanh tab bar cao hơn
-  },
   header: {
-    flexDirection: 'row',
-    marginBottom: 24,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  photo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginRight: 16,
-    backgroundColor: COLORS.border,
-  },
-  headerInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  name: {
-    ...FONTS.h2,
-    marginBottom: 8,
-    color: COLORS.text,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#333',
     marginBottom: 4,
   },
-  infoText: {
-    ...FONTS.body3,
-    color: COLORS.text,
-    marginLeft: 8,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
   },
-  statusChipContainer: {
+  searchBar: {
+    elevation: 0,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+  },
+  searchInput: {
+    fontSize: 14,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  headerSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  updateCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  updateHeader: {
     flexDirection: 'row',
-    marginTop: 8,
+    alignItems: 'center',
   },
-  statusChip: {
-    marginRight: 8,
+  updateIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  card: {
-    marginBottom: 20,
-    backgroundColor: COLORS.surface,
+  updateInfo: {
+    flex: 1,
+  },
+  updateTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  updateSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  updateTime: {
+    fontSize: 11,
+    color: COLORS.primary,
+  },
+  residentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  cardTitle: {
-    ...FONTS.h3,
-    marginLeft: 8,
+  residentPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 12,
+    backgroundColor: '#f0f0f0',
   },
-  sectionTitle: {
-    ...FONTS.h5,
-    color: COLORS.text,
-    marginBottom: 8,
-    marginTop: 16,
+  residentInfo: {
+    flex: 1,
   },
-  detailText: {
-    ...FONTS.body3,
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 8,
-  },
-  tag: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    fontSize: 12,
-  },
-  medicationItem: {
-    marginBottom: 12,
-  },
-  medicationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  residentName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 4,
   },
-  medicationName: {
-    ...FONTS.body2,
-    fontWeight: '500',
-    color: COLORS.text,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
-  medicationDosage: {
-    ...FONTS.body3,
+  infoText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  cardActions: {
+    padding: 4,
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  cardContent: {
+    gap: 12,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusChip: {
+    height: 33,
+  },
+  carePlanInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  carePlanName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  carePlanCost: {
+    fontSize: 12,
     color: COLORS.primary,
     fontWeight: '500',
   },
-  medicationDetails: {
-    flexDirection: 'row',
-    marginBottom: 4,
+  vitalPreview: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
   },
-  medDetailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  medDetailText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  medicationNotes: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  divider: {
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  noDataText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  carePlanItem: {
-    marginBottom: 12,
-  },
-  carePlanHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  carePlanTitle: {
-    ...FONTS.body2,
-    fontWeight: '500',
-    flex: 1,
-  },
-  carePlanDescription: {
-    ...FONTS.body3,
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  carePlanSubtitle: {
-    ...FONTS.body3,
+  vitalTitle: {
+    fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#1976d2',
     marginBottom: 6,
   },
-  goalItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-    paddingLeft: 4,
-  },
-  goalText: {
-    ...FONTS.body3,
-    color: COLORS.text,
-    marginLeft: 8,
-    flex: 1,
-  },
-  carePlanDates: {
+  vitalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
   },
-  carePlanDateText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
+  vitalText: {
+    fontSize: 11,
+    color: '#1976d2',
   },
-  contactContainer: {
-    padding: 8,
-  },
-  contactName: {
-    ...FONTS.h4,
-    marginBottom: 4,
-  },
-  contactRelationship: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  contactItem: {
-    flexDirection: 'row',
+  emptyContainer: {
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    paddingVertical: 64,
   },
-  contactDetail: {
-    ...FONTS.body3,
-    color: COLORS.text,
-    marginLeft: 8,
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 16,
+    textAlign: 'center',
   },
 });
 

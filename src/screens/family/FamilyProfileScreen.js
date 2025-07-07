@@ -4,12 +4,14 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
+  TouchableOpacity, 
   Image,
-  TouchableOpacity,
-  Switch,
   Alert,
+  RefreshControl,
+  SafeAreaView,
+  Switch,
+  TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   ActivityIndicator, 
@@ -17,9 +19,6 @@ import {
   List, 
   Button,
   IconButton,
-  Dialog,
-  Portal,
-  TextInput,
   Avatar,
   Card,
   Title,
@@ -35,6 +34,9 @@ import { logout } from '../../redux/slices/authSlice';
 // Import notification system
 import { useNotification } from '../../components/NotificationSystem';
 
+// Import mock data for fallback
+import { familyMembers, residents } from '../../api/mockData';
+
 const FamilyProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
@@ -47,10 +49,10 @@ const FamilyProfileScreen = ({ navigation }) => {
   const { showSuccess, showError, confirmAction, showLoading, hideLoading } = useNotification();
   
   // Form state
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
   
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState({
@@ -61,21 +63,46 @@ const FamilyProfileScreen = ({ navigation }) => {
     messages: true,
     systemUpdates: false,
   });
-  
-  // Dialog states
-  const [passwordDialogVisible, setPasswordDialogVisible] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Get user data with fallback to mock data
+  const getUserData = () => {
+    if (user) {
+      // If user has full_name (from mock data structure)
+      if (user.full_name) {
+        return user;
+      }
+      // If user has firstName/lastName (from auth service structure)
+      if (user.firstName && user.lastName) {
+        return {
+          ...user,
+          full_name: `${user.firstName} ${user.lastName}`,
+          phone: user.phone || 'Chưa cập nhật',
+          address: user.address || 'Chưa cập nhật',
+          relationship: user.relationship || 'Chưa cập nhật'
+        };
+      }
+    }
+    
+    // Fallback to mock data
+    const mockUser = familyMembers.find(fm => fm.id === 'f1');
+    return mockUser || {
+      full_name: 'Trần Lê Chi Bảo',
+      email: 'bao@gmail.com',
+      phone: '0764634650',
+      address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
+      relationship: 'Con trai',
+      photo: 'https://randomuser.me/api/portraits/men/20.jpg'
+    };
+  };
+
+  const userData = getUserData();
   
   useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setEmail(user.email || '');
-      setPhone(user.phone || '');
-    }
-  }, [user]);
+    setFullName(userData.full_name || '');
+    setEmail(userData.email || '');
+    setPhone(userData.phone || '');
+    setAddress(userData.address || '');
+  }, [userData]);
   
   const handleLogout = () => {
     Alert.alert(
@@ -100,7 +127,7 @@ const FamilyProfileScreen = ({ navigation }) => {
   
   const handleSaveProfile = async () => {
     // Validate inputs
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
+    if (!fullName.trim() || !email.trim() || !phone.trim()) {
       showError('Tất cả các trường đều bắt buộc');
       return;
     }
@@ -122,10 +149,10 @@ const FamilyProfileScreen = ({ navigation }) => {
         type: 'UPDATE_USER', 
         payload: {
           ...user,
-          firstName,
-          lastName,
+          full_name: fullName,
           email,
-          phone
+          phone,
+          address
         }
       });
       
@@ -136,42 +163,7 @@ const FamilyProfileScreen = ({ navigation }) => {
       showSuccess('Cập nhật hồ sơ thành công');
     }, 1000);
   };
-  
-  const handleChangePassword = async () => {
-    // Validate passwords
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      showError('Tất cả các trường mật khẩu đều bắt buộc');
-      return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-      showError('Mật khẩu mới không khớp');
-      return;
-    }
-    
-    if (newPassword.length < 6) {
-      showError('Mật khẩu mới phải có ít nhất 6 ký tự');
-      return;
-    }
-    
-    setSaving(true);
-    showLoading('Đang đổi mật khẩu...');
-    
-    // In a real app, this would call an API to change the password
-    setTimeout(() => {
-      setSaving(false);
-      setPasswordDialogVisible(false);
-      hideLoading();
-      
-      // Clear form
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      
-      showSuccess('Đổi mật khẩu thành công');
-    }, 1000);
-  };
-  
+
   const handleToggleNotification = (setting) => {
     setNotificationSettings({
       ...notificationSettings,
@@ -179,6 +171,17 @@ const FamilyProfileScreen = ({ navigation }) => {
     });
     
     // In a real app, this would save the settings to the server
+  };
+
+  // Get resident names for relationship display
+  const getResidentNames = () => {
+    if (userData.residentIds) {
+      return userData.residentIds.map(id => {
+        const resident = residents.find(r => r.id === id);
+        return resident ? resident.full_name : 'Không xác định';
+      }).join(', ');
+    }
+    return 'Chưa có thông tin';
   };
   
   if (loading) {
@@ -192,6 +195,17 @@ const FamilyProfileScreen = ({ navigation }) => {
   
   return (
     <SafeAreaView style={styles.container}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
+        <Text style={styles.customHeaderTitle}>Hồ Sơ Cá Nhân</Text>
+      </View>
+      
       <ScrollView 
         style={styles.scrollContent}
         contentContainerStyle={styles.contentContainer}
@@ -200,7 +214,7 @@ const FamilyProfileScreen = ({ navigation }) => {
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <Avatar.Image
-              source={{ uri: user?.photo || 'https://randomuser.me/api/portraits/women/11.jpg' }}
+              source={{ uri: userData.photo || 'https://randomuser.me/api/portraits/men/20.jpg' }}
               size={100}
               style={styles.avatar}
             />
@@ -210,11 +224,11 @@ const FamilyProfileScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{`${user?.firstName} ${user?.lastName}`}</Text>
+            <Text style={styles.profileName}>{userData.full_name || 'Chưa có tên'}</Text>
             <Text style={styles.profileRole}>Thành viên gia đình</Text>
-            <Text style={styles.profileRelationship}>
-              {user?.relationship || 'Mối quan hệ'} của {user?.residentName || 'Cư dân'}
-            </Text>
+            {/* <Text style={styles.profileRelationship}>
+              {userData.relationship || 'Mối quan hệ'} của {getResidentNames()}
+            </Text> */}
           </View>
         </View>
         
@@ -246,46 +260,24 @@ const FamilyProfileScreen = ({ navigation }) => {
               <Text style={styles.label}>Tên</Text>
               {editMode ? (
                 <TextInput
-                  value={firstName}
-                  onChangeText={setFirstName}
+                  value={fullName}
+                  onChangeText={setFullName}
                   style={styles.input}
                   mode="outlined"
                   outlineColor={COLORS.border}
                   activeOutlineColor={COLORS.primary}
                 />
               ) : (
-                <Text style={styles.value}>{firstName}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Họ</Text>
-              {editMode ? (
-                <TextInput
-                  value={lastName}
-                  onChangeText={setLastName}
-                  style={styles.input}
-                  mode="outlined"
-                  outlineColor={COLORS.border}
-                  activeOutlineColor={COLORS.primary}
-                />
-              ) : (
-                <Text style={styles.value}>{lastName}</Text>
+                <Text style={styles.value}>{fullName}</Text>
               )}
             </View>
             
             <View style={styles.formGroup}>
               <Text style={styles.label}>Email</Text>
               {editMode ? (
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  style={styles.input}
-                  mode="outlined"
-                  outlineColor={COLORS.border}
-                  activeOutlineColor={COLORS.primary}
-                />
+                <Text style={[styles.value, { color: COLORS.textSecondary }]}>
+                  {email} (Không thể thay đổi)
+                </Text>
               ) : (
                 <Text style={styles.value}>{email}</Text>
               )}
@@ -305,6 +297,22 @@ const FamilyProfileScreen = ({ navigation }) => {
                 />
               ) : (
                 <Text style={styles.value}>{phone}</Text>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Địa chỉ</Text>
+              {editMode ? (
+                <TextInput
+                  value={address}
+                  onChangeText={setAddress}
+                  style={styles.input}
+                  mode="outlined"
+                  outlineColor={COLORS.border}
+                  activeOutlineColor={COLORS.primary}
+                />
+              ) : (
+                <Text style={styles.value}>{address}</Text>
               )}
             </View>
             
@@ -410,116 +418,8 @@ const FamilyProfileScreen = ({ navigation }) => {
           </Card.Content>
         </Card>
         
-        {/* Account Settings Card */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.cardTitle}>Cài đặt tài khoản</Title>
-            
-            <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => setPasswordDialogVisible(true)}
-            >
-              <View style={styles.settingInfo}>
-                <MaterialIcons name="lock" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Đổi mật khẩu</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            
-            <Divider style={styles.divider} />
-            
-            <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
-              <View style={styles.settingInfo}>
-                <MaterialIcons name="help-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Trợ giúp & Hỗ trợ</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            
-            <Divider style={styles.divider} />
-            
-            <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
-              <View style={styles.settingInfo}>
-                <MaterialIcons name="privacy-tip" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Chính sách bảo mật</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            
-            <Divider style={styles.divider} />
-            
-            <TouchableOpacity style={styles.settingItem} onPress={() => {}}>
-              <View style={styles.settingInfo}>
-                <MaterialIcons name="description" size={24} color={COLORS.primary} />
-                <Text style={styles.settingText}>Điều khoản dịch vụ</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          </Card.Content>
-        </Card>
-        
-        {/* Logout Button */}
-        <Button
-          mode="outlined"
-          onPress={handleLogout}
-          style={styles.logoutButton}
-          icon="logout"
-          loading={authLoading}
-          disabled={authLoading}
-        >
-          Đăng xuất
-        </Button>
-        
         <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
       </ScrollView>
-      
-      {/* Password Change Dialog */}
-      <Portal>
-        <Dialog
-          visible={passwordDialogVisible}
-          onDismiss={() => setPasswordDialogVisible(false)}
-        >
-          <Dialog.Title>Đổi mật khẩu</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Mật khẩu hiện tại"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-              style={styles.dialogInput}
-              mode="outlined"
-              outlineColor={COLORS.border}
-              activeOutlineColor={COLORS.primary}
-            />
-            
-            <TextInput
-              label="Mật khẩu mới"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              style={styles.dialogInput}
-              mode="outlined"
-              outlineColor={COLORS.border}
-              activeOutlineColor={COLORS.primary}
-            />
-            
-            <TextInput
-              label="Xác nhận mật khẩu mới"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              style={styles.dialogInput}
-              mode="outlined"
-              outlineColor={COLORS.border}
-              activeOutlineColor={COLORS.primary}
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setPasswordDialogVisible(false)}>Hủy</Button>
-            <Button onPress={handleChangePassword} loading={saving}>Lưu</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </SafeAreaView>
   );
 };
@@ -543,9 +443,27 @@ const styles = StyleSheet.create({
   scrollContent: {
     flex: 1,
   },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  customHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
   contentContainer: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -582,10 +500,10 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 4,
   },
-  profileRelationship: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-  },
+  // profileRelationship: {
+  //   ...FONTS.body3,
+  //   color: COLORS.textSecondary,
+  // },
   card: {
     marginBottom: 16,
     backgroundColor: COLORS.surface,
@@ -620,34 +538,11 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 8,
   },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingText: {
-    ...FONTS.body2,
-    marginLeft: 16,
-  },
-  logoutButton: {
-    marginTop: 8,
-    borderColor: COLORS.error,
-    borderWidth: 1,
-  },
   versionText: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: 16,
-  },
-  dialogInput: {
-    marginBottom: 16,
-    backgroundColor: COLORS.surface,
   },
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,13 @@ import {
   Linking,
   SafeAreaView,
 } from 'react-native';
-import {
-  Card,
-  Title,
-  Paragraph,
-  Button,
-  List,
-  Divider,
-} from 'react-native-paper';
+import { Card, Title, Button, Divider } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
 
 const SupportScreen = ({ navigation }) => {
+  const [expandedFaq, setExpandedFaq] = useState(null);
+
   const handleCall = (phoneNumber) => {
     Alert.alert(
       'Gọi điện thoại',
@@ -36,13 +31,17 @@ const SupportScreen = ({ navigation }) => {
     Linking.openURL(`mailto:${email}`);
   };
 
+  const toggleFaq = (index) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
+  };
+
   const supportOptions = [
     {
       id: '1',
       title: 'Gọi Hotline 24/7',
       description: 'Liên hệ ngay với đội ngũ hỗ trợ',
       icon: 'phone',
-      action: () => handleCall('1900123456'),
+      action: () => handleCall('0764634650'),
       color: COLORS.primary,
     },
     {
@@ -50,7 +49,7 @@ const SupportScreen = ({ navigation }) => {
       title: 'Gửi Email',
       description: 'Gửi câu hỏi qua email',
       icon: 'email',
-      action: () => handleEmail('support@nursinghome.com'),
+      action: () => handleEmail('bao.tranlechi05@gmail.com'),
       color: COLORS.accent,
     },
     {
@@ -61,14 +60,6 @@ const SupportScreen = ({ navigation }) => {
       action: () => navigation.navigate('TabsChính', { screen: 'TinNhan' }),
       color: COLORS.secondary,
     },
-    {
-      id: '4',
-      title: 'Hướng Dẫn Sử Dụng',
-      description: 'Xem hướng dẫn chi tiết',
-      icon: 'help-outline',
-      action: () => Alert.alert('Hướng dẫn', 'Chức năng đang được phát triển'),
-      color: COLORS.info,
-    },
   ];
 
   const faqData = [
@@ -77,7 +68,7 @@ const SupportScreen = ({ navigation }) => {
       answer: 'Bạn có thể thay đổi gói dịch vụ trong phần "Gói Dịch Vụ" hoặc liên hệ với chúng tôi để được tư vấn.',
     },
     {
-      question: 'Cách đặt lịch thăm viếng?',
+      question: 'Cách đặt lịch thăm người thân?',
       answer: 'Vào phần "Lịch Thăm" để chọn ngày giờ phù hợp. Lịch thăm cần được xác nhận trước khi có hiệu lực.',
     },
     {
@@ -92,10 +83,20 @@ const SupportScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
+        <Text style={styles.customHeaderTitle}>Hỗ Trợ</Text>
+      </View>
+      
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Hỗ Trợ</Text>
+        {/* Header subtitle */}
+        <View style={styles.headerSubtitleContainer}>
           <Text style={styles.headerSubtitle}>
             Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7
           </Text>
@@ -128,18 +129,40 @@ const SupportScreen = ({ navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <Title style={styles.cardTitle}>Câu Hỏi Thường Gặp</Title>
+            <Text style={styles.faqSubtitle}>Bấm vào câu hỏi để xem câu trả lời</Text>
             {faqData.map((faq, index) => (
-              <View key={index}>
-                <List.Item
-                  title={faq.question}
-                  titleStyle={styles.faqQuestion}
-                  description={faq.answer}
-                  descriptionStyle={styles.faqAnswer}
-                  left={(props) => (
-                    <MaterialIcons name="help-outline" size={20} color={COLORS.primary} {...props} />
+              <View key={index} style={styles.faqContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.faqQuestionContainer,
+                    expandedFaq === index && styles.faqQuestionExpanded
+                  ]}
+                  onPress={() => toggleFaq(index)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.faqQuestionContent}>
+                    <MaterialIcons 
+                      name="help-outline" 
+                      size={20} 
+                      color={COLORS.primary} 
+                      style={styles.faqIcon}
+                    />
+                    <Text style={styles.faqQuestion}>{faq.question}</Text>
+                  </View>
+                  <MaterialIcons
+                    name={expandedFaq === index ? "expand-less" : "expand-more"}
+                    size={24}
+                    color={COLORS.primary}
+                  />
+                </TouchableOpacity>
+                
+                {expandedFaq === index && (
+                  <View style={styles.faqAnswerContainer}>
+                    <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                  </View>
                   )}
-                />
-                {index < faqData.length - 1 && <Divider />}
+                
+                {index < faqData.length - 1 && <Divider style={styles.faqDivider} />}
               </View>
             ))}
           </Card.Content>
@@ -204,15 +227,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 20,
   },
-  header: {
-    marginBottom: 24,
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#212529',
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  customHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  headerSubtitleContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     marginBottom: 8,
   },
   headerSubtitle: {
@@ -260,14 +297,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
   },
+  faqSubtitle: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  faqContainer: {
+    marginBottom: 8,
+  },
+  faqQuestionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  faqQuestionExpanded: {
+    backgroundColor: COLORS.primary + '10',
+    borderColor: COLORS.primary + '30',
+  },
+  faqQuestionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  faqIcon: {
+    marginRight: 12,
+  },
   faqQuestion: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#212529',
+    flex: 1,
+  },
+  faqAnswerContainer: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginTop: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
   },
   faqAnswer: {
     fontSize: 14,
-    color: '#6c757d',
+    color: '#495057',
+    lineHeight: 20,
+  },
+  faqDivider: {
+    marginVertical: 8,
   },
   emergencyCard: {
     borderLeftWidth: 4,

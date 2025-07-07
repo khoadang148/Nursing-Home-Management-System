@@ -15,7 +15,7 @@ import ActivityNavigator from './ActivityNavigator';
 import TasksNavigator from './TasksNavigator';
 import ProfileNavigator from './ProfileNavigator';
 import MedicationNavigator from './MedicationNavigator';
-import FamilyNavigator from './FamilyNavigator';
+import MobileOptimizedNavigator from './MobileOptimizedNavigator';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import NotificationDetailScreen from '../screens/notifications/NotificationDetailScreen';
 
@@ -141,13 +141,8 @@ const StaffNavigator = () => {
 const MainNavigator = () => {
   const { user } = useSelector((state) => state.auth);
   
-  // Choose navigator based on user role
-  if (user?.role === 'family') {
-    return <FamilyNavigator />;
-  }
-  
-  // Default to staff navigator for all other roles
-  return <StaffNavigator />;
+  // Use MobileOptimizedNavigator for all users
+  return <MobileOptimizedNavigator />;
 };
 
 export default MainNavigator; 

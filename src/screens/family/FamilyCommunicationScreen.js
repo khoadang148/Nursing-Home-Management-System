@@ -11,6 +11,8 @@ import {
   SafeAreaView,
   RefreshControl,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { 
   Card, 
@@ -21,68 +23,231 @@ import {
   IconButton,
   ActivityIndicator,
   FAB,
+  Chip,
 } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
 
-// Mock data cho tin nhắn
+// Mock data cho residents của family member hiện tại (Trần Lê Chi Bảo)
+const familyResidents = [
+  {
+    id: 'res_001',
+    name: 'Nguyễn Văn Nam',
+    room: '101-A',
+    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+  },
+  {
+    id: 'res_002', 
+    name: 'Lê Thị Hoa',
+    room: '102-A',
+    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+  },
+  {
+    id: 'res_003',
+    name: 'Trần Văn Bình',
+    room: '201-A',
+    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+  },
+];
+
+// Mock staff data theo cấu trúc DB users collection với role staff
+const mockStaffData = {
+  'nurse1': {
+    _id: 'nurse1',
+    full_name: 'Lê Văn Nurse',
+    email: 'nurse1@nhms.com',
+    phone: '0901234569',
+    role: 'staff',
+    position: 'Điều dưỡng',
+    qualification: 'Cử nhân Điều dưỡng',
+    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
+    online: true
+  },
+  'doctor1': {
+    _id: 'doctor1',
+    full_name: 'Phạm Thị Doctor',
+    email: 'doctor1@nhms.com',
+    phone: '0901234570',
+    role: 'staff',
+    position: 'Bác sĩ',
+    qualification: 'Thạc sĩ Y khoa',
+    avatar: 'https://randomuser.me/api/portraits/women/15.jpg',
+    online: true
+  },
+  'caregiver1': {
+    _id: 'caregiver1',
+    full_name: 'Hoàng Văn Caregiver',
+    email: 'caregiver1@nhms.com',
+    phone: '0901234571',
+    role: 'staff',
+    position: 'Nhân viên chăm sóc',
+    qualification: 'Chứng chỉ chăm sóc người cao tuổi',
+    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
+    online: false
+  }
+};
+
+// Mapping staff đã chăm sóc từng resident (dựa vào mock data từ FamilyResidentDetailScreen)
+const residentStaffMapping = {
+  'res_001': ['nurse1', 'doctor1', 'caregiver1'], // Nguyễn Văn Nam được chăm sóc bởi cả 3 staff
+  'res_002': ['nurse1', 'doctor1', 'caregiver1'], // Lê Thị Hoa được chăm sóc bởi cả 3 staff  
+  'res_003': ['nurse1', 'caregiver1'], // Trần Văn Bình được chăm sóc bởi nurse1 và caregiver1
+};
+
+// Mock data cho tin nhắn theo resident và staff
 const mockConversations = [
   {
     id: '1',
-    staffName: 'Bác sĩ Nguyễn Thị Lan',
+    staffId: 'doctor1',
+    staffName: 'Phạm Thị Doctor',
     role: 'Bác sĩ',
-    lastMessage: 'Tình trạng sức khỏe của bà ổn định. Huyết áp đã được kiểm soát tốt.',
-    timestamp: '2024-01-15T10:30:00.000Z',
+    position: 'Bác sĩ',
+    residentId: 'res_001',
+    residentName: 'Nguyễn Văn Nam',
+    lastMessage: 'Tình trạng sức khỏe của cụ ổn định. Tiểu đường được kiểm soát tốt.',
+    timestamp: '2024-03-01T10:30:00.000Z',
     unread: 2,
-    avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
+    avatar: 'https://randomuser.me/api/portraits/women/15.jpg',
     online: true,
   },
   {
     id: '2',
-    staffName: 'Y tá Trần Văn Minh',
-    role: 'Y tá',
-    lastMessage: 'Bà đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
-    timestamp: '2024-01-15T08:45:00.000Z',
+    staffId: 'nurse1',
+    staffName: 'Lê Văn Nurse',
+    role: 'Điều dưỡng',
+    position: 'Điều dưỡng',
+    residentId: 'res_001',
+    residentName: 'Nguyễn Văn Nam',
+    lastMessage: 'Cụ đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
+    timestamp: '2024-03-01T08:45:00.000Z',
     unread: 0,
-    avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-    online: false,
+    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
+    online: true,
   },
   {
     id: '3',
-    staffName: 'Điều dưỡng Lê Thị Hoa',
-    role: 'Điều dưỡng viên',
-    lastMessage: 'Cảm ơn gia đình đã quan tâm. Tôi sẽ cập nhật thường xuyên.',
-    timestamp: '2024-01-14T16:20:00.000Z',
-    unread: 0,
-    avatar: 'https://randomuser.me/api/portraits/women/28.jpg',
+    staffId: 'nurse1',
+    staffName: 'Lê Văn Nurse',
+    role: 'Điều dưỡng',
+    position: 'Điều dưỡng',
+    residentId: 'res_002',
+    residentName: 'Lê Thị Hoa',
+    lastMessage: 'Vết thương đang lành tốt, không có dấu hiệu nhiễm trùng.',
+    timestamp: '2024-02-29T16:20:00.000Z',
+    unread: 1,
+    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
     online: true,
+  },
+  {
+    id: '4',
+    staffId: 'caregiver1',
+    staffName: 'Hoàng Văn Caregiver',
+    role: 'Nhân viên chăm sóc',
+    position: 'Nhân viên chăm sóc',
+    residentId: 'res_003',
+    residentName: 'Trần Văn Bình',
+    lastMessage: 'Cụ tham gia vật lý trị liệu rất tích cực, khả năng vận động cải thiện.',
+    timestamp: '2024-03-01T14:15:00.000Z',
+    unread: 0,
+    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
+    online: false,
   },
 ];
 
 const mockMessages = {
   '1': [
-      { 
-        id: '1', 
-      senderId: 'staff_1',
-      senderName: 'Bác sĩ Nguyễn Thị Lan',
-      message: 'Chào anh/chị. Tôi là bác sĩ Lan, đang chăm sóc cho bà.',
-      timestamp: '2024-01-15T09:00:00.000Z',
+    { 
+      id: '1', 
+      senderId: 'doctor1',
+      senderName: 'Phạm Thị Doctor',
+      message: 'Chào anh/chị. Tôi là bác sĩ Phạm Thị Doctor, đang chăm sóc cho cụ Nguyễn Văn Nam.',
+      timestamp: '2024-03-01T09:00:00.000Z',
       isStaff: true,
-      },
-      { 
-        id: '2', 
+    },
+    { 
+      id: '2', 
       senderId: 'family_1',
-      senderName: 'Gia đình',
-      message: 'Chào bác sĩ! Tình trạng sức khỏe của mẹ tôi thế nào ạ?',
-      timestamp: '2024-01-15T09:15:00.000Z',
+      senderName: 'Trần Lê Chi Bảo',
+      message: 'Chào bác sĩ! Tình trạng sức khỏe của bố tôi thế nào ạ?',
+      timestamp: '2024-03-01T09:15:00.000Z',
       isStaff: false,
-      },
-      {
-        id: '3',
-      senderId: 'staff_1',
-      senderName: 'Bác sĩ Nguyễn Thị Lan',
-      message: 'Tình trạng sức khỏe của bà ổn định. Huyết áp đã được kiểm soát tốt. Bà cũng có tinh thần vui vẻ và ăn uống đều đặn.',
-      timestamp: '2024-01-15T10:30:00.000Z',
+    },
+    {
+      id: '3',
+      senderId: 'doctor1',
+      senderName: 'Phạm Thị Doctor',
+      message: 'Tình trạng sức khỏe của cụ ổn định. Tiểu đường được kiểm soát tốt. Cụ cũng có tinh thần vui vẻ và ăn uống đều đặn.',
+      timestamp: '2024-03-01T10:30:00.000Z',
+      isStaff: true,
+    },
+  ],
+  '2': [
+    {
+      id: '4',
+      senderId: 'nurse1',
+      senderName: 'Lê Văn Nurse',
+      message: 'Xin chào! Cụ Nam hôm nay ăn uống và sinh hoạt bình thường.',
+      timestamp: '2024-03-01T08:00:00.000Z',
+      isStaff: true,
+    },
+    {
+      id: '5',
+      senderId: 'family_1',
+      senderName: 'Trần Lê Chi Bảo',
+      message: 'Cảm ơn chị đã chăm sóc bố tôi chu đáo!',
+      timestamp: '2024-03-01T08:30:00.000Z',
+      isStaff: false,
+    },
+    {
+      id: '6',
+      senderId: 'nurse1',
+      senderName: 'Lê Văn Nurse',
+      message: 'Cụ đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
+      timestamp: '2024-03-01T08:45:00.000Z',
+      isStaff: true,
+    },
+  ],
+  '3': [
+    {
+      id: '7',
+      senderId: 'nurse1',
+      senderName: 'Lê Văn Nurse',
+      message: 'Chào anh/chị. Tình trạng vết thương của cụ Hoa đang tiến triển tốt.',
+      timestamp: '2024-02-29T15:00:00.000Z',
+      isStaff: true,
+    },
+    {
+      id: '8',
+      senderId: 'family_1',
+      senderName: 'Trần Lê Chi Bảo',
+      message: 'Cảm ơn chị! Khi nào thì vết thương sẽ lành hoàn toàn ạ?',
+      timestamp: '2024-02-29T15:30:00.000Z',
+      isStaff: false,
+    },
+    {
+      id: '9',
+      senderId: 'nurse1',
+      senderName: 'Lê Văn Nurse',
+      message: 'Vết thương đang lành tốt, không có dấu hiệu nhiễm trùng. Dự kiến khoảng 1-2 tuần nữa sẽ lành hoàn toàn.',
+      timestamp: '2024-02-29T16:20:00.000Z',
+      isStaff: true,
+    },
+  ],
+  '4': [
+    {
+      id: '10',
+      senderId: 'caregiver1',
+      senderName: 'Hoàng Văn Caregiver',
+      message: 'Xin chào! Cụ Bình hôm nay tham gia vật lý trị liệu rất tích cực.',
+      timestamp: '2024-03-01T14:00:00.000Z',
+      isStaff: true,
+    },
+    {
+      id: '11',
+      senderId: 'caregiver1',
+      senderName: 'Hoàng Văn Caregiver',
+      message: 'Cụ tham gia vật lý trị liệu rất tích cực, khả năng vận động cải thiện.',
+      timestamp: '2024-03-01T14:15:00.000Z',
       isStaff: true,
     },
   ],
@@ -96,6 +261,14 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const [showChat, setShowChat] = useState(false);
+  
+  // New message creation states
+  const [showCreateMessage, setShowCreateMessage] = useState(false);
+  const [selectedResident, setSelectedResident] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [createMessageStep, setCreateMessageStep] = useState(1); // 1: resident, 2: doctor, 3: message
+  const [initialMessage, setInitialMessage] = useState('');
   
   useEffect(() => {
     loadData();
@@ -151,7 +324,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     const message = {
       id: Date.now().toString(),
       senderId: 'family_1',
-      senderName: 'Gia đình',
+      senderName: 'Trần Lê Chi Bảo',
       message: newMessage.trim(),
       timestamp: new Date().toISOString(),
       isStaff: false,
@@ -174,108 +347,109 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     setNewMessage('');
   };
 
-  const handleQuickAction = (type) => {
-    // Find conversation by staff type
-    let targetConversation = null;
-    
-    switch (type) {
-      case 'doctor':
-        targetConversation = conversations.find(conv => 
-          conv.role.toLowerCase().includes('bác sĩ') || conv.role.toLowerCase().includes('doctor')
-        );
-        break;
-      case 'nurse':
-        targetConversation = conversations.find(conv => 
-          conv.role.toLowerCase().includes('y tá') || conv.role.toLowerCase().includes('nurse')
-        );
-        break;
-      case 'support':
-        targetConversation = conversations.find(conv => 
-          conv.role.toLowerCase().includes('điều dưỡng') || conv.role.toLowerCase().includes('hỗ trợ')
-        );
-        break;
+  // New message creation functions
+  const handleCreateNewMessage = () => {
+    setShowCreateMessage(true);
+    setCreateMessageStep(1);
+    setSelectedResident(null);
+    setSelectedDoctor(null);
+    setAvailableDoctors([]);
+    setInitialMessage('');
+  };
+
+  const handleSelectResident = (resident) => {
+    setSelectedResident(resident);
+    // Lấy danh sách staff đã chăm sóc resident này
+    const staffIds = residentStaffMapping[resident.id] || [];
+    const availableStaff = staffIds.map(staffId => mockStaffData[staffId]).filter(Boolean);
+    setAvailableDoctors(availableStaff);
+    setCreateMessageStep(2);
+  };
+
+  const handleSelectDoctor = (doctor) => {
+    setSelectedDoctor(doctor);
+    setCreateMessageStep(3);
+  };
+
+  const handleCreateConversation = () => {
+    if (!initialMessage.trim() || !selectedDoctor || !selectedResident) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tin nhắn');
+      return;
     }
 
-    if (targetConversation) {
-      handleConversationPress(targetConversation);
+    // Check if conversation already exists
+    const existingConversation = conversations.find(conv => 
+      conv.staffId === selectedDoctor._id && 
+      conv.residentId === selectedResident.id
+    );
+
+    if (existingConversation) {
+      // Add message to existing conversation
+      const newMessage = {
+        id: Date.now().toString(),
+        senderId: 'family_1',
+        senderName: 'Trần Lê Chi Bảo',
+        message: initialMessage.trim(),
+        timestamp: new Date().toISOString(),
+        isStaff: false,
+      };
+
+      setMessages(prev => ({
+        ...prev,
+        [existingConversation.id]: [...(prev[existingConversation.id] || []), newMessage]
+      }));
+
+      // Update last message in conversation
+      setConversations(prev => prev.map(conv => 
+        conv.id === existingConversation.id 
+          ? { ...conv, lastMessage: initialMessage.trim(), timestamp: new Date().toISOString() }
+          : conv
+      ));
+
+      setSelectedConversation(existingConversation);
+      setShowChat(true);
     } else {
-      // Create new conversation if not exists
-      Alert.alert(
-        'Tạo cuộc hội thoại mới',
-        `Bạn có muốn bắt đầu cuộc hội thoại với ${getStaffTypeName(type)}?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          { 
-            text: 'Bắt đầu', 
-            onPress: () => {
-              const newConversation = createNewConversation(type);
-              const updatedConversations = [...conversations, newConversation];
-              setConversations(updatedConversations);
-              
-              // Initialize empty messages array for new conversation
-              setMessages(prev => ({
-                ...prev,
-                [newConversation.id]: []
-              }));
-              
-              handleConversationPress(newConversation);
-              
-              // Show success message
-              setTimeout(() => {
-                Alert.alert(
-                  'Thành công',
-                  `Đã tạo cuộc hội thoại với ${newConversation.staffName}. Bạn có thể bắt đầu nhắn tin ngay!`,
-                  [{ text: 'OK' }]
-                );
-              }, 500);
-            }
-          }
-        ]
-      );
+      // Create new conversation
+      const newConversation = {
+        id: Date.now().toString(),
+        staffId: selectedDoctor._id,
+        staffName: selectedDoctor.full_name,
+        role: selectedDoctor.position,
+        position: selectedDoctor.position,
+        residentId: selectedResident.id,
+        residentName: selectedResident.name,
+        lastMessage: initialMessage.trim(),
+        timestamp: new Date().toISOString(),
+        unread: 0,
+        avatar: selectedDoctor.avatar,
+        online: selectedDoctor.online,
+      };
+
+      const newMessage = {
+        id: Date.now().toString(),
+        senderId: 'family_1',
+        senderName: 'Trần Lê Chi Bảo',
+        message: initialMessage.trim(),
+        timestamp: new Date().toISOString(),
+        isStaff: false,
+      };
+
+      setConversations(prev => [newConversation, ...prev]);
+      setMessages(prev => ({
+        ...prev,
+        [newConversation.id]: [newMessage]
+      }));
+
+      setSelectedConversation(newConversation);
+      setShowChat(true);
     }
-  };
 
-  const getStaffTypeName = (type) => {
-    switch (type) {
-      case 'doctor': return 'Bác sĩ';
-      case 'nurse': return 'Y tá';
-      case 'support': return 'Nhân viên hỗ trợ';
-      default: return 'Nhân viên';
-    }
-  };
-
-  const createNewConversation = (type) => {
-    const staffData = {
-      doctor: {
-        staffName: 'Bác sĩ Nguyễn Văn An',
-        role: 'Bác sĩ',
-        avatar: 'https://randomuser.me/api/portraits/men/50.jpg',
-      },
-      nurse: {
-        staffName: 'Y tá Lê Thị Mai',
-        role: 'Y tá',
-        avatar: 'https://randomuser.me/api/portraits/women/60.jpg',
-      },
-      support: {
-        staffName: 'Nhân viên Hỗ trợ',
-        role: 'Hỗ trợ khách hàng',
-        avatar: 'https://randomuser.me/api/portraits/women/70.jpg',
-      },
-    };
-
-    const staff = staffData[type];
-    const newId = (conversations.length + 1).toString();
-
-    return {
-      id: newId,
-      staffName: staff.staffName,
-      role: staff.role,
-      lastMessage: '',
-      timestamp: new Date().toISOString(),
-      unread: 0,
-      avatar: staff.avatar,
-      online: true,
-    };
+    // Reset form
+    setShowCreateMessage(false);
+    setSelectedResident(null);
+    setSelectedDoctor(null);
+    setInitialMessage('');
+    setCreateMessageStep(1);
   };
 
   const renderConversationItem = (conversation) => (
@@ -283,24 +457,23 @@ const FamilyCommunicationScreen = ({ navigation }) => {
       key={conversation.id}
       style={styles.conversationItem}
       onPress={() => handleConversationPress(conversation)}
+      activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
-        <Avatar.Image source={{ uri: conversation.avatar }} size={50} />
+        <Avatar.Image size={48} source={{ uri: conversation.avatar }} />
         {conversation.online && <View style={styles.onlineIndicator} />}
       </View>
-      
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
           <Text style={styles.staffName}>{conversation.staffName}</Text>
           <Text style={styles.timestamp}>{formatTime(conversation.timestamp)}</Text>
         </View>
-        
         <Text style={styles.role}>{conversation.role}</Text>
+        <Text style={styles.residentInfo}>Chăm sóc: {conversation.residentName}</Text>
         <Text style={styles.lastMessage} numberOfLines={2}>
           {conversation.lastMessage}
               </Text>
           </View>
-      
       {conversation.unread > 0 && (
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadText}>{conversation.unread}</Text>
@@ -317,56 +490,166 @@ const FamilyCommunicationScreen = ({ navigation }) => {
         message.isStaff ? styles.staffMessage : styles.familyMessage,
       ]}
     >
-      <Text style={[
+      <Text
+        style={[
         styles.messageText,
         message.isStaff ? styles.staffMessageText : styles.familyMessageText,
-      ]}>
+        ]}
+      >
         {message.message}
       </Text>
-      <Text style={[
+      <Text
+        style={[
         styles.messageTime,
         message.isStaff ? styles.staffMessageTime : styles.familyMessageTime,
-      ]}>
-        {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
+        ]}
+      >
+        {formatTime(message.timestamp)}
           </Text>
         </View>
+  );
+
+  const renderCreateMessageModal = () => (
+    <Modal
+      visible={showCreateMessage}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={() => setShowCreateMessage(false)}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity
+            style={styles.modalBackButton}
+            onPress={() => {
+              if (createMessageStep > 1) {
+                setCreateMessageStep(createMessageStep - 1);
+              } else {
+                setShowCreateMessage(false);
+              }
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>
+            {createMessageStep === 1 && 'Chọn người thân'}
+            {createMessageStep === 2 && 'Chọn bác sĩ'}
+            {createMessageStep === 3 && 'Soạn tin nhắn'}
+          </Text>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => setShowCreateMessage(false)}
+          >
+            <Ionicons name="close" size={24} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        {createMessageStep === 1 && (
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.stepDescription}>Chọn người thân cần trao đổi:</Text>
+            {familyResidents.map((resident) => (
+              <TouchableOpacity
+                key={resident.id}
+                style={styles.selectionItem}
+                onPress={() => handleSelectResident(resident)}
+              >
+                <Avatar.Image size={48} source={{ uri: resident.avatar }} />
+                <View style={styles.selectionInfo}>
+                  <Text style={styles.selectionName}>{resident.name}</Text>
+                  <Text style={styles.selectionDetails}>Phòng: {resident.room}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {createMessageStep === 2 && (
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.selectedInfo}>
+              <Avatar.Image size={32} source={{ uri: selectedResident?.avatar }} />
+              <Text style={styles.selectedText}>Người thân: {selectedResident?.name}</Text>
+            </View>
+            <Text style={styles.stepDescription}>Chọn bác sĩ chăm sóc:</Text>
+            {availableDoctors.map((staff) => (
+              <TouchableOpacity
+                key={staff._id}
+                style={styles.selectionItem}
+                onPress={() => handleSelectDoctor(staff)}
+              >
+                <View style={styles.doctorAvatarContainer}>
+                  <Avatar.Image size={48} source={{ uri: staff.avatar }} />
+                  {staff.online && <View style={styles.onlineIndicator} />}
+                </View>
+                <View style={styles.selectionInfo}>
+                  <Text style={styles.selectionName}>{staff.full_name}</Text>
+                  <Text style={styles.selectionDetails}>{staff.position}</Text>
+                  <Text style={styles.selectionSpecialization}>{staff.qualification}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {createMessageStep === 3 && (
+          <View style={styles.modalContent}>
+            <View style={styles.selectedInfo}>
+              <Avatar.Image size={32} source={{ uri: selectedResident?.avatar }} />
+              <Text style={styles.selectedText}>Người thân: {selectedResident?.name}</Text>
+            </View>
+            <View style={styles.selectedInfo}>
+              <Avatar.Image size={32} source={{ uri: selectedDoctor?.avatar }} />
+              <Text style={styles.selectedText}>Bác sĩ: {selectedDoctor?.full_name}</Text>
+            </View>
+            <Text style={styles.stepDescription}>Soạn tin nhắn:</Text>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Nhập nội dung tin nhắn..."
+              value={initialMessage}
+              onChangeText={setInitialMessage}
+              multiline
+              numberOfLines={4}
+            />
+            <Button
+              mode="contained"
+              onPress={handleCreateConversation}
+              style={styles.createButton}
+            >
+              Gửi tin nhắn
+            </Button>
+          </View>
+        )}
+      </SafeAreaView>
+    </Modal>
   );
   
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
-        <Text style={styles.loadingText}>Đang tải tin nhắn...</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </SafeAreaView>
     );
   }
 
   if (showChat && selectedConversation) {
-    const conversationMessages = messages[selectedConversation.id] || [];
-  
   return (
     <SafeAreaView style={styles.container}>
-        {/* Chat Header */}
         <View style={styles.chatHeader}>
-          <IconButton
-            icon="arrow-left"
-            size={24}
-            onPress={() => setShowChat(false)}
-          />
+          <TouchableOpacity onPress={() => setShowChat(false)}>
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
-            <Avatar.Image source={{ uri: selectedConversation.avatar }} size={40} />
+            <Avatar.Image size={40} source={{ uri: selectedConversation.avatar }} />
             <View style={styles.chatHeaderText}>
               <Text style={styles.chatHeaderName}>{selectedConversation.staffName}</Text>
-              <Text style={styles.chatHeaderRole}>{selectedConversation.role}</Text>
+              <Text style={styles.chatHeaderRole}>
+                {selectedConversation.role} • {selectedConversation.residentName}
+              </Text>
             </View>
           </View>
-          <IconButton icon="phone" size={24} onPress={() => {}} />
         </View>
 
-        {/* Messages */}
           <KeyboardAvoidingView 
           style={styles.chatContainer}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -374,11 +657,14 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           <ScrollView
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
+            ref={(ref) => {
+              this.scrollView = ref;
+            }}
+            onContentSizeChange={() => this.scrollView?.scrollToEnd({ animated: true })}
           >
-            {conversationMessages.map(renderMessage)}
+            {(messages[selectedConversation.id] || []).map(renderMessage)}
           </ScrollView>
             
-            {/* Message Input */}
             <View style={styles.messageInputContainer}>
               <TextInput
                 style={styles.messageInput}
@@ -386,14 +672,9 @@ const FamilyCommunicationScreen = ({ navigation }) => {
               onChangeText={setNewMessage}
                 placeholder="Nhập tin nhắn..."
                 multiline
-              maxLength={500}
             />
-            <TouchableOpacity
-              style={[styles.sendButton, { opacity: newMessage.trim() ? 1 : 0.5 }]}
-                onPress={handleSendMessage}
-              disabled={!newMessage.trim()}
-            >
-              <MaterialIcons name="send" size={24} color={COLORS.surface} />
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+              <MaterialIcons name="send" size={20} color="white" />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -417,43 +698,30 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Quick Actions */}
-        <Card style={styles.quickActionsCard}>
-          <Card.Content>
-            <Title style={styles.cardTitle}>Liên hệ nhanh</Title>
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('doctor')}>
-                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.primary + '20' }]}>
-                  <MaterialIcons name="local-hospital" size={24} color={COLORS.primary} />
-                </View>
-                <Text style={styles.quickActionText}>Bác sĩ</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('nurse')}>
-                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.accent + '20' }]}>
-                  <FontAwesome5 name="user-nurse" size={20} color={COLORS.accent} />
-                </View>
-                <Text style={styles.quickActionText}>Y tá</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.quickAction} onPress={() => handleQuickAction('support')}>
-                <View style={[styles.quickActionIcon, { backgroundColor: COLORS.secondary + '20' }]}>
-                  <MaterialIcons name="support-agent" size={24} color={COLORS.secondary} />
-                </View>
-                <Text style={styles.quickActionText}>Hỗ trợ</Text>
-              </TouchableOpacity>
-            </View>
-          </Card.Content>
-        </Card>
-
         {/* Conversations List */}
         <Card style={styles.conversationsCard}>
           <Card.Content>
             <Title style={styles.cardTitle}>Cuộc trò chuyện</Title>
-            {conversations.map(renderConversationItem)}
+            {conversations.length > 0 ? conversations.map(renderConversationItem) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Chưa có cuộc trò chuyện nào</Text>
+                <Text style={styles.emptyStateSubtext}>Nhấn nút + để bắt đầu trò chuyện với bác sĩ</Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <FAB
+        style={styles.fab}
+        icon="plus"
+        onPress={handleCreateNewMessage}
+        color="white"
+      />
+
+      {/* Create Message Modal */}
+      {renderCreateMessageModal()}
     </SafeAreaView>
   );
 };
@@ -477,7 +745,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 36,
     paddingHorizontal: 16,
-    paddingBottom: 80,
+    paddingBottom: 100, // Space for FAB
   },
   header: {
     marginBottom: 24,
@@ -494,18 +762,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     letterSpacing: 0.3,
-  },
-  quickActionsCard: {
-    marginBottom: 20,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 0,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
   },
   conversationsCard: {
     backgroundColor: 'white',
@@ -524,34 +780,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#1a1a1a',
     letterSpacing: 0.3,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-  },
-  quickAction: {
-    alignItems: 'center',
-    padding: 8,
-  },
-  quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  quickActionText: {
-    fontSize: 14,
-    color: '#333',
-    textAlign: 'center',
-    fontWeight: '500',
   },
   conversationItem: {
     flexDirection: 'row',
@@ -603,6 +831,11 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 4,
     fontWeight: '500',
+  },
+  residentInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
   lastMessage: {
     fontSize: 14,
@@ -760,6 +993,128 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.primary,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingTop: 45,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modalBackButton: {
+    padding: 8,
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  stepDescription: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  selectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectionInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  selectionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  selectionDetails: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  selectionSpecialization: {
+    fontSize: 13,
+    color: '#999',
+  },
+  selectedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  selectedText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#666',
+  },
+  doctorAvatarContainer: {
+    position: 'relative',
+  },
+  createButton: {
+    marginTop: 20,
   },
 });
 

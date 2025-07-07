@@ -1,185 +1,430 @@
 // Mock data for residents
 export const residents = [
   {
-    id: '1',
-    firstName: 'John',
-    lastName: 'Doe',
-    photo: 'https://randomuser.me/api/portraits/men/1.jpg',
-    roomNumber: '101',
-    dateOfBirth: '1945-05-15',
-    admissionDate: '2023-01-10',
-    medicalConditions: ['Diabetes', 'Hypertension', 'Arthritis'],
-    allergies: ['Penicillin', 'Peanuts'],
-    doctor: 'Dr. Sarah Johnson',
-    careLevel: 'Medium', // Low, Medium, High
-    dietaryRestrictions: 'Low sodium',
-    contactInfo: {
-      emergency: {
-        name: 'Jane Doe',
-        relationship: 'Daughter',
-        phone: '555-123-4567',
-        email: 'jane.doe@example.com',
-      },
+    id: 'res_001',
+    full_name: 'Nguyễn Văn Nam',
+    date_of_birth: new Date('1945-03-15'),
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+    admission_date: new Date('2024-01-10'),
+    family_member_id: 'f1',
+    medical_history: 'Tiểu đường type 2, huyết áp cao',
+    current_medications: [
+      { medication_name: 'Metformin', dosage: '500mg', frequency: '2 lần/ngày' },
+      { medication_name: 'Amlodipine', dosage: '5mg', frequency: '1 lần/ngày' }
+    ],
+    allergies: ['Penicillin', 'Sulfa drugs'],
+    emergency_contact: {
+      name: 'Trần Lê Chi Bảo',
+      phone: '0764634650',
+      relationship: 'con trai'
     },
-    status: 'Active',
+    care_level: 'intermediate',
+    status: 'active',
+    room_number: '101',
+    bed_number: 'A',
+    age: 79,
+    photo: 'https://randomuser.me/api/portraits/men/1.jpg'
   },
   {
-    id: '2',
-    firstName: 'Mary',
-    lastName: 'Smith',
-    photo: 'https://randomuser.me/api/portraits/women/2.jpg',
-    roomNumber: '102',
-    dateOfBirth: '1940-11-22',
-    admissionDate: '2022-09-15',
-    medicalConditions: ['Dementia', 'Osteoporosis'],
-    allergies: ['Sulfa drugs'],
-    doctor: 'Dr. Michael Chen',
-    careLevel: 'High',
-    dietaryRestrictions: 'Pureed food, Thickened liquids',
-    contactInfo: {
-      emergency: {
-        name: 'Robert Smith',
-        relationship: 'Son',
-        phone: '555-987-6543',
-        email: 'robert.smith@example.com',
-      },
-    },
-    status: 'Active',
-  },
-  {
-    id: '3',
-    firstName: 'William',
-    lastName: 'Johnson',
-    photo: 'https://randomuser.me/api/portraits/men/3.jpg',
-    roomNumber: '103',
-    dateOfBirth: '1950-03-28',
-    admissionDate: '2023-03-05',
-    medicalConditions: ['COPD', 'Heart Disease'],
+    id: 'res_002',
+    full_name: 'Lê Thị Hoa',
+    date_of_birth: new Date('1940-07-22'),
+    gender: 'female',
+    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+    admission_date: new Date('2024-02-15'),
+    family_member_id: 'f1',
+    medical_history: 'Sa sút trí tuệ, loét chân',
+    current_medications: [
+      { medication_name: 'Donepezil', dosage: '5mg', frequency: '1 lần/ngày' },
+      { medication_name: 'Vitamin D3', dosage: '1000 IU', frequency: '1 lần/ngày' }
+    ],
     allergies: ['Latex'],
-    doctor: 'Dr. Lisa Wong',
-    careLevel: 'Medium',
-    dietaryRestrictions: 'No restrictions',
-    contactInfo: {
-      emergency: {
-        name: 'Elizabeth Johnson',
-        relationship: 'Wife',
-        phone: '555-456-7890',
-        email: 'elizabeth.johnson@example.com',
-      },
+    emergency_contact: {
+      name: 'Trần Lê Chi Bảo',
+      phone: '0764634650',
+      relationship: 'con trai'
     },
-    status: 'Active',
+    care_level: 'intensive',
+    status: 'active',
+    room_number: '102',
+    bed_number: 'A',
+    age: 84,
+    photo: 'https://randomuser.me/api/portraits/women/2.jpg'
   },
   {
-    id: '4',
-    firstName: 'Patricia',
-    lastName: 'Brown',
-    photo: 'https://randomuser.me/api/portraits/women/4.jpg',
-    roomNumber: '104',
-    dateOfBirth: '1938-07-12',
-    admissionDate: '2022-11-20',
-    medicalConditions: ['Stroke recovery', 'Diabetes'],
+    id: 'res_003',
+    full_name: 'Trần Văn Bình',
+    date_of_birth: new Date('1948-11-08'),
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+    admission_date: new Date('2024-03-05'),
+    family_member_id: 'f1',
+    medical_history: 'Viêm khớp, đau lưng',
+    current_medications: [
+      { medication_name: 'Ibuprofen', dosage: '400mg', frequency: '3 lần/ngày' },
+      { medication_name: 'Glucosamine', dosage: '500mg', frequency: '2 lần/ngày' }
+    ],
     allergies: ['Aspirin'],
-    doctor: 'Dr. James Wilson',
-    careLevel: 'High',
-    dietaryRestrictions: 'Diabetic diet',
-    contactInfo: {
-      emergency: {
-        name: 'Michael Brown',
-        relationship: 'Son',
-        phone: '555-567-8901',
-        email: 'michael.brown@example.com',
-      },
+    emergency_contact: {
+      name: 'Trần Lê Chi Bảo',
+      phone: '0764634650',
+      relationship: 'con trai'
     },
-    status: 'Active',
-  },
-  {
-    id: '5',
-    firstName: 'Richard',
-    lastName: 'Miller',
-    photo: 'https://randomuser.me/api/portraits/men/5.jpg',
-    roomNumber: '105',
-    dateOfBirth: '1943-09-30',
-    admissionDate: '2023-02-18',
-    medicalConditions: ['Parkinson\'s', 'Depression'],
-    allergies: ['Shellfish'],
-    doctor: 'Dr. Emily Davis',
-    careLevel: 'Medium',
-    dietaryRestrictions: 'Low fat diet',
-    contactInfo: {
-      emergency: {
-        name: 'Susan Miller',
-        relationship: 'Daughter',
-        phone: '555-234-5678',
-        email: 'susan.miller@example.com',
-      },
-    },
-    status: 'Active',
-  },
+    care_level: 'basic',
+    status: 'active',
+    room_number: '201',
+    bed_number: 'A',
+    age: 76,
+    photo: 'https://randomuser.me/api/portraits/men/3.jpg'
+  }
 ];
 
-// Mock data for resident care plans
+// Mock data for care plans (gói dịch vụ chăm sóc)
 export const carePlans = [
+  // === GÓI CHĂM SÓC CHÍNH (MAIN PACKAGES) ===
   {
-    id: '1',
-    residentId: '1',
-    title: 'Daily Diabetes Management',
-    description: 'Management plan for blood sugar monitoring and insulin administration',
-    goals: [
-      'Maintain blood glucose between 100-150 mg/dL',
-      'Prevent hypoglycemic episodes',
-      'Promote self-care when appropriate',
+    _id: 'care_plan_001',
+    plan_name: 'Gói Chăm Sóc Tiêu Chuẩn',
+    description: 'Gói chăm sóc cơ bản cho người cao tuổi có sức khỏe ổn định',
+    monthly_price: 6000000, // 6 triệu VND/tháng
+    plan_type: 'cham_soc_tieu_chuan',
+    category: 'main',
+    services_included: [
+      'Kiểm tra sức khỏe định kỳ',
+      'Bác sĩ thăm khám 1 lần/tuần',
+      'Hỗ trợ sinh hoạt hàng ngày',
+      'Bữa ăn đầy đủ dinh dưỡng',
+      'Thuốc cơ bản',
+      'Hoạt động vui chơi giải trí',
+      'Tư vấn sức khỏe'
     ],
-    interventions: [
-      'Monitor blood glucose 3x daily before meals',
-      'Administer insulin as prescribed',
-      'Provide diabetic diet as specified by nutritionist',
-      'Educate on signs of high/low blood sugar',
-    ],
-    startDate: '2023-01-15',
-    reviewDate: '2023-04-15',
-    status: 'Active',
+    staff_ratio: '1:8',
+    duration_type: 'monthly',
+    prerequisites: ['Sức khỏe ổn định', 'Tự chăm sóc cơ bản'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
   },
   {
-    id: '2',
-    residentId: '1',
-    title: 'Mobility Support Plan',
-    description: 'Plan to maintain and improve mobility and prevent falls',
-    goals: [
-      'Maintain ability to transfer independently',
-      'Prevent falls',
-      'Strengthen lower extremities',
+    _id: 'care_plan_002',
+    plan_name: 'Gói Chăm Sóc Tích Cực',
+    description: 'Chăm sóc tích cực cho người cao tuổi cần hỗ trợ y tế thường xuyên',
+    monthly_price: 9000000, // 9 triệu VND/tháng
+    plan_type: 'cham_soc_tich_cuc',
+    category: 'main',
+    services_included: [
+      'Theo dõi sức khỏe thường xuyên',
+      'Bác sĩ thăm khám 2 lần/tuần',
+      'Điều dưỡng có mặt trong giờ hành chính',
+      'Vật lý trị liệu nhóm',
+      'Chế độ ăn dinh dưỡng cân bằng',
+      'Thuốc cơ bản theo đơn',
+      'Hoạt động giải trí hàng ngày'
     ],
-    interventions: [
-      'Physical therapy 3x weekly',
-      'Daily walking with assistance',
-      'Environmental safety checks',
-      'Use of walker when ambulating',
-    ],
-    startDate: '2023-01-20',
-    reviewDate: '2023-04-20',
-    status: 'Active',
+    staff_ratio: '1:5',
+    duration_type: 'monthly',
+    prerequisites: ['Cần hỗ trợ y tế', 'Bệnh mãn tính ổn định'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
   },
   {
-    id: '3',
-    residentId: '2',
-    title: 'Dementia Care Plan',
-    description: 'Comprehensive approach to managing dementia symptoms and maintaining quality of life',
-    goals: [
-      'Minimize behavioral disturbances',
-      'Maintain cognitive function',
-      'Ensure safety and prevent wandering',
+    _id: 'care_plan_003',
+    plan_name: 'Gói Chăm Sóc Đặc Biệt',
+    description: 'Dành cho những người cao tuổi cần chăm sóc đặc biệt với tình trạng sức khỏe phức tạp',
+    monthly_price: 12000000, // 12 triệu VND/tháng
+    plan_type: 'cham_soc_dac_biet',
+    category: 'main',
+    services_included: [
+      'Theo dõi sức khỏe 24/7',
+      'Bác sĩ chuyên khoa thăm khám hàng tuần',
+      'Điều dưỡng chuyên nghiệp túc trực',
+      'Vật lý trị liệu cá nhân hóa',
+      'Dinh dưỡng theo chỉ định bác sĩ',
+      'Thuốc và thiết bị y tế chuyên dụng',
+      'Tư vấn tâm lý cá nhân'
     ],
-    interventions: [
-      'Structured daily routine',
-      'Memory care activities daily',
-      'Redirect when agitated',
-      'Secure unit placement with wander guard',
-      'Regular family visits scheduled',
-    ],
-    startDate: '2022-09-20',
-    reviewDate: '2023-03-20',
-    status: 'Active',
+    staff_ratio: '1:3',
+    duration_type: 'monthly',
+    prerequisites: ['Tình trạng sức khỏe phức tạp', 'Cần theo dõi liên tục'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
   },
+  {
+    _id: 'care_plan_004',
+    plan_name: 'Gói Chăm Sóc Sa Sút Trí Tuệ',
+    description: 'Chăm sóc chuyên biệt cho người cao tuổi mắc chứng sa sút trí tuệ',
+    monthly_price: 10000000, // 10 triệu VND/tháng
+    plan_type: 'cham_soc_sa_sut_tri_tue',
+    category: 'main',
+    services_included: [
+      'Theo dõi hành vi 24/7',
+      'Bác sĩ thần kinh thăm khám định kỳ',
+      'Nhân viên được đào tạo chuyên biệt',
+      'Liệu pháp nhận thức',
+      'Môi trường an toàn, thân thiện',
+      'Thuốc điều trị chuyên khoa',
+      'Hỗ trợ gia đình',
+      'Hoạt động kích thích trí nhớ'
+    ],
+    staff_ratio: '1:4',
+    duration_type: 'monthly',
+    prerequisites: ['Chẩn đoán sa sút trí tuệ'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+
+  // === GÓI DỊCH VỤ PHỤ (SUPPLEMENTARY PACKAGES) ===
+  {
+    _id: 'care_plan_005',
+    plan_name: 'Dịch Vụ Hỗ Trợ Dinh Dưỡng',
+    description: 'Dịch vụ cho ăn qua sonde cho bệnh nhân không thể ăn bình thường',
+    monthly_price: 1500000, // 1.5 triệu VND/tháng
+    plan_type: 'ho_tro_dinh_duong',
+    category: 'supplementary',
+    services_included: [
+      'Cho ăn qua sonde theo lịch trình',
+      'Vệ sinh và chăm sóc ống sonde',
+      'Theo dõi dinh dưỡng',
+      'Báo cáo tình trạng hàng ngày'
+    ],
+    staff_ratio: 'chuyên biệt',
+    duration_type: 'monthly',
+    prerequisites: ['Có ống sonde', 'Chỉ định của bác sĩ'],
+    contraindications: ['Nhiễm trùng đường tiêu hóa'],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'care_plan_006',
+    plan_name: 'Chăm Sóc Vết Thương',
+    description: 'Chăm sóc và thay băng vết thương chuyên nghiệp',
+    monthly_price: 2000000, // 2 triệu VND/tháng
+    plan_type: 'cham_soc_vet_thuong',
+    category: 'supplementary',
+    services_included: [
+      'Thay băng vết thương hàng ngày',
+      'Sát trùng và vệ sinh vết thương',
+      'Theo dõi quá trình lành vết thương',
+      'Báo cáo tiến triển cho bác sĩ'
+    ],
+    staff_ratio: 'chuyên biệt',
+    duration_type: 'monthly',
+    prerequisites: ['Có vết thương cần chăm sóc'],
+    contraindications: ['Dị ứng với thuốc bôi'],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'care_plan_007',
+    plan_name: 'Vật Lý Trị Liệu',
+    description: 'Vật lý trị liệu cá nhân hóa để phục hồi chức năng vận động',
+    monthly_price: 2500000, // 2.5 triệu VND/tháng
+    plan_type: 'vat_ly_tri_lieu',
+    category: 'supplementary',
+    services_included: [
+      'Đánh giá chức năng vận động',
+      'Bài tập vật lý trị liệu cá nhân',
+      'Massage y học',
+      'Tư vấn về hoạt động hàng ngày'
+    ],
+    staff_ratio: '1:1 (trong session)',
+    duration_type: 'monthly',
+    prerequisites: ['Cần phục hồi chức năng'],
+    contraindications: ['Cấm vận động'],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'care_plan_008',
+    plan_name: 'Chăm Sóc Bệnh Tiểu Đường',
+    description: 'Chăm sóc chuyên biệt cho người mắc bệnh tiểu đường',
+    monthly_price: 1500000, // 1.5 triệu VND/tháng
+    plan_type: 'cham_soc_tieu_duong',
+    category: 'supplementary',
+    services_included: [
+      'Theo dõi đường huyết hàng ngày',
+      'Chế độ ăn kiêng chuyên biệt',
+      'Giáo dục về bệnh tiểu đường',
+      'Chăm sóc chân đặc biệt'
+    ],
+    staff_ratio: 'chuyên biệt',
+    duration_type: 'monthly',
+    prerequisites: ['Chẩn đoán tiểu đường'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'care_plan_009',
+    plan_name: 'Phục Hồi Chức Năng',
+    description: 'Chương trình phục hồi chức năng sau bệnh tật hoặc chấn thương',
+    monthly_price: 3000000, // 3 triệu VND/tháng
+    plan_type: 'phuc_hoi_chuc_nang',
+    category: 'supplementary',
+    services_included: [
+      'Đánh giá khả năng vận động',
+      'Lập kế hoạch phục hồi cá nhân',
+      'Tập luyện vận động cơ bản',
+      'Theo dõi tiến độ phục hồi'
+    ],
+    staff_ratio: '1:2',
+    duration_type: 'monthly',
+    prerequisites: ['Cần phục hồi chức năng'],
+    contraindications: ['Cấm vận động'],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'care_plan_010',
+    plan_name: 'Chăm Sóc Giảm Nhẹ',
+    description: 'Chăm sóc giảm nhẹ cho người cao tuổi mắc bệnh mãn tính',
+    monthly_price: 2000000, // 2 triệu VND/tháng
+    plan_type: 'cham_soc_giam_nhe',
+    category: 'supplementary',
+    services_included: [
+      'Kiểm soát đau',
+      'Hỗ trợ tâm lý',
+      'Chăm sóc triệu chứng',
+      'Tư vấn gia đình'
+    ],
+    staff_ratio: 'chuyên biệt',
+    duration_type: 'monthly',
+    prerequisites: ['Bệnh mãn tính giai đoạn cuối'],
+    contraindications: [],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  }
+];
+
+// Mock data for care plan assignments (gán gói dịch vụ cho cư dân)
+export const carePlanAssignments = [
+  {
+    _id: 'assignment_001',
+    staff_id: 'staff_001',
+    care_plan_ids: ['care_plan_002', 'care_plan_005'], // Gói tích cực + Dinh dưỡng
+    resident_id: 'res_001',
+    family_member_id: 'f1',
+    registration_date: new Date('2024-01-05'),
+    consultation_notes: 'Bệnh nhân cần chăm sóc tăng cường do tiểu đường và huyết áp cao. Gia đình mong muốn phòng có ít người để dễ thăm nom.',
+    selected_room_type: '3_bed',
+    assigned_room_id: 'room_101',
+    assigned_bed_id: 'bed_101A',
+    family_preferences: {
+      preferred_room_gender: 'male',
+      preferred_floor: 2,
+      special_requests: 'Gần cửa sổ, thoáng mát'
+    },
+    total_monthly_cost: 17000000, // 9M (tích cực) + 6.5M (phòng 3 giường) + 1.5M (dinh dưỡng)
+    room_monthly_cost: 6500000,
+    care_plans_monthly_cost: 10500000, // 9M + 1.5M
+    start_date: new Date('2024-01-10'),
+    end_date: new Date('2024-04-10'),
+    additional_medications: [
+      {
+        medication_name: 'Vitamin D3',
+        dosage: '1000 IU',
+        frequency: '1 lần/ngày'
+      }
+    ],
+    status: 'active',
+    payment_status: 'fully_paid',
+    notes: 'Đã hoàn tất thanh toán. Bệnh nhân đã ổn định trong gói chăm sóc.',
+    created_at: new Date('2024-01-05'),
+    updated_at: new Date('2024-01-10'),
+    // Populated data for display
+    main_care_plan: carePlans.find(p => p._id === 'care_plan_002'),
+    supplementary_plans: [carePlans.find(p => p._id === 'care_plan_005')],
+    resident: residents.find(r => r.id === 'res_001')
+  },
+  {
+    _id: 'assignment_002',
+    staff_id: 'staff_002',
+    care_plan_ids: ['care_plan_004', 'care_plan_006'], // Gói sa sút trí tuệ + Vết thương
+    resident_id: 'res_002',
+    family_member_id: 'f1',
+    registration_date: new Date('2024-02-10'),
+    consultation_notes: 'Bệnh nhân mắc sa sút trí tuệ giai đoạn vừa, có vết loét chân cần chăm sóc đặc biệt. Gia đình yêu cầu môi trường yên tĩnh.',
+    selected_room_type: '2_bed',
+    assigned_room_id: 'room_102',
+    assigned_bed_id: 'bed_102A',
+    family_preferences: {
+      preferred_room_gender: 'female',
+      preferred_floor: 1,
+      special_requests: 'Phòng yên tĩnh, ít tiếng ồn'
+    },
+    total_monthly_cost: 20000000, // 10M (sa sút trí tuệ) + 8M (phòng 2 giường) + 2M (vết thương)
+    room_monthly_cost: 8000000,
+    care_plans_monthly_cost: 12000000, // 10M + 2M
+    start_date: new Date('2024-02-15'),
+    end_date: new Date('2024-05-15'),
+    additional_medications: [
+      {
+        medication_name: 'Glucosamine',
+        dosage: '500mg',
+        frequency: '2 lần/ngày'
+      },
+      {
+        medication_name: 'Omega-3',
+        dosage: '1000mg',
+        frequency: '1 lần/ngày'
+      }
+    ],
+    status: 'active',
+    payment_status: 'fully_paid',
+    notes: 'Gói chăm sóc đặc biệt cho sa sút trí tuệ, theo dõi chặt chẽ vết thương.',
+    created_at: new Date('2024-02-10'),
+    updated_at: new Date('2024-02-15'),
+    // Populated data for display
+    main_care_plan: carePlans.find(p => p._id === 'care_plan_004'),
+    supplementary_plans: [carePlans.find(p => p._id === 'care_plan_006')],
+    resident: residents.find(r => r.id === 'res_002')
+  },
+  {
+    _id: 'assignment_003',
+    staff_id: 'staff_001',
+    care_plan_ids: ['care_plan_001'], // Chỉ gói tiêu chuẩn
+    resident_id: 'res_003',
+    family_member_id: 'f1',
+    registration_date: new Date('2024-03-01'),
+    consultation_notes: 'Bệnh nhân có sức khỏe ổn định, chỉ cần chăm sóc cơ bản.',
+    selected_room_type: '4_5_bed',
+    assigned_room_id: 'room_201',
+    assigned_bed_id: 'bed_201A',
+    family_preferences: {
+      preferred_room_gender: 'male',
+      preferred_floor: 2,
+      special_requests: 'Không có yêu cầu đặc biệt'
+    },
+    total_monthly_cost: 11000000, // 6M (tiêu chuẩn) + 5M (phòng 4-5 giường)
+    room_monthly_cost: 5000000,
+    care_plans_monthly_cost: 6000000, // 6M
+    start_date: new Date('2024-03-05'),
+    end_date: new Date('2024-06-05'),
+    additional_medications: [],
+    status: 'active',
+    payment_status: 'pending',
+    notes: 'Gói chăm sóc cơ bản, chờ thanh toán.',
+    created_at: new Date('2024-03-01'),
+    updated_at: new Date('2024-03-01'),
+    // Populated data for display
+    main_care_plan: carePlans.find(p => p._id === 'care_plan_001'),
+    supplementary_plans: [],
+    resident: residents.find(r => r.id === 'res_003')
+  }
 ];
 
 // Mock data for medications
@@ -1943,74 +2188,244 @@ export const mockNotifications = [
   }
 ];
 
+// Mock data for recent updates (different from notifications)
+export const recentUpdates = [
+  {
+    id: 'update_001',
+    type: 'assessment',
+    title: 'Đánh giá trong ngày',
+    residentName: 'Lê Thị Hoa',
+    residentId: 'res_002',
+    message: 'Đánh giá tổng thể tình trạng sức khỏe và tinh thần trong ngày. Tinh thần tốt, ăn uống bình thường.',
+    date: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    time: '17:00',
+    read: false,
+    navigationTarget: 'Assessment',
+    staffName: 'Y tá Nguyễn Thị Mai',
+  },
+  {
+    id: 'update_002',
+    type: 'meal',
+    title: 'Bữa ăn trưa',
+    residentName: 'Nguyễn Văn Nam & Lê Thị Hoa',
+    residentId: 'multiple',
+    message: 'Đã hoàn thành bữa ăn trưa với đầy đủ dinh dưỡng. Menu: Cơm, thịt kho tàu, canh chua.',
+    date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    time: '12:00',
+    read: true,
+    navigationTarget: 'MealTracking',
+    staffName: 'Nhân viên phục vụ Trần Văn Dũng',
+  },
+  {
+    id: 'update_003',
+    type: 'vital_signs',
+    title: 'Đo chỉ số sinh hiệu',
+    residentName: 'Nguyễn Văn Nam',
+    residentId: 'res_001',
+    message: 'Huyết áp: 125/80 mmHg, Nhịp tim: 72 BPM, Nhiệt độ: 36.5°C, SpO2: 98%',
+    date: new Date(Date.now() - 17 * 60 * 60 * 1000).toISOString(),
+    time: '09:15',
+    read: true,
+    navigationTarget: 'VitalSigns',
+    staffName: 'Y tá Phạm Thị Lan',
+  },
+  {
+    id: 'update_004',
+    type: 'activity',
+    title: 'Tham gia hoạt động tập thể dục buổi sáng',
+    residentName: 'Nguyễn Văn Nam',
+    residentId: 'res_001',
+    message: 'Tham gia đầy đủ các bài tập thể dục nhẹ nhàng, tinh thần phấn chấn.',
+    date: new Date(Date.now() - 19 * 60 * 60 * 1000).toISOString(),
+    time: '07:00',
+    read: true,
+    navigationTarget: 'ActivityDetails',
+    staffName: 'Nhân viên hoạt động Lê Văn Hùng',
+  },
+  {
+    id: 'update_005',
+    type: 'medication',
+    title: 'Uống thuốc theo lịch trình',
+    residentName: 'Lê Thị Hoa',
+    residentId: 'res_002',
+    message: 'Đã uống đầy đủ thuốc theo chỉ định của bác sĩ: Amlodipine 5mg, Metformin 500mg.',
+    date: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+    time: '06:30',
+    read: true,
+    navigationTarget: 'MedicationTracking',
+    staffName: 'Y tá Nguyễn Thị Mai',
+  },
+  {
+    id: 'update_006',
+    type: 'assessment',
+    title: 'Đánh giá tình trạng giấc ngủ',
+    residentName: 'Trần Văn Bình',
+    residentId: 'res_003',
+    message: 'Ngủ được 7 tiếng, không bị thức giấc trong đêm. Tình trạng cải thiện so với tuần trước.',
+    date: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+    time: '08:30',
+    read: true,
+    navigationTarget: 'Assessment',
+    staffName: 'Y tá trưởng Hoàng Thị Nga',
+  },
+  {
+    id: 'update_007',
+    type: 'vital_signs',
+    title: 'Kiểm tra chỉ số sáng',
+    residentName: 'Lê Thị Hoa',
+    residentId: 'res_002',
+    message: 'Huyết áp: 118/75 mmHg, Nhịp tim: 68 BPM, Nhiệt độ: 36.3°C. Các chỉ số bình thường.',
+    date: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+    time: '07:45',
+    read: true,
+    navigationTarget: 'VitalSigns',
+    staffName: 'Y tá Phạm Thị Lan',
+  },
+  {
+    id: 'update_008',
+    type: 'activity',
+    title: 'Tham gia liệu pháp âm nhạc',
+    residentName: 'Trần Văn Bình',
+    residentId: 'res_003',
+    message: 'Tích cực tham gia hát những bài hát cũ, tinh thần vui vẻ.',
+    date: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
+    time: '14:30',
+    read: true,
+    navigationTarget: 'ActivityDetails',
+    staffName: 'Chuyên viên âm nhạc Đỗ Thị Hương',
+  },
+];
+
+// Mock data for family notifications (different from recent updates)
+export const familyNotifications = [
+  {
+    id: 'notif_001',
+    type: 'payment',
+    title: 'Thông báo thanh toán viện phí',
+    message: 'Viện phí tháng 12/2024 đã được thanh toán thành công. Số tiền: 15.500.000 VNĐ.',
+    date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    time: '14:30',
+    read: false,
+    priority: 'normal',
+    actionRequired: false,
+  },
+  {
+    id: 'notif_002',
+    type: 'visit_approval',
+    title: 'Lịch thăm được phê duyệt',
+    message: 'Lịch thăm ngày 28/12/2024 lúc 15:00 đã được phê duyệt. Vui lòng đến đúng giờ.',
+    date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    time: '11:15',
+    read: false,
+    priority: 'high',
+    actionRequired: true,
+  },
+  {
+    id: 'notif_003',
+    type: 'visit_booking',
+    title: 'Đặt lịch thăm thành công',
+    message: 'Bạn đã đặt lịch thăm thành công cho ngày 28/12/2024 lúc 15:00. Đang chờ phê duyệt.',
+    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    time: '16:45',
+    read: true,
+    priority: 'normal',
+    actionRequired: false,
+  },
+  {
+    id: 'notif_004',
+    type: 'service_update',
+    title: 'Cập nhật dịch vụ mới',
+    message: 'Viện đã bổ sung dịch vụ vật lý trị liệu mới với thiết bị hiện đại. Liên hệ để đăng ký.',
+    date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    time: '09:00',
+    read: true,
+    priority: 'normal',
+    actionRequired: false,
+  },
+  {
+    id: 'notif_005',
+    type: 'system_maintenance',
+    title: 'Bảo trì hệ thống',
+    message: 'Hệ thống sẽ được bảo trì vào 02:00-04:00 ngày 25/12/2024. Một số tính năng có thể bị gián đoạn.',
+    date: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+    time: '18:30',
+    read: true,
+    priority: 'low',
+    actionRequired: false,
+  },
+  {
+    id: 'notif_006',
+    type: 'payment_reminder',
+    title: 'Nhắc nhở thanh toán',
+    message: 'Viện phí tháng 1/2025 sẽ đến hạn vào ngày 05/01/2025. Vui lòng chuẩn bị thanh toán.',
+    date: new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString(),
+    time: '10:00',
+    read: true,
+    priority: 'high',
+    actionRequired: true,
+  },
+];
+
 // Mock data for family members
 export const familyMembers = [
   {
     id: 'f1',
-    email: 'khoa@gmail.com',
+    email: 'bao@gmail.com',
     password: '123456',
-    firstName: 'Jane',
-    lastName: 'Doe',
-    phone: '555-123-4567',
-    relationship: 'Daughter',
-    residentId: '1', // John Doe
-    photo: 'https://randomuser.me/api/portraits/women/11.jpg',
+    full_name: 'Trần Lê Chi Bảo',
+    phone: '0764634650',
+    relationship: 'con trai',
+    residentIds: ['res_001', 'res_002', 'res_003'], // Multiple residents
+    photo: 'https://randomuser.me/api/portraits/men/20.jpg',
     role: 'family',
+    address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
+    emergencyContact: '0764634650',
+    username: 'family_bao',
+    notes: 'Primary contact for multiple residents',
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
   },
   {
     id: 'f2',
-    email: 'robert.smith@example.com',
+    email: 'hoa.nguyen@gmail.com',
     password: 'password123',
-    firstName: 'Robert',
-    lastName: 'Smith',
-    phone: '555-987-6543',
-    relationship: 'Son',
-    residentId: '2', // Mary Smith
-    photo: 'https://randomuser.me/api/portraits/men/12.jpg',
+    full_name: 'Nguyễn Thị Hoa',
+    phone: '0912345678',
+    relationship: 'con gái',
+    residentIds: ['res_004'], // Single resident
+    photo: 'https://randomuser.me/api/portraits/women/25.jpg',
     role: 'family',
+    address: '456 Đường ABC, Quận 1, TP.HCM',
+    emergencyContact: '0912345678',
+    username: 'family_hoa',
+    notes: 'Daughter of resident Nguyễn Văn Nam',
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
   },
   {
     id: 'f3',
-    email: 'elizabeth.johnson@example.com',
-    password: 'password123',
-    firstName: 'Elizabeth',
-    lastName: 'Johnson',
-    phone: '555-456-7890',
-    relationship: 'Wife',
-    residentId: '3', // William Johnson
-    photo: 'https://randomuser.me/api/portraits/women/13.jpg',
+    email: 'minh.tran@gmail.com',
+    password: 'password456',
+    full_name: 'Trần Văn Minh',
+    phone: '0912345679',
+    relationship: 'con trai',
+    residentIds: ['res_005'], // Single resident
+    photo: 'https://randomuser.me/api/portraits/men/30.jpg',
     role: 'family',
-  },
-  {
-    id: 'f4',
-    email: 'michael.brown@example.com',
-    password: 'password123',
-    firstName: 'Michael',
-    lastName: 'Brown',
-    phone: '555-567-8901',
-    relationship: 'Son',
-    residentId: '4', // Patricia Brown
-    photo: 'https://randomuser.me/api/portraits/men/14.jpg',
-    role: 'family',
-  },
-  {
-    id: 'f5',
-    email: 'susan.miller@example.com',
-    password: 'password123',
-    firstName: 'Susan',
-    lastName: 'Miller',
-    phone: '555-234-5678',
-    relationship: 'Daughter',
-    residentId: '5', // Richard Miller
-    photo: 'https://randomuser.me/api/portraits/women/15.jpg',
-    role: 'family',
-  },
+    address: '789 Đường XYZ, Quận 3, TP.HCM',
+    emergencyContact: '0912345679',
+    username: 'family_minh',
+    notes: 'Son of resident Trần Thị Lan',
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  }
 ];
 
 // Export all mock data
 export default {
   residents,
   carePlans,
+  carePlanAssignments,
   medications,
   vitals,
   staff,
@@ -2026,5 +2441,7 @@ export default {
   mockStaff,
   mockTasks,
   mockNotifications,
-  familyMembers
+  familyMembers,
+  recentUpdates,
+  familyNotifications
 }; 
