@@ -261,11 +261,12 @@ export const getResidents = async () => {
   
   // Sử dụng data từ file chính mockData.js để đảm bảo consistency
   return MAIN_RESIDENTS.map(resident => ({
-    id: resident.id,
-    name: `${resident.firstName} ${resident.lastName}`,
-    room: resident.roomNumber, // Sử dụng roomNumber từ file chính
+    _id: resident._id,
+    id: resident._id, // For backward compatibility
+    name: resident.full_name,
+    room: `${resident.room_number}-${resident.bed_number}`,
     status: resident.status
-  }));
+  })).filter(resident => resident && resident._id); // Filter out any null/undefined
 };
 
 /**

@@ -9,14 +9,20 @@ const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 50
 // Mock user database for authentication
 const mockUsers = [
   ...staff.map(staffMember => ({
-    id: staffMember.id,
+    id: staffMember._id, // dùng _id cho thống nhất với DB
     email: staffMember.email,
-    password: 'password123', // In a real app, this would be hashed
-    full_name: `${staffMember.firstName} ${staffMember.lastName}`,
-    firstName: staffMember.firstName,
-    lastName: staffMember.lastName,
+    password: staffMember.password, // lấy đúng password từ mockData.js
+    full_name: staffMember.full_name,
     role: staffMember.role,
-    photo: staffMember.photo,
+    photo: staffMember.avatar,
+    phone: staffMember.phone,
+    position: staffMember.position,
+    qualification: staffMember.qualification,
+    join_date: staffMember.join_date,
+    status: staffMember.status,
+    notes: staffMember.notes,
+    username: staffMember.username,
+    // Có thể bổ sung các trường khác nếu cần
   })),
   ...familyMembers.map(familyMember => ({
     id: familyMember.id,
@@ -67,14 +73,22 @@ const authService = {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
-      photo: user.photo,
+      avatar: user.photo, // đồng bộ cho UI
+      phone: user.phone,
+      // Staff-specific fields
+      position: user.position,
+      qualification: user.qualification,
+      join_date: user.join_date,
+      status: user.status,
+      notes: user.notes,
+      username: user.username,
+      // Family-specific fields
       relationship: user.relationship,
       residentId: user.residentId,
       residentIds: user.residentIds,
-      phone: user.phone,
       address: user.address,
-      username: user.username,
-      notes: user.notes,
+      // Admin-specific fields
+      is_super_admin: user.is_super_admin,
     }));
     
     return {
@@ -86,14 +100,22 @@ const authService = {
           lastName: user.lastName,
           email: user.email,
           role: user.role,
-          photo: user.photo,
+          avatar: user.photo, // đồng bộ cho UI
+          phone: user.phone,
+          // Staff-specific fields
+          position: user.position,
+          qualification: user.qualification,
+          join_date: user.join_date,
+          status: user.status,
+          notes: user.notes,
+          username: user.username,
+          // Family-specific fields
           relationship: user.relationship,
           residentId: user.residentId,
           residentIds: user.residentIds,
-          phone: user.phone,
           address: user.address,
-          username: user.username,
-          notes: user.notes,
+          // Admin-specific fields
+          is_super_admin: user.is_super_admin,
         },
         tokens: {
           authToken,

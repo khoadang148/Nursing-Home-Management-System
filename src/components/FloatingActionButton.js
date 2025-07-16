@@ -31,7 +31,7 @@ const FloatingActionButton = ({ navigation, userRole = 'staff' }) => {
     {
       icon: 'message',
       label: 'Tin Nhắn Mới',
-      onPress: () => navigation.navigate('TinNhan', { screen: 'SoanTin' }),
+              onPress: () => navigation.navigate('TinNhanTab', { screen: 'SoanTin' }),
     },
     {
       icon: 'calendar',

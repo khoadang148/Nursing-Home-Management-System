@@ -1,7 +1,7 @@
 // Mock data for residents
 export const residents = [
   {
-    id: 'res_001',
+    _id: 'res_001',
     full_name: 'Nguyễn Văn Nam',
     date_of_birth: new Date('1945-03-15'),
     gender: 'male',
@@ -27,7 +27,7 @@ export const residents = [
     photo: 'https://randomuser.me/api/portraits/men/1.jpg'
   },
   {
-    id: 'res_002',
+    _id: 'res_002',
     full_name: 'Lê Thị Hoa',
     date_of_birth: new Date('1940-07-22'),
     gender: 'female',
@@ -53,7 +53,7 @@ export const residents = [
     photo: 'https://randomuser.me/api/portraits/women/2.jpg'
   },
   {
-    id: 'res_003',
+    _id: 'res_003',
     full_name: 'Trần Văn Bình',
     date_of_birth: new Date('1948-11-08'),
     gender: 'male',
@@ -310,6 +310,79 @@ export const carePlans = [
   }
 ];
 
+// Mock data for room types (loại phòng và giá)
+export const roomTypes = [
+  {
+    _id: 'room_type_001',
+    room_type: '2_bed',
+    type_name: 'Phòng 2 giường',
+    bed_count: '2 giường',
+    monthly_price: 8000000, // 8 triệu VND/tháng
+    description: 'Phòng riêng tư với 2 giường, không gian rộng rãi và thoải mái',
+    amenities: [
+      'Điều hòa riêng biệt', 
+      'Tủ quần áo cá nhân', 
+      'Bàn làm việc nhỏ',
+      'TV màn hình phẳng',
+      'Phòng tắm riêng'
+    ],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'room_type_002',
+    room_type: '3_bed',
+    type_name: 'Phòng 3 giường',
+    bed_count: '3 giường', 
+    monthly_price: 6500000, // 6.5 triệu VND/tháng
+    description: 'Phòng chia sẻ nhỏ với 3 giường, phù hợp cho những người thích có bạn đồng phòng',
+    amenities: [
+      'Điều hòa chung',
+      'Tủ quần áo cá nhân', 
+      'TV chung',
+      'Phòng tắm chung trong phòng'
+    ],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'room_type_003',
+    room_type: '4_5_bed',
+    type_name: 'Phòng 4-5 giường',
+    bed_count: '4-5 giường',
+    monthly_price: 5500000, // 5.5 triệu VND/tháng
+    description: 'Phòng chia sẻ vừa phải với 4-5 giường, môi trường cộng đồng ấm cúng',
+    amenities: [
+      'Điều hòa chung',
+      'Tủ đầu giường cá nhân',
+      'TV chung', 
+      'Phòng tắm chung'
+    ],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  },
+  {
+    _id: 'room_type_004',
+    room_type: '6_8_bed',
+    type_name: 'Phòng 6-8 giường',
+    bed_count: '6-8 giường',
+    monthly_price: 4500000, // 4.5 triệu VND/tháng
+    description: 'Phòng chia sẻ lớn với 6-8 giường, phù hợp cho những người thích không khí đông đúc',
+    amenities: [
+      'Điều hòa chung',
+      'Tủ đầu giường cá nhân',
+      'TV chung',
+      'Phòng tắm chung'
+    ],
+    is_active: true,
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01')
+  }
+];
+
 // Mock data for care plan assignments (gán gói dịch vụ cho cư dân)
 export const carePlanAssignments = [
   {
@@ -348,7 +421,7 @@ export const carePlanAssignments = [
     // Populated data for display
     main_care_plan: carePlans.find(p => p._id === 'care_plan_002'),
     supplementary_plans: [carePlans.find(p => p._id === 'care_plan_005')],
-    resident: residents.find(r => r.id === 'res_001')
+    resident: residents.find(r => r._id === 'res_001')
   },
   {
     _id: 'assignment_002',
@@ -391,7 +464,7 @@ export const carePlanAssignments = [
     // Populated data for display
     main_care_plan: carePlans.find(p => p._id === 'care_plan_004'),
     supplementary_plans: [carePlans.find(p => p._id === 'care_plan_006')],
-    resident: residents.find(r => r.id === 'res_002')
+    resident: residents.find(r => r._id === 'res_002')
   },
   {
     _id: 'assignment_003',
@@ -662,118 +735,93 @@ export const vitals = [
   },
 ];
 
-// Mock data for staff
+// Mock data for staff (updated to match database users collection with role staff)
 export const staff = [
   {
-    id: '1',
-    firstName: 'Jane',
-    lastName: 'Wilson',
-    photo: 'https://randomuser.me/api/portraits/women/21.jpg',
-    role: 'Registered Nurse',
-    department: 'Nursing',
-    contactNumber: '555-111-2222',
+    _id: 'staff_001',
+    full_name: 'Phạm Đăng Khoa',
     email: 'khoadang@gmail.com',
-    qualifications: ['RN', 'BSN', 'Wound Care Certified'],
-    hireDate: '2020-05-15',
-    schedule: {
-      monday: { start: '07:00', end: '19:00' },
-      tuesday: { start: '07:00', end: '19:00' },
-      wednesday: { start: null, end: null },
-      thursday: { start: null, end: null },
-      friday: { start: '07:00', end: '19:00' },
-      saturday: { start: null, end: null },
-      sunday: { start: null, end: null },
-    },
-    status: 'Active',
+    phone: '0586021483',
+    username: 'khoadang',
+    password: '123456',
+    role: 'staff',
+    status: 'active',
+    position: 'Điều dưỡng',
+    qualification: 'Cử nhân Điều dưỡng',
+    join_date: '2023-01-15', // ISO string
+    avatar: 'https://i.ibb.co/Lh1QQtmh/HulRxJcz.jpg',
+    notes: 'Experienced nurse specializing in elderly care',
+    created_at: '2023-01-15',
+    updated_at: '2023-01-15'
   },
   {
-    id: '2',
-    firstName: 'Mark',
-    lastName: 'Thompson',
-    photo: 'https://randomuser.me/api/portraits/men/22.jpg',
-    role: 'Licensed Practical Nurse',
-    department: 'Nursing',
-    contactNumber: '555-222-3333',
-    email: 'mark.thompson@nhms.example.com',
-    qualifications: ['LPN'],
-    hireDate: '2021-02-10',
-    schedule: {
-      monday: { start: null, end: null },
-      tuesday: { start: null, end: null },
-      wednesday: { start: '07:00', end: '19:00' },
-      thursday: { start: '07:00', end: '19:00' },
-      friday: { start: null, end: null },
-      saturday: { start: '07:00', end: '19:00' },
-      sunday: { start: '07:00', end: '19:00' },
-    },
-    status: 'Active',
+    _id: 'staff_002',
+    full_name: 'Phạm Thị Doctor',
+    email: 'doctor1@nhms.com',
+    phone: '0901234570',
+    username: 'doctor1',
+    password: '$2a$10$hashedpassword101',
+    role: 'staff',
+    status: 'active',
+    position: 'Bác sĩ',
+    qualification: 'Thạc sĩ Y khoa',
+    join_date: '2022-06-01',
+    avatar: 'https://randomuser.me/api/portraits/women/15.jpg',
+    notes: 'Geriatric specialist',
+    created_at: '2022-06-01',
+    updated_at: '2022-06-01'
   },
   {
-    id: '3',
-    firstName: 'Sarah',
-    lastName: 'Martinez',
-    photo: 'https://randomuser.me/api/portraits/women/23.jpg',
-    role: 'Certified Nursing Assistant',
-    department: 'Nursing',
-    contactNumber: '555-333-4444',
-    email: 'sarah.martinez@nhms.example.com',
-    qualifications: ['CNA'],
-    hireDate: '2022-01-05',
-    schedule: {
-      monday: { start: '07:00', end: '15:00' },
-      tuesday: { start: '07:00', end: '15:00' },
-      wednesday: { start: '07:00', end: '15:00' },
-      thursday: { start: '07:00', end: '15:00' },
-      friday: { start: '07:00', end: '15:00' },
-      saturday: { start: null, end: null },
-      sunday: { start: null, end: null },
-    },
-    status: 'Active',
+    _id: 'staff_003',
+    full_name: 'Hoàng Văn Caregiver',
+    email: 'caregiver1@nhms.com',
+    phone: '0901234571',
+    username: 'caregiver1',
+    password: '$2a$10$hashedpassword202',
+    role: 'staff',
+    status: 'active',
+    position: 'Nhân viên chăm sóc',
+    qualification: 'Chứng chỉ chăm sóc người cao tuổi',
+    join_date: '2023-03-10',
+    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
+    notes: 'Dedicated caregiver with 5 years experience',
+    created_at: '2023-03-10',
+    updated_at: '2023-03-10'
   },
   {
-    id: '4',
-    firstName: 'David',
-    lastName: 'Brown',
-    photo: 'https://randomuser.me/api/portraits/men/24.jpg',
-    role: 'Physical Therapist',
-    department: 'Rehabilitation',
-    contactNumber: '555-444-5555',
-    email: 'david.brown@nhms.example.com',
-    qualifications: ['PT', 'DPT'],
-    hireDate: '2019-08-20',
-    schedule: {
-      monday: { start: '09:00', end: '17:00' },
-      tuesday: { start: '09:00', end: '17:00' },
-      wednesday: { start: '09:00', end: '17:00' },
-      thursday: { start: '09:00', end: '17:00' },
-      friday: { start: '09:00', end: '17:00' },
-      saturday: { start: null, end: null },
-      sunday: { start: null, end: null },
-    },
-    status: 'Active',
+    _id: 'staff_004',
+    full_name: 'Nguyễn Thị Mai',
+    email: 'nurse2@nhms.com',
+    phone: '0901234572',
+    username: 'nurse2',
+    password: '$2a$10$hashedpassword303',
+    role: 'staff',
+    status: 'active',
+    position: 'Điều dưỡng',
+    qualification: 'Cử nhân Điều dưỡng',
+    join_date: '2023-02-20',
+    avatar: 'https://randomuser.me/api/portraits/women/20.jpg',
+    notes: 'Specialized in wound care',
+    created_at: '2023-02-20',
+    updated_at: '2023-02-20'
   },
   {
-    id: '5',
-    firstName: 'Lisa',
-    lastName: 'Chen',
-    photo: 'https://randomuser.me/api/portraits/women/25.jpg',
-    role: 'Registered Nurse',
-    department: 'Nursing',
-    contactNumber: '555-555-6666',
-    email: 'lisa.chen@nhms.example.com',
-    qualifications: ['RN', 'MSN'],
-    hireDate: '2018-11-15',
-    schedule: {
-      monday: { start: '19:00', end: '07:00' },
-      tuesday: { start: '19:00', end: '07:00' },
-      wednesday: { start: '19:00', end: '07:00' },
-      thursday: { start: null, end: null },
-      friday: { start: null, end: null },
-      saturday: { start: null, end: null },
-      sunday: { start: null, end: null },
-    },
-    status: 'Active',
-  },
+    _id: 'staff_005',
+    full_name: 'Trần Văn Dũng',
+    email: 'caregiver2@nhms.com',
+    phone: '0901234573',
+    username: 'caregiver2',
+    password: '$2a$10$hashedpassword404',
+    role: 'staff',
+    status: 'active',
+    position: 'Nhân viên phục vụ',
+    qualification: 'Chứng chỉ phục vụ y tế',
+    join_date: '2023-04-15',
+    avatar: 'https://randomuser.me/api/portraits/men/25.jpg',
+    notes: 'Food service and basic care',
+    created_at: '2023-04-15',
+    updated_at: '2023-04-15'
+  }
 ];
 
 // Mock data for activities
@@ -846,51 +894,33 @@ export const activities = [
 ];
 
 // Mock data for resident activity participation
-export const activityParticipation = [
+export const activity_participations = [
   {
-    id: '1',
-    residentId: '1',
-    activityId: '1',
-    date: '2023-03-13',
-    attended: true,
-    engagementLevel: 'High', // Low, Medium, High
-    notes: 'Actively participated in all exercises',
+    _id: 'ap_001',
+    staff_id: 'staff_003', // Hoàng Văn Caregiver
+    activity_id: '1', // Morning Exercise
+    resident_id: 'res_001',
+    date: '2024-03-02',
+    performance_notes: 'Tham gia tích cực, tinh thần tốt',
+    attendance_status: 'attended',
   },
   {
-    id: '2',
-    residentId: '1',
-    activityId: '5',
-    date: '2023-03-14',
-    attended: true,
-    engagementLevel: 'Medium',
-    notes: 'Enjoyed planting herbs but tired quickly',
+    _id: 'ap_002',
+    staff_id: 'staff_001', // Lê Văn Nurse
+    activity_id: '2', // Hát karaoke
+    resident_id: 'res_002',
+    date: '2024-03-03',
+    performance_notes: 'Không thể tham gia do đau khớp',
+    attendance_status: 'excused',
   },
   {
-    id: '3',
-    residentId: '2',
-    activityId: '2',
-    date: '2023-03-13',
-    attended: true,
-    engagementLevel: 'Medium',
-    notes: 'Recognized family photos, became agitated after 30 minutes',
-  },
-  {
-    id: '4',
-    residentId: '2',
-    activityId: '3',
-    date: '2023-03-14',
-    attended: false,
-    engagementLevel: null,
-    notes: 'Not feeling well, stayed in room',
-  },
-  {
-    id: '5',
-    residentId: '3',
-    activityId: '4',
-    date: '2023-03-15',
-    attended: true,
-    engagementLevel: 'High',
-    notes: 'Sang along to songs from the 1950s',
+    _id: 'ap_003',
+    staff_id: 'staff_003',
+    activity_id: '1',
+    resident_id: 'res_003',
+    date: '2024-03-02',
+    performance_notes: 'Tham gia đầy đủ, vui vẻ',
+    attendance_status: 'attended',
   },
 ];
 
@@ -1700,199 +1730,10 @@ export const mockActivityRecommendations = [
   }
 ];
 
-// Mock Staff
-export const mockStaff = [
-  {
-    id: 1,
-    firstName: "Sarah",
-    lastName: "Martinez",
-    role: "Activity Director",
-    email: "s.martinez@nhms.example.com",
-    phone: "555-1001",
-    photo: null,
-    schedule: {
-      monday: { start: "08:00", end: "16:00" },
-      tuesday: { start: "08:00", end: "16:00" },
-      wednesday: { start: "08:00", end: "16:00" },
-      thursday: { start: "08:00", end: "16:00" },
-      friday: { start: "08:00", end: "16:00" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["CPR", "First Aid", "Activity Director Certified"]
-  },
-  {
-    id: 2,
-    firstName: "David",
-    lastName: "Brown",
-    role: "Recreational Therapist",
-    email: "d.brown@nhms.example.com",
-    phone: "555-1002",
-    photo: null,
-    schedule: {
-      monday: { start: "09:00", end: "17:00" },
-      tuesday: { start: "09:00", end: "17:00" },
-      wednesday: { start: "09:00", end: "17:00" },
-      thursday: { start: "09:00", end: "17:00" },
-      friday: null,
-      saturday: { start: "10:00", end: "14:00" },
-      sunday: null
-    },
-    certifications: ["CPR", "Certified Therapeutic Recreation Specialist"]
-  },
-  {
-    id: 3,
-    firstName: "Lisa",
-    lastName: "Chen",
-    role: "Art Therapist",
-    email: "l.chen@nhms.example.com",
-    phone: "555-1003",
-    photo: null,
-    schedule: {
-      monday: { start: "13:00", end: "19:00" },
-      tuesday: { start: "13:00", end: "19:00" },
-      wednesday: null,
-      thursday: { start: "13:00", end: "19:00" },
-      friday: { start: "13:00", end: "19:00" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["Registered Art Therapist", "CPR"]
-  },
-  {
-    id: 4,
-    firstName: "Mark",
-    lastName: "Thompson",
-    role: "Music Therapist",
-    email: "m.thompson@nhms.example.com",
-    phone: "555-1004",
-    photo: null,
-    schedule: {
-      monday: null,
-      tuesday: { start: "10:00", end: "18:00" },
-      wednesday: { start: "10:00", end: "18:00" },
-      thursday: { start: "10:00", end: "18:00" },
-      friday: { start: "10:00", end: "18:00" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["Board Certified Music Therapist", "CPR", "First Aid"]
-  },
-  {
-    id: 5,
-    firstName: "Patricia",
-    lastName: "Williams",
-    role: "Occupational Therapist",
-    email: "p.williams@nhms.example.com",
-    phone: "555-1005",
-    photo: null,
-    schedule: {
-      monday: { start: "08:00", end: "16:00" },
-      tuesday: { start: "08:00", end: "16:00" },
-      wednesday: { start: "08:00", end: "16:00" },
-      thursday: null,
-      friday: null,
-      saturday: { start: "09:00", end: "15:00" },
-      sunday: null
-    },
-    certifications: ["Licensed Occupational Therapist", "Certified Hand Therapist"]
-  },
-  {
-    id: 6,
-    firstName: "James",
-    lastName: "Wilson",
-    role: "Culinary Instructor",
-    email: "j.wilson@nhms.example.com",
-    phone: "555-1006",
-    photo: null,
-    schedule: {
-      monday: null,
-      tuesday: { start: "11:00", end: "19:00" },
-      wednesday: { start: "11:00", end: "19:00" },
-      thursday: { start: "11:00", end: "19:00" },
-      friday: { start: "11:00", end: "19:00" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["Culinary Arts Certificate", "Food Safety", "CPR"]
-  },
-  {
-    id: 7,
-    firstName: "Robert",
-    lastName: "Johnson",
-    role: "Activity Assistant",
-    email: "r.johnson@nhms.example.com",
-    phone: "555-1007",
-    photo: null,
-    schedule: {
-      monday: { start: "10:00", end: "18:00" },
-      tuesday: { start: "10:00", end: "18:00" },
-      wednesday: null,
-      thursday: { start: "10:00", end: "18:00" },
-      friday: { start: "10:00", end: "18:00" },
-      saturday: { start: "09:00", end: "17:00" },
-      sunday: null
-    },
-    certifications: ["CPR", "First Aid", "Activities Assistant Certification"]
-  },
-  {
-    id: 8,
-    firstName: "Emily",
-    lastName: "Rodriguez",
-    role: "Physical Therapist",
-    email: "e.rodriguez@nhms.example.com",
-    phone: "555-1008",
-    photo: null,
-    schedule: {
-      monday: { start: "08:00", end: "16:00" },
-      tuesday: { start: "08:00", end: "16:00" },
-      wednesday: { start: "08:00", end: "16:00" },
-      thursday: { start: "08:00", end: "16:00" },
-      friday: { start: "08:00", end: "16:00" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["Doctor of Physical Therapy", "Geriatric Certified Specialist"]
-  },
-  {
-    id: 9,
-    firstName: "Michelle",
-    lastName: "Lee",
-    role: "Wellness Coordinator",
-    email: "m.lee@nhms.example.com",
-    phone: "555-1009",
-    photo: null,
-    schedule: {
-      monday: { start: "09:00", end: "17:00" },
-      tuesday: { start: "09:00", end: "17:00" },
-      wednesday: { start: "09:00", end: "17:00" },
-      thursday: null,
-      friday: null,
-      saturday: { start: "09:00", end: "17:00" },
-      sunday: { start: "09:00", end: "13:00" }
-    },
-    certifications: ["Registered Nurse", "Certified Wellness Coach", "Yoga Instructor"]
-  },
-  {
-    id: 10,
-    firstName: "William",
-    lastName: "Taylor",
-    role: "Social Worker",
-    email: "w.taylor@nhms.example.com",
-    phone: "555-1010",
-    photo: null,
-    schedule: {
-      monday: { start: "08:30", end: "16:30" },
-      tuesday: { start: "08:30", end: "16:30" },
-      wednesday: { start: "08:30", end: "16:30" },
-      thursday: { start: "08:30", end: "16:30" },
-      friday: { start: "08:30", end: "16:30" },
-      saturday: null,
-      sunday: null
-    },
-    certifications: ["Licensed Clinical Social Worker", "Gerontology Specialty"]
-  }
-];
+// Mock Staff (updated to match database users collection with role staff)
+// Note: This is now redundant with the 'staff' export above. 
+// Use 'staff' export for consistency with database schema.
+export const mockStaff = staff; // Reference to the main staff data
 
 // Mock Tasks
 export const mockTasks = [
@@ -2378,6 +2219,7 @@ export const familyMembers = [
     residentIds: ['res_001', 'res_002', 'res_003'], // Multiple residents
     photo: 'https://randomuser.me/api/portraits/men/20.jpg',
     role: 'family',
+    status: 'active',
     address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
     emergencyContact: '0764634650',
     username: 'family_bao',
@@ -2395,6 +2237,7 @@ export const familyMembers = [
     residentIds: ['res_004'], // Single resident
     photo: 'https://randomuser.me/api/portraits/women/25.jpg',
     role: 'family',
+    status: 'active',
     address: '456 Đường ABC, Quận 1, TP.HCM',
     emergencyContact: '0912345678',
     username: 'family_hoa',
@@ -2412,6 +2255,7 @@ export const familyMembers = [
     residentIds: ['res_005'], // Single resident
     photo: 'https://randomuser.me/api/portraits/men/30.jpg',
     role: 'family',
+    status: 'active',
     address: '789 Đường XYZ, Quận 3, TP.HCM',
     emergencyContact: '0912345679',
     username: 'family_minh',
@@ -2430,7 +2274,7 @@ export default {
   vitals,
   staff,
   activities,
-  activityParticipation,
+  activity_participations,
   inventory,
   rooms,
   notifications,
@@ -2443,5 +2287,140 @@ export default {
   mockNotifications,
   familyMembers,
   recentUpdates,
-  familyNotifications
-}; 
+  familyNotifications,
+  resident_photos,
+  assessments,
+};
+
+// Mock data for resident photos
+export const resident_photos = [
+  {
+    _id: 'photo_001',
+    resident_id: 'res_001',
+    uploaded_by: 'staff_001',
+    file_name: 'tap_the_duc_buoi_sang.jpg',
+    file_path: '/uploads/photos/2024/03/tap_the_duc_buoi_sang.jpg',
+    file_size: 2500000,
+    file_type: 'image/jpeg',
+    caption: 'Hoạt động tập thể dục buổi sáng',
+    activity_type: 'Hoạt động thể chất',
+    tags: ['Vui vẻ', 'Khỏe mạnh', 'Tích cực'],
+    upload_date: '2024-03-01T08:30:00Z',
+    taken_date: '2024-03-01T07:15:00Z',
+    staff_notes: 'Cụ Nam tham gia rất tích cực vào buổi tập thể dục sáng nay',
+    related_activity_id: '1',
+    created_at: '2024-03-01T08:30:00Z',
+    updated_at: '2024-03-01T08:30:00Z',
+  },
+  {
+    _id: 'photo_002',
+    resident_id: 'res_001',
+    uploaded_by: 'staff_003',
+    file_name: 'bua_an_toi.jpg',
+    file_path: '/uploads/photos/2024/03/bua_an_toi.jpg',
+    file_size: 1800000,
+    file_type: 'image/jpeg',
+    caption: 'Bữa ăn tối cùng bạn bè',
+    activity_type: 'Bữa ăn',
+    tags: ['Vui vẻ', 'Hạnh phúc'],
+    upload_date: '2024-03-01T19:45:00Z',
+    taken_date: '2024-03-01T18:30:00Z',
+    staff_notes: 'Cụ Nam ăn uống ngon miệng và trò chuyện vui vẻ với bạn cùng bàn',
+    related_activity_id: null,
+    created_at: '2024-03-01T19:45:00Z',
+    updated_at: '2024-03-01T19:45:00Z',
+  },
+  {
+    _id: 'photo_003',
+    resident_id: 'res_002',
+    uploaded_by: 'staff_001',
+    file_name: 'cham_soc_vuon_hoa.jpg',
+    file_path: '/uploads/photos/2024/03/cham_soc_vuon_hoa.jpg',
+    file_size: 2100000,
+    file_type: 'image/jpeg',
+    caption: 'Chăm sóc vườn hoa',
+    activity_type: 'Hoạt động tinh thần',
+    tags: ['Sáng tạo', 'Tích cực'],
+    upload_date: '2024-03-02T10:15:00Z',
+    taken_date: '2024-03-02T09:45:00Z',
+    staff_notes: 'Cụ Lan rất thích chăm sóc hoa, hoạt động này giúp cụ thư giãn',
+    related_activity_id: null,
+    created_at: '2024-03-02T10:15:00Z',
+    updated_at: '2024-03-02T10:15:00Z',
+  },
+  {
+    _id: 'photo_004',
+    resident_id: 'res_002',
+    uploaded_by: 'staff_002',
+    file_name: 'sinh_nhat_thang_3.jpg',
+    file_path: '/uploads/photos/2024/03/sinh_nhat_thang_3.jpg',
+    file_size: 2800000,
+    file_type: 'image/jpeg',
+    caption: 'Sinh nhật tháng 3',
+    activity_type: 'Sinh nhật/Lễ hội',
+    tags: ['Vui vẻ', 'Hạnh phúc', 'Thân thiện'],
+    upload_date: '2024-03-03T15:30:00Z',
+    taken_date: '2024-03-03T14:00:00Z',
+    staff_notes: 'Tổ chức sinh nhật cho các cụ có sinh nhật trong tháng 3',
+    related_activity_id: null,
+    created_at: '2024-03-03T15:30:00Z',
+    updated_at: '2024-03-03T15:30:00Z',
+  },
+  {
+    _id: 'photo_005',
+    resident_id: 'res_001',
+    uploaded_by: 'staff_003',
+    file_name: 'doc_sach.jpg',
+    file_path: '/uploads/photos/2024/03/doc_sach.jpg',
+    file_size: 1500000,
+    file_type: 'image/jpeg',
+    caption: 'Thư giãn đọc sách',
+    activity_type: 'Hoạt động tinh thần',
+    tags: ['Tập trung', 'Thư giãn'],
+    upload_date: '2024-03-04T11:20:00Z',
+    taken_date: '2024-03-04T10:30:00Z',
+    staff_notes: 'Cụ Nam rất thích đọc sách lịch sử',
+    related_activity_id: null,
+    created_at: '2024-03-04T11:20:00Z',
+    updated_at: '2024-03-04T11:20:00Z',
+  },
+  {
+    _id: 'photo_006',
+    resident_id: 'res_002',
+    uploaded_by: 'staff_001',
+    file_name: 'hoat_dong_ve_tranh.jpg',
+    file_path: '/uploads/photos/2024/03/hoat_dong_ve_tranh.jpg',
+    file_size: 2300000,
+    file_type: 'image/jpeg',
+    caption: 'Hoạt động vẽ tranh',
+    activity_type: 'Hoạt động tinh thần',
+    tags: ['Sáng tạo', 'Tập trung', 'Vui vẻ'],
+    upload_date: '2024-03-05T14:45:00Z',
+    taken_date: '2024-03-05T13:30:00Z',
+    staff_notes: 'Cụ Lan vẽ rất đẹp, bức tranh phong cảnh làng quê',
+    related_activity_id: null,
+    created_at: '2024-03-05T14:45:00Z',
+    updated_at: '2024-03-05T14:45:00Z',
+  },
+];
+
+export const assessments = [
+  {
+    _id: 'as_001',
+    assessment_type: 'Đánh giá tình trạng sức khỏe tổng quát',
+    date: '2024-01-15',
+    notes: 'Tình trạng ổn định, cần theo dõi đường huyết thường xuyên',
+    recommendations: 'Duy trì chế độ ăn kiêng, tập thể dục nhẹ, uống thuốc đúng giờ',
+    resident_id: 'res_001',
+    conducted_by: 'staff_002', // Phạm Thị Doctor
+  },
+  {
+    _id: 'as_002',
+    assessment_type: 'Đánh giá vật lý trị liệu',
+    date: '2024-02-20',
+    notes: 'Khả năng vận động hạn chế do viêm khớp, cần hỗ trợ đặc biệt',
+    recommendations: 'Tăng cường vật lý trị liệu, sử dụng thiết bị hỗ trợ',
+    resident_id: 'res_002',
+    conducted_by: 'staff_003', // Hoàng Văn Caregiver
+  },
+]; 
