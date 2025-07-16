@@ -43,7 +43,10 @@ const BillingScreen = ({ navigation }) => {
         ...filters,
         search: searchQuery,
       });
-      setBills(result.data);
+      console.log('Fetched bills:', result.data);
+      // Filter out any bills without proper id and resident
+      const validBills = result.data.filter(bill => bill && (bill.id || bill._id) && bill.resident);
+      setBills(validBills);
     } catch (error) {
       console.error('Error fetching bills:', error);
     }
@@ -52,7 +55,12 @@ const BillingScreen = ({ navigation }) => {
   const fetchResidents = async () => {
     try {
       const residentsData = await billingService.getResidents();
-      setResidents(residentsData);
+      console.log('Fetched residents:', residentsData);
+      // Filter out any residents without proper _id, name, and room
+      const validResidents = residentsData.filter(resident => 
+        resident && resident._id && resident.name && resident.room
+      );
+      setResidents(validResidents);
     } catch (error) {
       console.error('Error fetching residents:', error);
     }
@@ -79,6 +87,11 @@ const BillingScreen = ({ navigation }) => {
   };
 
   const renderBillItem = ({ item }) => {
+    // Safety check for item
+    if (!item || !item.resident) {
+      return null;
+    }
+
     const daysRemaining = getDaysRemaining(item.dueDate);
     
     // Sử dụng trạng thái từ API đã được tính toán chính xác
@@ -87,15 +100,15 @@ const BillingScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={styles.billItem}
-        onPress={() => navigation.navigate('BillDetail', { billId: item.id })}
+        onPress={() => navigation.navigate('BillDetail', { billId: item.id || item._id })}
       >
         <View style={styles.billHeader}>
           <View style={styles.billTitleContainer}>
-          <Text style={styles.billTitle}>{item.title}</Text>
+          <Text style={styles.billTitle}>{item.title || 'Hóa đơn chăm sóc'}</Text>
             <View style={styles.residentInfo}>
               <Ionicons name="person-outline" size={14} color="#666" />
-              <Text style={styles.residentName}>{item.resident.name}</Text>
-              <Text style={styles.roomNumber}>• Phòng {item.resident.room}</Text>
+              <Text style={styles.residentName}>{item.resident.name || 'Unknown'}</Text>
+              <Text style={styles.roomNumber}>• Phòng {item.resident.room || 'Unknown'}</Text>
             </View>
           </View>
           <View style={[
@@ -105,7 +118,7 @@ const BillingScreen = ({ navigation }) => {
             <Text style={styles.statusText}>{getStatusText(item)}</Text>
           </View>
         </View>
-        <Text style={styles.billAmount}>{formatCurrency(item.amount)}</Text>
+        <Text style={styles.billAmount}>{formatCurrency(item.amount || 0)}</Text>
         <View style={styles.billFooter}>
           <Text style={styles.dueDate}>
             Hạn thanh toán: {formatDate(item.dueDate)}
@@ -209,7 +222,7 @@ const BillingScreen = ({ navigation }) => {
             {filters.residentId && (
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>
-                  {residents.find(r => r.id === filters.residentId)?.name || 'Cụ được chọn'}
+                  {residents.find(r => r._id === filters.residentId)?.name || 'Cụ được chọn'}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setFilters(prev => ({ ...prev, residentId: null }))}
@@ -237,9 +250,9 @@ const BillingScreen = ({ navigation }) => {
       )}
 
       <FlatList
-        data={bills}
+        data={bills.filter(bill => bill && (bill.id || bill._id) && bill.resident)}
         renderItem={renderBillItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id || item._id || `bill_${Math.random()}`}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -254,6 +267,10 @@ const BillingScreen = ({ navigation }) => {
             </Text>
           </View>
         )}
+        removeClippedSubviews={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
       />
 
       <Modal
@@ -328,24 +345,28 @@ const BillingScreen = ({ navigation }) => {
               {/* Resident Filter */}
               <Text style={styles.filterSectionTitle}>Người cao tuổi</Text>
               <View style={styles.filterButtons}>
-                {residents.map(resident => (
-                  <TouchableOpacity
-                    key={resident.id}
-                    style={[
-                      styles.filterButtonOption,
-                      filters.residentId === resident.id && styles.filterButtonActive
-                    ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                      residentId: prev.residentId === resident.id ? null : resident.id
-                    }))}
-                  >
-                    <Text style={[
-                      styles.filterButtonText,
-                      filters.residentId === resident.id && styles.filterButtonTextActive
-                    ]}>{resident.name} ({resident.room})</Text>
-                  </TouchableOpacity>
-                ))}
+                {residents.length > 0 ? (
+                  residents.filter(resident => resident && resident._id && resident.name && resident.room).map(resident => (
+                    <TouchableOpacity
+                      key={resident._id}
+                      style={[
+                        styles.filterButtonOption,
+                        filters.residentId === resident._id && styles.filterButtonActive
+                      ]}
+                      onPress={() => setFilters(prev => ({
+                        ...prev,
+                        residentId: prev.residentId === resident._id ? null : resident._id
+                      }))}
+                    >
+                      <Text style={[
+                        styles.filterButtonText,
+                        filters.residentId === resident._id && styles.filterButtonTextActive
+                      ]}>{resident.name} ({resident.room})</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.filterButtonText}>Không có dữ liệu người cao tuổi</Text>
+                )}
               </View>
 
               {/* Period Filter */}

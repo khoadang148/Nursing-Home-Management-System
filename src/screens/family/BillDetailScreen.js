@@ -196,7 +196,7 @@ const BillDetailScreen = ({ route, navigation }) => {
               <View style={styles.residentInfoHeader}>
                 <Ionicons name="person" size={16} color="#666" />
                 <Text style={styles.residentNameHeader}>{bill.resident.name}</Text>
-                <Text style={styles.roomNumberHeader}>• Phòng {bill.resident.room}</Text>
+                <Text style={styles.roomNumberHeader}> • Phòng {bill.resident.room}</Text>
               </View>
             </View>
           <View style={[
