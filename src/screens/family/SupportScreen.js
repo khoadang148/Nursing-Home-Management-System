@@ -57,7 +57,7 @@ const SupportScreen = ({ navigation }) => {
       title: 'Nhắn Tin Trực Tiếp',
       description: 'Chat với nhân viên chăm sóc',
       icon: 'chat',
-      action: () => navigation.navigate('TabsChính', { screen: 'TinNhan' }),
+              action: () => navigation.navigate('TabsChính', { screen: 'TinNhanTab' }),
       color: COLORS.secondary,
     },
   ];

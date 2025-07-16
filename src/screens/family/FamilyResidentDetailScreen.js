@@ -100,47 +100,22 @@ const mockResidentData = {
   }
 };
 
-// Mock staff data theo cấu trúc DB users collection với role staff
-const mockStaffData = {
-  'nurse1': {
-    _id: 'nurse1',
-    full_name: 'Lê Văn Nurse',
-    email: 'nurse1@nhms.com',
-    phone: '0901234569',
-    role: 'staff',
-    position: 'Điều dưỡng',
-    qualification: 'Cử nhân Điều dưỡng',
-    avatar: 'https://randomuser.me/api/portraits/men/10.jpg'
-  },
-  'doctor1': {
-    _id: 'doctor1',
-    full_name: 'Phạm Thị Doctor',
-    email: 'doctor1@nhms.com',
-    phone: '0901234570',
-    role: 'staff',
-    position: 'Bác sĩ',
-    qualification: 'Thạc sĩ Y khoa',
-    avatar: 'https://randomuser.me/api/portraits/women/15.jpg'
-  },
-  'caregiver1': {
-    _id: 'caregiver1',
-    full_name: 'Hoàng Văn Caregiver',
-    email: 'caregiver1@nhms.com',
-    phone: '0901234571',
-    role: 'staff',
-    position: 'Nhân viên chăm sóc',
-    qualification: 'Chứng chỉ chăm sóc người cao tuổi',
-    avatar: 'https://randomuser.me/api/portraits/men/12.jpg'
-  }
-};
+// Import staff data from centralized mockData
+import { staff } from '../../api/mockData';
 
-// Mock vital signs data theo cấu trúc DB vital_signs collection
+// Create staff lookup object for easy access
+const mockStaffData = staff.reduce((acc, staffMember) => {
+  acc[staffMember._id] = staffMember;
+  return acc;
+}, {});
+
+// Mock vital signs data theo cấu trúc DB vital_signs collection (sử dụng ID từ database schema)
 const mockVitalSigns = {
   'res_001': [
     {
       _id: 'vital_001',
       resident_id: 'res_001',
-      recorded_by: 'nurse1',
+      recorded_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng',
       date_time: new Date('2024-03-01T08:00:00Z'),
@@ -155,7 +130,7 @@ const mockVitalSigns = {
     {
       _id: 'vital_002',
       resident_id: 'res_001',
-      recorded_by: 'nurse1',
+      recorded_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng',
       date_time: new Date('2024-02-29T08:00:00Z'),
@@ -170,7 +145,7 @@ const mockVitalSigns = {
     {
       _id: 'vital_003',
       resident_id: 'res_001',
-      recorded_by: 'caregiver1',
+      recorded_by: 'staff_003',
       staff_name: 'Hoàng Văn Caregiver',
       staff_position: 'Nhân viên chăm sóc',
       date_time: new Date('2024-02-28T08:00:00Z'),
@@ -187,7 +162,7 @@ const mockVitalSigns = {
     {
       _id: 'vital_004',
       resident_id: 'res_002',
-      recorded_by: 'nurse1',
+      recorded_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng',
       date_time: new Date('2024-03-01T08:30:00Z'),
@@ -202,7 +177,7 @@ const mockVitalSigns = {
     {
       _id: 'vital_005',
       resident_id: 'res_002',
-      recorded_by: 'caregiver1',
+      recorded_by: 'staff_003',
       staff_name: 'Hoàng Văn Caregiver',
       staff_position: 'Nhân viên chăm sóc',
       date_time: new Date('2024-02-29T08:30:00Z'),
@@ -219,7 +194,7 @@ const mockVitalSigns = {
     {
       _id: 'vital_006',
       resident_id: 'res_003',
-      recorded_by: 'nurse1',
+      recorded_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng',
       date_time: new Date('2024-03-01T09:00:00Z'),
@@ -234,7 +209,7 @@ const mockVitalSigns = {
   ]
 };
 
-// Mock assessments data theo cấu trúc DB assessments collection
+// Mock assessments data theo cấu trúc DB assessments collection (sử dụng ID từ database schema)
 const mockAssessments = {
   'res_001': [
     {
@@ -244,7 +219,7 @@ const mockAssessments = {
       notes: 'Tình trạng ổn định, cần theo dõi đường huyết thường xuyên. Bệnh nhân tuân thủ tốt chế độ điều trị.',
       recommendations: 'Duy trì chế độ ăn kiêng, tập thể dục nhẹ 30 phút/ngày, uống thuốc đúng giờ',
       resident_id: 'res_001',
-      conducted_by: 'doctor1',
+      conducted_by: 'staff_002',
       staff_name: 'Phạm Thị Doctor',
       staff_position: 'Bác sĩ'
     },
@@ -255,7 +230,7 @@ const mockAssessments = {
       notes: 'Chế độ ăn phù hợp với bệnh tiểu đường. Cân nặng ổn định.',
       recommendations: 'Tiếp tục chế độ ăn ít đường, nhiều rau xanh',
       resident_id: 'res_001',
-      conducted_by: 'nurse1',
+      conducted_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng'
     }
@@ -268,7 +243,7 @@ const mockAssessments = {
       notes: 'Sa sút trí tuệ giai đoạn vừa, có dấu hiệu cải thiện nhờ hoạt động kích thích trí nhớ.',
       recommendations: 'Tăng cường hoạt động kích thích nhận thức, liệu pháp âm nhạc',
       resident_id: 'res_002',
-      conducted_by: 'doctor1',
+      conducted_by: 'staff_002',
       staff_name: 'Phạm Thị Doctor',
       staff_position: 'Bác sĩ'
     },
@@ -279,7 +254,7 @@ const mockAssessments = {
       notes: 'Vết loét chân đang lành dần, không có dấu hiệu nhiễm trùng.',
       recommendations: 'Tiếp tục thay băng hàng ngày, giữ vệ sinh',
       resident_id: 'res_002',
-      conducted_by: 'nurse1',
+      conducted_by: 'staff_001',
       staff_name: 'Lê Văn Nurse',
       staff_position: 'Điều dưỡng'
     }
@@ -292,7 +267,7 @@ const mockAssessments = {
       notes: 'Khả năng vận động cải thiện so với lúc mới nhập viện. Đau khớp giảm nhờ điều trị.',
       recommendations: 'Tiếp tục vật lý trị liệu, tăng cường bài tập co duỗi khớp',
       resident_id: 'res_003',
-      conducted_by: 'caregiver1',
+      conducted_by: 'staff_003',
       staff_name: 'Hoàng Văn Caregiver',
       staff_position: 'Nhân viên chăm sóc'
     }

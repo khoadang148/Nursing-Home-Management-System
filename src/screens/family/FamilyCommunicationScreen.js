@@ -28,77 +28,41 @@ import {
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
 
+// Import residents data from centralized mockData
+import { residents } from '../../api/mockData';
+
 // Mock data cho residents của family member hiện tại (Trần Lê Chi Bảo)
-const familyResidents = [
-  {
-    id: 'res_001',
-    name: 'Nguyễn Văn Nam',
-    room: '101-A',
-    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-  },
-  {
-    id: 'res_002', 
-    name: 'Lê Thị Hoa',
-    room: '102-A',
-    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-  },
-  {
-    id: 'res_003',
-    name: 'Trần Văn Bình',
-    room: '201-A',
-    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-  },
-];
+const familyResidents = residents.map(resident => ({
+  _id: resident._id,
+  name: resident.full_name,
+  room: `${resident.room_number}-${resident.bed_number}`,
+  avatar: resident.avatar,
+}));
 
-// Mock staff data theo cấu trúc DB users collection với role staff
-const mockStaffData = {
-  'nurse1': {
-    _id: 'nurse1',
-    full_name: 'Lê Văn Nurse',
-    email: 'nurse1@nhms.com',
-    phone: '0901234569',
-    role: 'staff',
-    position: 'Điều dưỡng',
-    qualification: 'Cử nhân Điều dưỡng',
-    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    online: true
-  },
-  'doctor1': {
-    _id: 'doctor1',
-    full_name: 'Phạm Thị Doctor',
-    email: 'doctor1@nhms.com',
-    phone: '0901234570',
-    role: 'staff',
-    position: 'Bác sĩ',
-    qualification: 'Thạc sĩ Y khoa',
-    avatar: 'https://randomuser.me/api/portraits/women/15.jpg',
-    online: true
-  },
-  'caregiver1': {
-    _id: 'caregiver1',
-    full_name: 'Hoàng Văn Caregiver',
-    email: 'caregiver1@nhms.com',
-    phone: '0901234571',
-    role: 'staff',
-    position: 'Nhân viên chăm sóc',
-    qualification: 'Chứng chỉ chăm sóc người cao tuổi',
-    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
-    online: false
-  }
-};
+// Import staff data from centralized mockData
+import { staff } from '../../api/mockData';
 
-// Mapping staff đã chăm sóc từng resident (dựa vào mock data từ FamilyResidentDetailScreen)
+// Create staff lookup object for easy access with online status
+const mockStaffData = staff.reduce((acc, staffMember) => {
+  acc[staffMember._id] = {
+    ...staffMember,
+    online: Math.random() > 0.3 // Random online status for demo
+  };
+  return acc;
+}, {});
+
+// Mapping staff đã chăm sóc từng resident (sử dụng ID từ database schema)
 const residentStaffMapping = {
-  'res_001': ['nurse1', 'doctor1', 'caregiver1'], // Nguyễn Văn Nam được chăm sóc bởi cả 3 staff
-  'res_002': ['nurse1', 'doctor1', 'caregiver1'], // Lê Thị Hoa được chăm sóc bởi cả 3 staff  
-  'res_003': ['nurse1', 'caregiver1'], // Trần Văn Bình được chăm sóc bởi nurse1 và caregiver1
+  'res_001': ['staff_001', 'staff_002', 'staff_003'], // Nguyễn Văn Nam được chăm sóc bởi cả 3 staff
+  'res_002': ['staff_001', 'staff_002', 'staff_003'], // Lê Thị Hoa được chăm sóc bởi cả 3 staff  
+  'res_003': ['staff_001', 'staff_003'], // Trần Văn Bình được chăm sóc bởi staff_001 và staff_003
 };
 
-// Mock data cho tin nhắn theo resident và staff
+// Mock data cho tin nhắn theo resident và staff (sử dụng ID từ database schema)
 const mockConversations = [
   {
     id: '1',
-    staffId: 'doctor1',
+    staffId: 'staff_002',
     staffName: 'Phạm Thị Doctor',
     role: 'Bác sĩ',
     position: 'Bác sĩ',
@@ -112,7 +76,7 @@ const mockConversations = [
   },
   {
     id: '2',
-    staffId: 'nurse1',
+    staffId: 'staff_001',
     staffName: 'Lê Văn Nurse',
     role: 'Điều dưỡng',
     position: 'Điều dưỡng',
@@ -126,7 +90,7 @@ const mockConversations = [
   },
   {
     id: '3',
-    staffId: 'nurse1',
+    staffId: 'staff_001',
     staffName: 'Lê Văn Nurse',
     role: 'Điều dưỡng',
     position: 'Điều dưỡng',
@@ -140,7 +104,7 @@ const mockConversations = [
   },
   {
     id: '4',
-    staffId: 'caregiver1',
+    staffId: 'staff_003',
     staffName: 'Hoàng Văn Caregiver',
     role: 'Nhân viên chăm sóc',
     position: 'Nhân viên chăm sóc',
@@ -156,25 +120,25 @@ const mockConversations = [
 
 const mockMessages = {
   '1': [
-    { 
-      id: '1', 
-      senderId: 'doctor1',
+      { 
+        id: '1', 
+      senderId: 'staff_002',
       senderName: 'Phạm Thị Doctor',
       message: 'Chào anh/chị. Tôi là bác sĩ Phạm Thị Doctor, đang chăm sóc cho cụ Nguyễn Văn Nam.',
       timestamp: '2024-03-01T09:00:00.000Z',
       isStaff: true,
-    },
-    { 
-      id: '2', 
+      },
+      { 
+        id: '2', 
       senderId: 'family_1',
       senderName: 'Trần Lê Chi Bảo',
       message: 'Chào bác sĩ! Tình trạng sức khỏe của bố tôi thế nào ạ?',
       timestamp: '2024-03-01T09:15:00.000Z',
       isStaff: false,
-    },
-    {
-      id: '3',
-      senderId: 'doctor1',
+      },
+      {
+        id: '3',
+      senderId: 'staff_002',
       senderName: 'Phạm Thị Doctor',
       message: 'Tình trạng sức khỏe của cụ ổn định. Tiểu đường được kiểm soát tốt. Cụ cũng có tinh thần vui vẻ và ăn uống đều đặn.',
       timestamp: '2024-03-01T10:30:00.000Z',
@@ -184,7 +148,7 @@ const mockMessages = {
   '2': [
     {
       id: '4',
-      senderId: 'nurse1',
+      senderId: 'staff_001',
       senderName: 'Lê Văn Nurse',
       message: 'Xin chào! Cụ Nam hôm nay ăn uống và sinh hoạt bình thường.',
       timestamp: '2024-03-01T08:00:00.000Z',
@@ -200,7 +164,7 @@ const mockMessages = {
     },
     {
       id: '6',
-      senderId: 'nurse1',
+      senderId: 'staff_001',
       senderName: 'Lê Văn Nurse',
       message: 'Cụ đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
       timestamp: '2024-03-01T08:45:00.000Z',
@@ -210,7 +174,7 @@ const mockMessages = {
   '3': [
     {
       id: '7',
-      senderId: 'nurse1',
+      senderId: 'staff_001',
       senderName: 'Lê Văn Nurse',
       message: 'Chào anh/chị. Tình trạng vết thương của cụ Hoa đang tiến triển tốt.',
       timestamp: '2024-02-29T15:00:00.000Z',
@@ -226,7 +190,7 @@ const mockMessages = {
     },
     {
       id: '9',
-      senderId: 'nurse1',
+      senderId: 'staff_001',
       senderName: 'Lê Văn Nurse',
       message: 'Vết thương đang lành tốt, không có dấu hiệu nhiễm trùng. Dự kiến khoảng 1-2 tuần nữa sẽ lành hoàn toàn.',
       timestamp: '2024-02-29T16:20:00.000Z',
@@ -236,7 +200,7 @@ const mockMessages = {
   '4': [
     {
       id: '10',
-      senderId: 'caregiver1',
+      senderId: 'staff_003',
       senderName: 'Hoàng Văn Caregiver',
       message: 'Xin chào! Cụ Bình hôm nay tham gia vật lý trị liệu rất tích cực.',
       timestamp: '2024-03-01T14:00:00.000Z',
@@ -244,7 +208,7 @@ const mockMessages = {
     },
     {
       id: '11',
-      senderId: 'caregiver1',
+      senderId: 'staff_003',
       senderName: 'Hoàng Văn Caregiver',
       message: 'Cụ tham gia vật lý trị liệu rất tích cực, khả năng vận động cải thiện.',
       timestamp: '2024-03-01T14:15:00.000Z',
@@ -360,7 +324,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   const handleSelectResident = (resident) => {
     setSelectedResident(resident);
     // Lấy danh sách staff đã chăm sóc resident này
-    const staffIds = residentStaffMapping[resident.id] || [];
+    const staffIds = residentStaffMapping[resident._id] || [];
     const availableStaff = staffIds.map(staffId => mockStaffData[staffId]).filter(Boolean);
     setAvailableDoctors(availableStaff);
     setCreateMessageStep(2);
@@ -380,7 +344,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     // Check if conversation already exists
     const existingConversation = conversations.find(conv => 
       conv.staffId === selectedDoctor._id && 
-      conv.residentId === selectedResident.id
+              conv.residentId === selectedResident._id
     );
 
     if (existingConversation) {
@@ -394,11 +358,11 @@ const FamilyCommunicationScreen = ({ navigation }) => {
         isStaff: false,
       };
 
-      setMessages(prev => ({
-        ...prev,
+              setMessages(prev => ({
+                ...prev,
         [existingConversation.id]: [...(prev[existingConversation.id] || []), newMessage]
       }));
-
+              
       // Update last message in conversation
       setConversations(prev => prev.map(conv => 
         conv.id === existingConversation.id 
@@ -416,21 +380,21 @@ const FamilyCommunicationScreen = ({ navigation }) => {
         staffName: selectedDoctor.full_name,
         role: selectedDoctor.position,
         position: selectedDoctor.position,
-        residentId: selectedResident.id,
+        residentId: selectedResident._id,
         residentName: selectedResident.name,
         lastMessage: initialMessage.trim(),
         timestamp: new Date().toISOString(),
         unread: 0,
         avatar: selectedDoctor.avatar,
         online: selectedDoctor.online,
-      };
+    };
 
       const newMessage = {
         id: Date.now().toString(),
         senderId: 'family_1',
         senderName: 'Trần Lê Chi Bảo',
         message: initialMessage.trim(),
-        timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
         isStaff: false,
       };
 
@@ -548,7 +512,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
             <Text style={styles.stepDescription}>Chọn người thân cần trao đổi:</Text>
             {familyResidents.map((resident) => (
               <TouchableOpacity
-                key={resident.id}
+                key={resident._id}
                 style={styles.selectionItem}
                 onPress={() => handleSelectResident(resident)}
               >

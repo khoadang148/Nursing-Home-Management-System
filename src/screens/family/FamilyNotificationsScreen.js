@@ -370,88 +370,88 @@ const FamilyNotificationsScreen = ({ navigation }) => {
 
       {/* Filter Chips - Fixed Position */}
       <View style={styles.filtersWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          {filters.map((item) => {
-            const isActive = activeFilter === item.id;
-            
-            return (
-              <View key={item.id} style={styles.chipWrapper}>
-                <TouchableOpacity
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersContainer}
+      >
+        {filters.map((item) => {
+          const isActive = activeFilter === item.id;
+          
+          return (
+            <View key={item.id} style={styles.chipWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  isActive && styles.activeFilterChip,
+                  isActive && { backgroundColor: item.color, borderColor: item.color }
+                ]}
+                onPress={() => setActiveFilter(item.id)}
+              >
+                <MaterialIcons 
+                  name={item.icon} 
+                  size={16} 
+                  color={isActive ? COLORS.surface : item.color}
+                  style={styles.chipIcon}
+                />
+                <Text 
                   style={[
-                    styles.filterChip,
-                    isActive && styles.activeFilterChip,
-                    isActive && { backgroundColor: item.color, borderColor: item.color }
+                    styles.filterChipText,
+                    isActive && styles.activeFilterChipText
                   ]}
-                  onPress={() => setActiveFilter(item.id)}
+                  numberOfLines={1}
                 >
-                  <MaterialIcons 
-                    name={item.icon} 
-                    size={16} 
-                    color={isActive ? COLORS.surface : item.color}
-                    style={styles.chipIcon}
-                  />
-                  <Text 
-                    style={[
-                      styles.filterChipText,
-                      isActive && styles.activeFilterChipText
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.label}
-                  </Text>
-                  {item.count > 0 && (
-                    <View style={[
-                      styles.countBadge,
-                      isActive && styles.activeCountBadge
+                  {item.label}
+                </Text>
+                {item.count > 0 && (
+                  <View style={[
+                    styles.countBadge,
+                    isActive && styles.activeCountBadge
+                  ]}>
+                    <Text style={[
+                      styles.countText,
+                      isActive && styles.activeCountText
                     ]}>
-                      <Text style={[
-                        styles.countText,
-                        isActive && styles.activeCountText
-                      ]}>
-                        {item.count}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </ScrollView>
+                      {item.count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </ScrollView>
       </View>
 
       {/* Notifications List - Flex container */}
       <View style={styles.notificationsContainer}>
-        <FlatList
-          data={filteredNotifications}
-          renderItem={renderNotificationItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.notificationsList}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              colors={[COLORS.primary]} 
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MaterialIcons name="notifications-off" size={80} color={COLORS.border} />
-              <Text style={styles.emptyTitle}>
-                {activeFilter === 'all' ? 'Chưa có thông báo' : 'Không có thông báo'}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                {activeFilter === 'all' 
-                  ? 'Bạn sẽ nhận được thông báo về tình trạng sức khỏe và hoạt động tại đây' 
-                  : `Không có thông báo nào trong danh mục "${filters.find(f => f.id === activeFilter)?.label}"`
-                }
-              </Text>
-            </View>
-          }
-        />
+      <FlatList
+        data={filteredNotifications}
+        renderItem={renderNotificationItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.notificationsList}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[COLORS.primary]} 
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="notifications-off" size={80} color={COLORS.border} />
+            <Text style={styles.emptyTitle}>
+              {activeFilter === 'all' ? 'Chưa có thông báo' : 'Không có thông báo'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {activeFilter === 'all' 
+                ? 'Bạn sẽ nhận được thông báo về tình trạng sức khỏe và hoạt động tại đây' 
+                : `Không có thông báo nào trong danh mục "${filters.find(f => f.id === activeFilter)?.label}"`
+              }
+            </Text>
+          </View>
+        }
+      />
       </View>
     </SafeAreaView>
   );

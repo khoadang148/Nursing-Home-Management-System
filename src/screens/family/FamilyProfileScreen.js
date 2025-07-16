@@ -63,7 +63,7 @@ const FamilyProfileScreen = ({ navigation }) => {
     messages: true,
     systemUpdates: false,
   });
-
+  
   // Get user data with fallback to mock data
   const getUserData = () => {
     if (user) {

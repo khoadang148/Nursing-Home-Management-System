@@ -115,16 +115,16 @@ const FamilyResidentScreen = ({ navigation }) => {
     
     // Load residents for current family member based on imported mock data
     const userResidentIds = userData?.residentIds || [];
-    const familyResidents = mockResidents.filter(r => userResidentIds.includes(r.id));
+    const familyResidents = mockResidents.filter(r => userResidentIds.includes(r._id));
     
     // Transform data to match new schema expectations
     const transformedResidents = familyResidents.map(resident => {
       // Find care plan assignment for this resident
-      const assignment = carePlanAssignments.find(ca => ca.resident_id === resident.id);
+      const assignment = carePlanAssignments.find(ca => ca.resident_id === resident._id);
       const carePlan = assignment ? carePlans.find(cp => cp._id === assignment.care_plan_id) : null;
       
       return {
-        _id: resident.id,
+        _id: resident._id,
         full_name: resident.full_name,
         date_of_birth: resident.date_of_birth,
         gender: resident.gender,
@@ -161,10 +161,10 @@ const FamilyResidentScreen = ({ navigation }) => {
     });
     
     setResidents(transformedResidents);
-    
-    // Update recent updates with actual resident names
-    const updatedRecentUpdates = mockRecentUpdates.map(update => {
-      const resident = mockResidents.find(r => r.id === update.resident_id);
+      
+          // Update recent updates with actual resident names
+      const updatedRecentUpdates = mockRecentUpdates.map(update => {
+        const resident = mockResidents.find(r => r._id === update.resident_id);
       return {
         ...update,
         title: `${update.title.split(' cho ')[0]} cho ${resident?.full_name || 'Không tìm thấy'}`

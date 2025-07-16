@@ -75,7 +75,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     
     // Find all residents assigned to this family member
     if (userData?.residentIds && userData.residentIds.length > 0) {
-      const familyResidents = mockResidents.filter(r => userData.residentIds.includes(r.id));
+      const familyResidents = mockResidents.filter(r => userData.residentIds.includes(r._id));
       setUserResidents(familyResidents);
       
       // Select first resident by default
@@ -83,11 +83,11 @@ const FamilyHomeScreen = ({ navigation }) => {
         setSelectedResident(familyResidents[0]);
       }
       
-      // Mock upcoming visit for selected resident
-      setUpcomingVisit({
-        id: 'visit_001',
-        residentId: familyResidents[0]?.id,
-        residentName: familyResidents[0]?.full_name || 'Không có tên',
+              // Mock upcoming visit for selected resident
+        setUpcomingVisit({
+          id: 'visit_001',
+          residentId: familyResidents[0]?._id,
+          residentName: familyResidents[0]?.full_name || 'Không có tên',
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '15:00',
         duration: 60,
@@ -216,7 +216,7 @@ const FamilyHomeScreen = ({ navigation }) => {
       ]);
     } else if (userData?.residentId) {
       // Fallback for single resident (backward compatibility)
-      const residentData = mockResidents.find(r => r.id === userData.residentId);
+      const residentData = mockResidents.find(r => r._id === userData.residentId);
       if (residentData) {
         setUserResidents([residentData]);
         setSelectedResident(residentData);
@@ -344,17 +344,17 @@ const FamilyHomeScreen = ({ navigation }) => {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScrollView}>
                     {userResidents.map((resident) => (
                       <Chip
-                        key={resident.id}
-                        mode={selectedResident?.id === resident.id ? 'flat' : 'outlined'}
-                        selected={selectedResident?.id === resident.id}
+                        key={resident._id}
+                        mode={selectedResident?._id === resident._id ? 'flat' : 'outlined'}
+                        selected={selectedResident?._id === resident._id}
                         onPress={() => setSelectedResident(resident)}
                         style={[
                           styles.residentChip,
-                          selectedResident?.id === resident.id && styles.selectedChip
+                          selectedResident?._id === resident._id && styles.selectedChip
                         ]}
                         textStyle={[
                           styles.chipText,
-                          selectedResident?.id === resident.id && styles.selectedChipText
+                          selectedResident?._id === resident._id && styles.selectedChipText
                         ]}
                       >
                         {resident.full_name || 'Không có tên'}
@@ -397,13 +397,13 @@ const FamilyHomeScreen = ({ navigation }) => {
                 <TouchableOpacity 
                   style={styles.viewDetailsButton}
                   onPress={() => navigation.navigate('FamilyResidentDetail', {
-                    residentId: selectedResident.id,
+                    residentId: selectedResident._id,
                     residentName: selectedResident.full_name || 'Không có tên',
                     initialTab: 'overview'
                   })}
                 >
-                  <Text style={styles.viewDetailsText}>Xem Chi Tiết Đầy Đủ</Text>
-                  <MaterialIcons name="arrow-forward" size={16} color="white" />
+                    <Text style={styles.viewDetailsText}>Xem Chi Tiết Đầy Đủ</Text>
+                    <MaterialIcons name="arrow-forward" size={16} color="white" />
                 </TouchableOpacity>
               </View>
               )}
@@ -436,7 +436,7 @@ const FamilyHomeScreen = ({ navigation }) => {
           <View style={styles.quickActions}>
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('TinNhan')}
+                              onPress={() => navigation.navigate('TinNhanTab')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.primary }]}>
                 <Ionicons name="chatbubble-ellipses" size={24} color="white" />
