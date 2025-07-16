@@ -11,7 +11,10 @@ import {
   Avatar,
   IconButton,
   ActivityIndicator,
-  Menu
+  Menu,
+  Checkbox,
+  TextInput,
+  FAB
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,6 +24,25 @@ import { fetchActivityDetails, deleteActivity } from '../../redux/slices/activit
 
 import dateUtils from '../../utils/dateUtils';
 
+// Mock participants data
+const MOCK_PARTICIPANTS = [
+  { 
+    id: '1', 
+    name: 'Nguyễn Văn Nam', 
+    room: 'Phòng 101-A', 
+    status: 'pending',
+    notes: '',
+    attended: false
+  },
+  { 
+    id: '2', 
+    name: 'Trần Thị Lan', 
+    room: 'Phòng 102-A', 
+    status: 'pending',
+    notes: '',
+    attended: false
+  },
+];
 
 const ActivityDetailsScreen = () => {
   const navigation = useNavigation();
@@ -31,6 +53,8 @@ const ActivityDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [participants, setParticipants] = useState(MOCK_PARTICIPANTS);
+  const [attendanceMode, setAttendanceMode] = useState(false);
   
   useEffect(() => {
     setLoading(true);
@@ -55,6 +79,48 @@ const ActivityDetailsScreen = () => {
         setLoading(false);
       });
   }, [dispatch, activityId]);
+
+  const handleAttendanceToggle = (participantId) => {
+    setParticipants(prev => 
+      prev.map(participant => 
+        participant.id === participantId 
+          ? { ...participant, attended: !participant.attended }
+          : participant
+      )
+    );
+  };
+
+  const handleNotesChange = (participantId, notes) => {
+    setParticipants(prev => 
+      prev.map(participant => 
+        participant.id === participantId 
+          ? { ...participant, notes }
+          : participant
+      )
+    );
+  };
+
+  const handleSaveAttendance = () => {
+    // Simulate saving attendance
+    Alert.alert(
+      'Thành công',
+      'Điểm danh đã được lưu thành công!',
+      [{ text: 'OK' }]
+    );
+    setAttendanceMode(false);
+  };
+
+  const handleAddPhoto = () => {
+    Alert.alert(
+      'Thêm ảnh',
+      'Chọn cách thêm ảnh',
+      [
+        { text: 'Chụp ảnh', onPress: () => console.log('Camera') },
+        { text: 'Chọn từ thư viện', onPress: () => console.log('Gallery') },
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
   
   const getActivityIcon = (type) => {
     switch (type?.toLowerCase()) {
@@ -245,74 +311,80 @@ const ActivityDetailsScreen = () => {
               description={activity.facilitator || 'Chưa có thông tin'}
               left={props => <List.Icon {...props} icon="account" color={COLORS.primary} />}
             />
-            
-            <Divider style={styles.divider} />
-            
-            <Text style={styles.sectionTitle}>Người tham gia</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.participantsContainer}
-            >
-              {activity.participantsList && activity.participantsList.map((participant, index) => (
-                <View key={index} style={styles.participantItem}>
+          </Card.Content>
+        </Card>
+
+        {/* Attendance Section */}
+        <Card style={styles.detailCard}>
+          <Card.Content>
+            <View style={styles.attendanceHeader}>
+              <Text style={styles.sectionTitle}>Điểm danh ({participants.length} người)</Text>
+              <Button
+                mode={attendanceMode ? "outlined" : "contained"}
+                onPress={() => setAttendanceMode(!attendanceMode)}
+                style={styles.attendanceButton}
+                labelStyle={styles.attendanceButtonText}
+              >
+                {attendanceMode ? 'Hủy' : 'Điểm danh'}
+              </Button>
+            </View>
+
+            {participants.map((participant) => (
+              <View key={participant.id} style={styles.participantCard}>
+                <View style={styles.participantInfo}>
                   <Avatar.Text 
-                    size={50} 
-                    label={`${participant.firstName[0]}${participant.lastName[0]}`}
+                    size={40} 
+                    label={participant.name.split(' ').slice(-2).map(n => n[0]).join('')}
                     style={{ backgroundColor: COLORS.primary }}
                   />
-                  <Text style={styles.participantName} numberOfLines={1}>
-                    {participant.firstName} {participant.lastName}
-                  </Text>
+                  <View style={styles.participantDetails}>
+                    <Text style={styles.participantName}>{participant.name}</Text>
+                    <Text style={styles.participantRoom}>{participant.room}</Text>
+                  </View>
+                  {attendanceMode && (
+                    <Checkbox
+                      status={participant.attended ? 'checked' : 'unchecked'}
+                      onPress={() => handleAttendanceToggle(participant.id)}
+                    />
+                  )}
                 </View>
-              ))}
-              
-              {(!activity.participantsList || activity.participantsList.length === 0) && (
-                <View style={styles.noParticipantsContainer}>
-                  <Text style={styles.noParticipantsText}>Chưa có người tham gia</Text>
-                </View>
-              )}
-            </ScrollView>
-            
-            <Divider style={styles.divider} />
-            
-            <Text style={styles.sectionTitle}>Vật liệu cần thiết</Text>
-            {activity.materials && activity.materials.length > 0 ? (
-              activity.materials.map((item, index) => (
-                <List.Item
-                  key={index}
-                  title={item.name}
-                  description={`Số lượng: ${item.quantity}`}
-                  left={props => <List.Icon {...props} icon="package-variant" color={COLORS.primary} />}
-                />
-              ))
-            ) : (
-              <Text style={styles.emptyListText}>Không cần vật liệu</Text>
+                
+                {attendanceMode && (
+                  <TextInput
+                    label="Ghi chú hoạt động"
+                    value={participant.notes}
+                    onChangeText={(text) => handleNotesChange(participant.id, text)}
+                    multiline
+                    numberOfLines={2}
+                    style={styles.notesInput}
+                    mode="outlined"
+                    placeholder="Nhập ghi chú về hoạt động của cư dân..."
+                  />
+                )}
+              </View>
+            ))}
+
+            {attendanceMode && (
+              <Button
+                mode="contained"
+                onPress={handleSaveAttendance}
+                style={styles.saveButton}
+                icon="check"
+              >
+                Lưu điểm danh
+              </Button>
             )}
           </Card.Content>
         </Card>
       </ScrollView>
       
-      <View style={styles.actionButtonsContainer}>
-        <Button 
-          mode="contained" 
-          icon="check" 
-          style={[styles.actionButton, {backgroundColor: COLORS.success}]} 
-          labelStyle={{color: 'white'}}
-          onPress={() => {}}
-        >
-          Hoàn thành
-        </Button>
-        <Button 
-          mode="contained" 
-          icon="account-plus" 
-          style={[styles.actionButton, {backgroundColor: COLORS.primary}]} 
-          labelStyle={{color: 'white'}}
-          onPress={() => {}}
-        >
-          Thêm người tham gia
-        </Button>
-      </View>
+      {/* Floating Action Button for Photos */}
+      <FAB
+        icon="camera"
+        style={styles.fab}
+        onPress={handleAddPhoto}
+        label="Thêm ảnh"
+      />
     </View>
   );
 };
@@ -390,6 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius * 2,
     backgroundColor: COLORS.surface,
     ...SHADOWS.small,
+    marginBottom: SIZES.padding,
   },
   sectionTitle: {
     ...FONTS.h4,
@@ -406,50 +479,58 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     marginVertical: SIZES.padding,
   },
-  participantsContainer: {
-    paddingVertical: 8,
-  },
-  participantItem: {
-    alignItems: 'center',
-    marginRight: SIZES.padding * 1.5,
-    width: 70,
-  },
-  participantName: {
-    ...FONTS.body3,
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  noParticipantsContainer: {
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noParticipantsText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-  },
-  emptyListText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-    fontStyle: 'italic',
-    paddingVertical: 8,
-  },
-  actionButtonsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  attendanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: SIZES.padding,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    ...SHADOWS.medium,
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  actionButton: {
+  attendanceButton: {
+    minWidth: 100,
+  },
+  attendanceButtonText: {
+    fontSize: 14,
+  },
+  participantCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  participantInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  participantDetails: {
     flex: 1,
-    marginHorizontal: 4,
+    marginLeft: 12,
+  },
+  participantName: {
+    ...FONTS.body2,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  participantRoom: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+  },
+  notesInput: {
+    backgroundColor: COLORS.surface,
+    marginTop: 8,
+  },
+  saveButton: {
+    marginTop: 16,
+    backgroundColor: COLORS.success,
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.primary,
   },
 });
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, StatusBar, Alert } from 'react-native';
 import { 
   Appbar, 
   TextInput, 
@@ -7,25 +7,29 @@ import {
   HelperText, 
   Divider, 
   Text,
-  SegmentedButtons,
   Chip,
-  Switch,
   List,
   IconButton,
-  Menu
+  Menu,
+  Checkbox,
+  Card
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { createActivity } from '../../redux/slices/activitySlice';
 
 const ACTIVITY_TYPES = [
-  { value: 'physical', label: 'Thể chất', icon: 'dumbbell' },
-  { value: 'social', label: 'Xã hội', icon: 'account-group' },
-  { value: 'cognitive', label: 'Nhận thức', icon: 'brain' },
-  { value: 'creative', label: 'Sáng tạo', icon: 'palette' },
-  { value: 'spiritual', label: 'Tâm linh', icon: 'hand-peace' },
+  { value: 'Thể thao', label: 'Thể thao', icon: 'run' },
+  { value: 'Xã hội', label: 'Xã hội', icon: 'account-group' },
+  { value: 'Nhận thức', label: 'Nhận thức', icon: 'brain' },
+  { value: 'Sáng tạo', label: 'Sáng tạo', icon: 'palette' },
+  { value: 'Tâm lý', label: 'Tâm lý', icon: 'heart' },
+  { value: 'Y tế', label: 'Y tế', icon: 'medical-bag' },
+  { value: 'Giải trí', label: 'Giải trí', icon: 'music' },
+  { value: 'Học tập', label: 'Học tập', icon: 'book' },
+  { value: 'Khác', label: 'Khác', icon: 'dots-horizontal' },
 ];
 
 const LOCATIONS = [
@@ -39,13 +43,23 @@ const LOCATIONS = [
   'Phòng riêng',
 ];
 
+// Mock residents data - trong thực tế sẽ load từ API
+const MOCK_RESIDENTS = [
+  { id: '1', name: 'Nguyễn Văn Nam', room: 'Phòng 101-A', age: 74 },
+  { id: '2', name: 'Trần Thị Lan', room: 'Phòng 102-A', age: 76 },
+  { id: '3', name: 'Lê Văn Bình', room: 'Phòng 201-B', age: 79 },
+  { id: '4', name: 'Phạm Thị Hương', room: 'Phòng 202-C', age: 72 },
+];
+
 const CreateActivityScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [activityType, setActivityType] = useState('physical');
+  const [activityType, setActivityType] = useState('Thể thao');
+  const [customActivityType, setCustomActivityType] = useState('');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [time, setTime] = useState(new Date());
@@ -53,12 +67,8 @@ const CreateActivityScreen = () => {
   const [duration, setDuration] = useState('45');
   const [location, setLocation] = useState('Phòng hoạt động');
   const [showLocationMenu, setShowLocationMenu] = useState(false);
-  const [participants, setParticipants] = useState('10');
-  const [facilitator, setFacilitator] = useState('');
-  const [materials, setMaterials] = useState([]);
-  const [newMaterial, setNewMaterial] = useState('');
-  const [newMaterialQuantity, setNewMaterialQuantity] = useState('1');
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [capacity, setCapacity] = useState('10');
+  const [selectedResidents, setSelectedResidents] = useState([]);
   const [errors, setErrors] = useState({});
   
   const validate = () => {
@@ -66,36 +76,27 @@ const CreateActivityScreen = () => {
     
     if (!name.trim()) newErrors.name = 'Tên hoạt động là bắt buộc';
     if (!description.trim()) newErrors.description = 'Mô tả là bắt buộc';
+    if (activityType === 'Khác' && !customActivityType.trim()) {
+      newErrors.customActivityType = 'Vui lòng nhập loại hoạt động';
+    }
     if (!location.trim()) newErrors.location = 'Địa điểm là bắt buộc';
     if (isNaN(parseInt(duration)) || parseInt(duration) <= 0) {
       newErrors.duration = 'Nhập thời lượng hợp lệ';
     }
-    if (isNaN(parseInt(participants)) || parseInt(participants) <= 0) {
-      newErrors.participants = 'Nhập số lượng người tham gia hợp lệ';
+    if (isNaN(parseInt(capacity)) || parseInt(capacity) <= 0) {
+      newErrors.capacity = 'Nhập số lượng người tham gia hợp lệ';
     }
-    if (!facilitator.trim()) newErrors.facilitator = 'Người hướng dẫn là bắt buộc';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleAddMaterial = () => {
-    if (newMaterial.trim()) {
-      setMaterials([
-        ...materials,
-        { 
-          id: Date.now().toString(),
-          name: newMaterial,
-          quantity: isNaN(parseInt(newMaterialQuantity)) ? 1 : parseInt(newMaterialQuantity)
-        }
-      ]);
-      setNewMaterial('');
-      setNewMaterialQuantity('1');
-    }
-  };
-  
-  const handleRemoveMaterial = (id) => {
-    setMaterials(materials.filter(item => item.id !== id));
+  const handleResidentToggle = (residentId) => {
+    setSelectedResidents(prev => 
+      prev.includes(residentId) 
+        ? prev.filter(id => id !== residentId)
+        : [...prev, residentId]
+    );
   };
   
   const handleSubmit = () => {
@@ -107,37 +108,34 @@ const CreateActivityScreen = () => {
     const activityData = {
       name,
       description,
-      type: activityType,
+      type: activityType === 'Khác' ? customActivityType : activityType,
       scheduledTime: scheduledTime.toISOString(),
       durationMinutes: parseInt(duration),
       location,
-      participants: parseInt(participants),
-      facilitator,
-      materials,
-      isRecurring,
+      capacity: parseInt(capacity),
+      facilitator: user?.full_name || 'Nhân viên',
+      selectedResidents,
     };
     
-    dispatch(createActivity(activityData))
-      .unwrap()
-      .then(() => {
-        navigation.goBack();
-      })
-      .catch(error => {
-        console.error('Error creating activity:', error);
-      });
+    // Simulate API call
+    Alert.alert(
+      'Thành công',
+      'Hoạt động đã được tạo thành công!',
+      [{ text: 'OK', onPress: () => navigation.goBack() }]
+    );
   };
   
   const formatDate = (date) => {
-    return date.toLocaleDateString(undefined, {
-      weekday: 'short',
+    return date.toLocaleDateString('vi-VN', {
+      weekday: 'long',
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric',
     });
   };
   
   const formatTime = (time) => {
-    return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
   
   return (
@@ -179,12 +177,42 @@ const CreateActivityScreen = () => {
         </HelperText>
         
         <Text style={styles.inputLabel}>Loại hoạt động</Text>
-        <SegmentedButtons
-          value={activityType}
-          onValueChange={setActivityType}
-          buttons={ACTIVITY_TYPES}
-          style={styles.segmentedButtons}
-        />
+        <View style={styles.activityTypeContainer}>
+          {ACTIVITY_TYPES.map((type) => (
+            <Chip
+              key={type.value}
+              selected={activityType === type.value}
+              onPress={() => setActivityType(type.value)}
+              style={[
+                styles.activityTypeChip,
+                activityType === type.value && styles.selectedChip
+              ]}
+              textStyle={[
+                styles.chipText,
+                activityType === type.value && styles.selectedChipText
+              ]}
+              icon={type.icon}
+            >
+              {type.label}
+            </Chip>
+          ))}
+        </View>
+        
+        {activityType === 'Khác' && (
+          <>
+            <TextInput
+              label="Nhập loại hoạt động"
+              value={customActivityType}
+              onChangeText={setCustomActivityType}
+              style={styles.input}
+              error={!!errors.customActivityType}
+              mode="outlined"
+            />
+            <HelperText type="error" visible={!!errors.customActivityType}>
+              {errors.customActivityType}
+            </HelperText>
+          </>
+        )}
         
         <Divider style={styles.divider} />
         <Text style={styles.sectionTitle}>Lịch trình</Text>
@@ -287,74 +315,48 @@ const CreateActivityScreen = () => {
         <Text style={styles.sectionTitle}>Tham gia</Text>
         
         <TextInput
-          label="Số người tham gia tối đa"
-          value={participants}
-          onChangeText={setParticipants}
+          label="Sức chứa tối đa"
+          value={capacity}
+          onChangeText={setCapacity}
           keyboardType="numeric"
           style={styles.input}
-          error={!!errors.participants}
+          error={!!errors.capacity}
           mode="outlined"
         />
-        <HelperText type="error" visible={!!errors.participants}>
-          {errors.participants}
+        <HelperText type="error" visible={!!errors.capacity}>
+          {errors.capacity}
         </HelperText>
         
-        <TextInput
-          label="Người hướng dẫn"
-          value={facilitator}
-          onChangeText={setFacilitator}
-          style={styles.input}
-          error={!!errors.facilitator}
-          mode="outlined"
-        />
-        <HelperText type="error" visible={!!errors.facilitator}>
-          {errors.facilitator}
-        </HelperText>
-        
-        <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>Hoạt động định kỳ</Text>
-          <Switch value={isRecurring} onValueChange={setIsRecurring} />
+        <Text style={styles.inputLabel}>Người hướng dẫn</Text>
+        <View style={styles.facilitatorContainer}>
+          <Text style={styles.facilitatorText}>{user?.full_name || 'Nhân viên'}</Text>
+          <Text style={styles.facilitatorRole}>{user?.position || 'Nhân viên'}</Text>
         </View>
         
-        <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Vật liệu cần thiết</Text>
+        <Text style={styles.inputLabel}>Đề xuất cư dân tham gia</Text>
+        <Card style={styles.residentsCard}>
+          <Card.Content>
+            {MOCK_RESIDENTS.map((resident) => (
+              <List.Item
+                key={resident.id}
+                title={resident.name}
+                description={`${resident.room} • ${resident.age} tuổi`}
+                left={() => (
+                  <Checkbox
+                    status={selectedResidents.includes(resident.id) ? 'checked' : 'unchecked'}
+                    onPress={() => handleResidentToggle(resident.id)}
+                  />
+                )}
+                onPress={() => handleResidentToggle(resident.id)}
+                style={styles.residentItem}
+              />
+            ))}
+          </Card.Content>
+        </Card>
         
-        <View style={styles.materialsContainer}>
-          {materials.map((material) => (
-            <Chip
-              key={material.id}
-              onClose={() => handleRemoveMaterial(material.id)}
-              style={styles.materialChip}
-              icon="package-variant"
-            >
-              {material.name} (x{material.quantity})
-            </Chip>
-          ))}
-        </View>
-        
-        <View style={styles.addMaterialContainer}>
-          <TextInput
-            label="Tên vật liệu"
-            value={newMaterial}
-            onChangeText={setNewMaterial}
-            style={[styles.input, { flex: 2 }]}
-            mode="outlined"
-          />
-          <TextInput
-            label="SL"
-            value={newMaterialQuantity}
-            onChangeText={setNewMaterialQuantity}
-            keyboardType="numeric"
-            style={[styles.input, { flex: 1, marginLeft: 8 }]}
-            mode="outlined"
-          />
-          <IconButton
-            icon="plus-circle"
-            size={30}
-            onPress={handleAddMaterial}
-            style={{ alignSelf: 'center' }}
-          />
-        </View>
+        <Text style={styles.selectedCount}>
+          Đã chọn: {selectedResidents.length} cư dân
+        </Text>
         
         <Button
           mode="contained"
@@ -393,38 +395,62 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 8,
   },
-  segmentedButtons: {
+  activityTypeContainer: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 16,
+    gap: 8,
+  },
+  activityTypeChip: {
+    marginBottom: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  selectedChip: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  chipText: {
+    color: COLORS.text,
+  },
+  selectedChipText: {
+    color: COLORS.surface,
   },
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
     marginVertical: SIZES.padding,
   },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 16,
-  },
-  switchLabel: {
-    ...FONTS.body2,
-    color: COLORS.text,
-  },
-  materialsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginVertical: 8,
-  },
-  materialChip: {
-    margin: 4,
-    backgroundColor: COLORS.background,
-  },
-  addMaterialContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  facilitatorContainer: {
+    backgroundColor: COLORS.surface,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: 16,
+  },
+  facilitatorText: {
+    ...FONTS.h4,
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  facilitatorRole: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+  },
+  residentsCard: {
+    backgroundColor: COLORS.surface,
+    marginBottom: 8,
+  },
+  residentItem: {
+    paddingVertical: 4,
+  },
+  selectedCount: {
+    ...FONTS.body3,
+    color: COLORS.primary,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   submitButton: {
     marginTop: 24,
