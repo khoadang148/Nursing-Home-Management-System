@@ -14,6 +14,7 @@ import RecordVitalsScreen from '../screens/residents/RecordVitalsScreen';
 import VitalDetailScreen from '../screens/residents/VitalDetailScreen';
 import ResidentNotesScreen from '../screens/residents/ResidentNotesScreen';
 import ResidentFamilyScreen from '../screens/residents/ResidentFamilyScreen';
+import AddAssessmentScreen from '../screens/residents/AddAssessmentScreen';
 
 // Import medication screens
 import MedicationDetailsScreen from '../screens/medications/MedicationDetailsScreen';
@@ -45,6 +46,7 @@ const ResidentNavigator = () => {
       <Stack.Screen name="VitalDetail" component={VitalDetailScreen} />
       <Stack.Screen name="ResidentNotes" component={ResidentNotesScreen} />
       <Stack.Screen name="ResidentFamily" component={ResidentFamilyScreen} />
+      <Stack.Screen name="AddAssessment" component={AddAssessmentScreen} />
       
       {/* Add missing medication screens */}
       <Stack.Screen name="MedicationDetails" component={MedicationDetailsScreen} />
