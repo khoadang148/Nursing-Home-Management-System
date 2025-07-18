@@ -1,170 +1,385 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
+import React, { useMemo } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Image, 
+  Alert,
+  SafeAreaView,
+  RefreshControl,
+} from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  ActivityIndicator, 
+  Divider, 
+  List, 
+  Button,
+  IconButton,
+  Avatar,
+  Card,
+  Title,
+} from 'react-native-paper';
+import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { logout } from '../../redux/slices/authSlice';
 
-// Base64 encoded placeholder image
-const DEFAULT_AVATAR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFHGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDUgNzkuMTYzNDk5LCAyMDE4LzA4LzEzLTE2OjQwOjIyICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgMjAxOSAoV2luZG93cykiIHhtcDpDcmVhdGVEYXRlPSIyMDIwLTAyLTIwVDEzOjQ1OjM4KzAxOjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyMC0wMi0yMFQxMzo0NjoyOCswMTowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyMC0wMi0yMFQxMzo0NjoyOCswMTowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiIHBob3Rvc2hvcDpJQ0NQcm9maWxlPSJzUkdCIElFQzYxOTY2LTIuMSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDphMTlhZDJmOC1kMDI2LTI1NDItODhjOS1iZTRkYjkyMmQ0MmQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6YTE5YWQyZjgtZDAyNi0yNTQyLTg4YzktYmU0ZGI5MjJkNDJkIiB4bXBNTTpPcmlnaW5hbERvY3VtZW50SUQ9InhtcC5kaWQ6YTE5YWQyZjgtZDAyNi0yNTQyLTg4YzktYmU0ZGI5MjJkNDJkIj4gPHhtcE1NOkhpc3Rvcnk+IDxyZGY6U2VxPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iY3JlYXRlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDphMTlhZDJmOC1kMDI2LTI1NDItODhjOS1iZTRkYjkyMmQ0MmQiIHN0RXZ0OndoZW49IjIwMjAtMDItMjBUMTM6NDU6MzgrMDE6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCBDQyAyMDE5IChXaW5kb3dzKSIvPiA8L3JkZjpTZXE+IDwveG1wTU06SGlzdG9yeT4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz4En6MDAAABT0lEQVR42u3dMU4DMRRF0U/BHpJGFLACKhqWQMXSWAXrQayADiQKFtBFARIFBTWKRoPnTHEL6e7i/JG8hD/JsOL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeL0QeIcJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJE4fJM6N0wcZ1LdDdnLbJPdN8tIkD01yU/TZ9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHi9EHiHCROfyDXH4/nwMZ8Z8OsAAAAAElFTkSuQmCC';
+// Import constants
+import { COLORS, FONTS } from '../../constants/theme';
+
+const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+  const [loading, setLoading] = React.useState(false);
 
-  const handleLogout = () => {
+  // Fallback nếu thiếu thông tin user
+  const getUserData = () => {
+    if (user && user.full_name) return user;
+    return {
+      full_name: 'Nguyễn Văn A',
+      role: 'staff',
+      email: 'staff@example.com',
+      phone: '0123456789',
+      join_date: '2022-01-01',
+      avatar: DEFAULT_AVATAR,
+      position: 'Điều dưỡng',
+      qualification: 'Cử nhân Điều dưỡng',
+      notes: 'Nhân viên có kinh nghiệm chăm sóc người cao tuổi'
+    };
+  };
+  const userData = getUserData();
+
+  // Hiển thị ngày vào làm dạng string đẹp
+  const joinDateString = useMemo(() => {
+    if (!userData.join_date) return 'Chưa cập nhật';
+    // Nếu là dạng yyyy-mm-dd thì chuyển sang dd/mm/yyyy
+    if (/^\d{4}-\d{2}-\d{2}/.test(userData.join_date)) {
+      const [y, m, d] = userData.join_date.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return userData.join_date;
+  }, [userData.join_date]);
+
+  // Hiển thị role dễ hiểu hơn
+  const getDisplayRole = (role) => {
+    switch (role) {
+      case 'staff': return 'Nhân Viên';
+      case 'admin': return 'Quản Trị Viên';
+      case 'family': return 'Gia Đình';
+      default: return role;
+    }
+  };
+
+  const handleEditProfile = () => {
+    navigation.navigate('ChinhSuaHoSo', { userData });
+  };
+
+  const handleChangeAvatar = () => {
     Alert.alert(
-      "Đăng Xuất",
-      "Bạn có chắc chắn muốn đăng xuất?",
+      'Thay đổi ảnh đại diện',
+      'Chọn cách thay đổi ảnh',
       [
-        {
-          text: "Hủy",
-          style: "cancel"
-        },
-        {
-          text: "Đăng Xuất",
-          onPress: () => dispatch(logout())
-        }
+        { text: 'Chụp ảnh', onPress: () => console.log('Camera') },
+        { text: 'Chọn từ thư viện', onPress: () => console.log('Gallery') },
+        { text: 'Hủy', style: 'cancel' }
       ]
     );
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
+        <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
-      
-      <View style={styles.profileSection}>
-        <View style={styles.profileImageContainer}>
-          <Image 
-            source={{ uri: DEFAULT_AVATAR }} 
-            style={styles.profileImage}
-          />
-        </View>
-        <Text style={styles.userName}>John Doe</Text>
-        <Text style={styles.userRole}>Y Tá</Text>
-        
+    <SafeAreaView style={styles.container}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        {/* Nút back */}
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={{ padding: 8, marginRight: 8 }} onPress={() => navigation.goBack()}>
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.customHeaderTitle}>Hồ Sơ Cá Nhân</Text>
         <TouchableOpacity 
           style={styles.editButton}
-          onPress={() => navigation.navigate('ChinhSuaHoSo')}
+          onPress={handleEditProfile}
         >
-          <Text style={styles.editButtonText}>Chỉnh Sửa Hồ Sơ</Text>
+          <MaterialIcons name="edit" size={24} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.menuSection}>
-        <TouchableOpacity 
-          style={styles.menuItem}
-          onPress={() => navigation.navigate('CaiDat')}
-        >
-          <Text style={styles.menuItemText}>Cài Đặt</Text>
-        </TouchableOpacity>
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => setLoading(true)}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <Avatar.Image
+              source={{ uri: userData.avatar || DEFAULT_AVATAR }}
+              size={100}
+              style={styles.avatar}
+            />
+            <TouchableOpacity 
+              style={styles.editAvatarButton}
+              onPress={handleChangeAvatar}
+            >
+              <MaterialIcons name="edit" size={20} color={COLORS.surface} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{userData.full_name || 'Chưa có tên'}</Text>
+            <Text style={styles.profileRole}>{getDisplayRole(userData.role) || 'Chưa có vai trò'}</Text>
+            <Text style={styles.profilePosition}>{userData.position || 'Chưa cập nhật'}</Text>
+          </View>
+        </View>
         
-        <TouchableOpacity 
-          style={styles.menuItem}
-          onPress={() => navigation.navigate('DanhBaNhanVien')}
-        >
-          <Text style={styles.menuItemText}>Danh Bạ Nhân Viên</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.menuItem, styles.logoutItem]}
-          onPress={handleLogout}
-        >
-          <Text style={[styles.menuItemText, styles.logoutText]}>Đăng Xuất</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        {/* Personal Information Card */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Thông tin cá nhân</Title>
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{userData.email || 'Chưa có email'}</Text>
+              </View>
+            </View>
+            
+            <Divider style={styles.divider} />
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Số điện thoại</Text>
+                <Text style={styles.infoValue}>{userData.phone || 'Chưa có số điện thoại'}</Text>
+              </View>
+            </View>
+            
+            <Divider style={styles.divider} />
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Ngày vào làm</Text>
+                <Text style={styles.infoValue}>{joinDateString}</Text>
+              </View>
+            </View>
+            
+            <Divider style={styles.divider} />
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Bằng cấp</Text>
+                <Text style={styles.infoValue}>{userData.qualification || 'Chưa cập nhật'}</Text>
+              </View>
+            </View>
+            
+            {userData.notes && (
+              <>
+                <Divider style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Ghi chú</Text>
+                    <Text style={styles.infoValue}>{userData.notes}</Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </Card.Content>
+        </Card>
+        
+        {/* Quick Actions Card */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Truy cập nhanh</Title>
+            
+            <List.Item
+              title="Đổi mật khẩu"
+              description="Thay đổi mật khẩu đăng nhập"
+              left={(props) => <List.Icon {...props} icon="lock" color={COLORS.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('DoiMatKhau')}
+              style={styles.listItem}
+            />
+            
+            <Divider />
+            
+            <List.Item
+              title="Danh bạ nhân viên"
+              description="Xem danh sách nhân viên"
+              left={(props) => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('DanhBaNhanVien')}
+              style={styles.listItem}
+            />
+            
+            <Divider />
+            
+            <List.Item
+              title="Liên hệ người nhà"
+              description="Quản lý thông tin liên hệ"
+              left={(props) => <List.Icon {...props} icon="phone" color={COLORS.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('LienHeNguoiNha')}
+              style={styles.listItem}
+            />
+            
+            <Divider />
+            
+            <List.Item
+              title="Hoạt động"
+              description="Xem lịch hoạt động"
+              left={(props) => <List.Icon {...props} icon="calendar" color={COLORS.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('HoatDong')}
+              style={styles.listItem}
+            />
+          </Card.Content>
+        </Card>
+        
+        <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
-  header: {
-    backgroundColor: '#3498db',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 20,
-  },
-  profileSection: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    marginHorizontal: 15,
-    marginBottom: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.background,
   },
-  profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: 'hidden',
-    marginBottom: 15,
-    backgroundColor: '#e1e1e1',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  userRole: {
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.text,
     fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
   },
-  editButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+  scrollContent: {
+    flex: 1,
   },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  menuSection: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 15,
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  menuItem: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  menuItemText: {
-    fontSize: 16,
+  customHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '600',
     color: '#333',
   },
-  logoutItem: {
-    borderBottomWidth: 0,
+  editButton: {
+    padding: 8,
   },
-  logoutText: {
-    color: '#e74c3c',
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 20,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  avatar: {
+    backgroundColor: COLORS.border,
+  },
+  editAvatarButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    ...FONTS.h3,
+    marginBottom: 4,
+  },
+  profileRole: {
+    ...FONTS.body3,
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  profilePosition: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+  },
+  card: {
+    marginBottom: 16,
+    backgroundColor: COLORS.surface,
+  },
+  cardTitle: {
+    ...FONTS.h4,
+    marginBottom: 16,
+  },
+  infoRow: {
+    marginBottom: 8,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  infoLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    width: 100,
     fontWeight: '500',
+  },
+  infoValue: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    flex: 1,
+    textAlign: 'right',
+  },
+  divider: {
+    marginVertical: 8,
+  },
+  listItem: {
+    paddingVertical: 4,
+  },
+  versionText: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
   },
 });
 
