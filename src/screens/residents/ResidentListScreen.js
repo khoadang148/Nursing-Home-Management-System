@@ -25,28 +25,36 @@ const ResidentListScreen = ({ navigation }) => {
   useEffect(() => {
     // Simulate API loading
     setTimeout(() => {
-      setFilteredResidents(residents);
+      setFilteredResidents(residents || []);
       setLoading(false);
     }, 500);
   }, []);
 
   useEffect(() => {
-    let result = residents;
+    let result = residents || [];
 
     // Filter by care level
     if (filter !== 'Tất cả') {
-      const careLevel = filter === 'Cao' ? 'High' : filter === 'Trung bình' ? 'Medium' : 'Low';
-      result = result.filter(resident => resident.careLevel === careLevel);
+      const careLevelMap = {
+        'Cao': 'intensive',
+        'Trung bình': 'intermediate', 
+        'Thấp': 'basic'
+      };
+      const careLevel = careLevelMap[filter];
+      result = result.filter(resident => resident && resident.care_level === careLevel);
     }
 
     // Filter by search query
     if (searchQuery) {
       result = result.filter(
         resident =>
-          `${resident.firstName} ${resident.lastName}`
+          resident &&
+          resident.full_name &&
+          resident.full_name
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
-          resident.roomNumber.toLowerCase().includes(searchQuery.toLowerCase())
+          resident.room_number &&
+          resident.room_number.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -54,22 +62,60 @@ const ResidentListScreen = ({ navigation }) => {
   }, [searchQuery, filter]);
 
   const renderResidentItem = ({ item }) => {
+    // Safety check for undefined item
+    if (!item) {
+      return null;
+    }
+    
+    // Parse full_name to get first and last name
+    const nameParts = item.full_name ? item.full_name.split(' ') : ['', ''];
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // Parse medical conditions from medical_history
+    const medicalConditions = item.medical_history ? item.medical_history.split(', ') : [];
+    // Capitalize only the first letter of each condition
+    const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+    const medicalConditionsCap = medicalConditions.map(cond => capitalizeFirst(cond));
+    
+    // Map care_level to display format
+    const getCareLevelDisplay = (careLevel) => {
+      switch (careLevel) {
+        case 'intensive': return 'Cao';
+        case 'intermediate': return 'Trung bình';
+        case 'basic': return 'Thấp';
+        default: return 'Thấp';
+      }
+    };
+    
+    const getCareLevelColor = (careLevel) => {
+      switch (careLevel) {
+        case 'intensive': return COLORS.error;
+        case 'intermediate': return COLORS.warning;
+        case 'basic': return COLORS.success;
+        default: return COLORS.success;
+      }
+    };
+
     return (
       <TouchableOpacity
         style={styles.residentCard}
-        onPress={() => navigation.navigate('ResidentDetails', { residentId: item.id })}
+        onPress={() => navigation.navigate('ResidentDetails', { residentId: item._id })}
       >
         <View style={styles.cardHeader}>
           <Avatar.Image
-            source={{ uri: item.photo }}
+            source={{ uri: item.photo || item.avatar }}
             size={60}
             style={styles.avatar}
           />
           <View style={styles.nameContainer}>
-            <Text style={styles.residentName}>{`${item.firstName} ${item.lastName}`}</Text>
+            <Text style={styles.residentName}>{item.full_name}</Text>
             <View style={styles.roomContainer}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.roomNumber}>Phòng {item.roomNumber}</Text>
+              <Text style={styles.roomNumber}>Phòng {item.room_number}</Text>
+              {item.bed_number && (
+                <Text style={styles.bedNumber}> - Giường {item.bed_number}</Text>
+              )}
             </View>
           </View>
           <View style={styles.careLevelContainer}>
@@ -77,16 +123,11 @@ const ResidentListScreen = ({ navigation }) => {
               style={[
                 styles.careLevelBadge,
                 {
-                  backgroundColor:
-                    item.careLevel === 'High'
-                      ? COLORS.error
-                      : item.careLevel === 'Medium'
-                      ? COLORS.warning
-                      : COLORS.success,
+                  backgroundColor: getCareLevelColor(item.care_level),
                 },
               ]}
             >
-              {item.careLevel === 'High' ? 'Cao' : item.careLevel === 'Medium' ? 'Trung bình' : 'Thấp'}
+              {getCareLevelDisplay(item.care_level)}
             </Badge>
           </View>
         </View>
@@ -100,7 +141,7 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                {new Date(item.dateOfBirth).toLocaleDateString()}
+                {new Date(item.date_of_birth).toLocaleDateString()}
               </Text>
             </View>
             <View style={styles.infoItem}>
@@ -110,13 +151,13 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                Nhập viện: {new Date(item.admissionDate).toLocaleDateString()}
+                Nhập viện: {new Date(item.admission_date).toLocaleDateString()}
               </Text>
             </View>
           </View>
 
           <View style={styles.conditionsContainer}>
-            {item.medicalConditions.slice(0, 2).map((condition, index) => (
+            {medicalConditionsCap.map((condition, index) => (
               <Chip
                 key={index}
                 style={styles.conditionChip}
@@ -125,14 +166,6 @@ const ResidentListScreen = ({ navigation }) => {
                 {condition}
               </Chip>
             ))}
-            {item.medicalConditions.length > 2 && (
-              <Chip
-                style={styles.conditionChip}
-                textStyle={styles.conditionText}
-              >
-                +{item.medicalConditions.length - 2}
-              </Chip>
-            )}
           </View>
         </View>
 
@@ -140,7 +173,7 @@ const ResidentListScreen = ({ navigation }) => {
           <Button
             mode="text"
             onPress={() =>
-              navigation.navigate('ResidentDetails', { residentId: item.id, initialTab: 'care' })
+              navigation.navigate('ResidentDetails', { residentId: item._id, initialTab: 'overview' })
             }
             color={COLORS.primary}
             labelStyle={styles.buttonLabel}
@@ -151,7 +184,7 @@ const ResidentListScreen = ({ navigation }) => {
           <Button
             mode="text"
             onPress={() =>
-              navigation.navigate('ResidentDetails', { residentId: item.id, initialTab: 'meds' })
+              navigation.navigate('ResidentDetails', { residentId: item._id, initialTab: 'meds' })
             }
             color={COLORS.primary}
             labelStyle={styles.buttonLabel}
@@ -266,9 +299,9 @@ const ResidentListScreen = ({ navigation }) => {
       ) : (
         <>
           <FlatList
-            data={filteredResidents}
+            data={filteredResidents || []}
             renderItem={renderResidentItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item?._id || Math.random().toString()}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
@@ -390,6 +423,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   roomNumber: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  bedNumber: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
     marginLeft: 4,
