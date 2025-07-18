@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
 import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useSelector } from 'react-redux';
 
+const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
 
 // Mock data - In a real app, this would come from an API
 const mockDashboardData = {
@@ -84,12 +86,30 @@ const upcomingShifts = [
 ];
 
 const DashboardScreen = ({ navigation }) => {
+  const user = useSelector((state) => state.auth.user);
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState(mockDashboardData);
 
-  const onRefresh = React.useCallback(() => {
+  // Lấy thông tin user, fallback nếu chưa đăng nhập
+  const getUserData = () => {
+    if (user && user.full_name) return user;
+    return {
+      full_name: 'Nguyễn Văn A',
+      avatar: DEFAULT_AVATAR,
+    };
+  };
+  const userData = getUserData();
+
+  // Chào hỏi theo thời gian
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Chào buổi sáng';
+    if (hour < 17) return 'Chào buổi chiều';
+    return 'Chào buổi tối';
+  };
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Simulate a data refresh
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
@@ -99,8 +119,8 @@ const DashboardScreen = ({ navigation }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.welcomeText}>Xin chào,</Text>
-          <Text style={styles.nameText}>Jane Wilson</Text>
+          <Text style={styles.welcomeText}>{getGreeting()},</Text>
+          <Text style={styles.nameText}>{userData.full_name}</Text>
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('HoSo')}
@@ -108,7 +128,7 @@ const DashboardScreen = ({ navigation }) => {
         >
           <Avatar.Image
             size={50}
-            source={{ uri: 'https://randomuser.me/api/portraits/women/21.jpg' }}
+            source={{ uri: userData.avatar || DEFAULT_AVATAR }}
           />
         </TouchableOpacity>
       </View>
