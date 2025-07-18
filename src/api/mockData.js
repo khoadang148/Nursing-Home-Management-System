@@ -988,100 +988,92 @@ export const inventory = [
   },
 ];
 
-// Mock data for rooms
+// Mock data for rooms (chuẩn schema, đồng bộ)
 export const rooms = [
   {
-    id: '1',
-    number: '101',
-    type: 'Private',
+    id: 'room_101',
+    room_number: '101',
+    bed_count: 2,
+    room_type: '2_bed',
+    gender: 'male',
     floor: 1,
-    wing: 'East',
-    status: 'Occupied',
-    occupant: {
-      residentId: '1',
-      name: 'John Doe',
-    },
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV'],
-    notes: 'Near nurses station',
+    main_care_plan_id: 'care_plan_special',
+    status: 'occupied',
+    created_at: new Date(),
+    updated_at: new Date()
   },
   {
-    id: '2',
-    number: '102',
-    type: 'Private',
+    id: 'room_102',
+    room_number: '102',
+    bed_count: 2,
+    room_type: '2_bed',
+    gender: 'female',
     floor: 1,
-    wing: 'East',
-    status: 'Occupied',
-    occupant: {
-      residentId: '2',
-      name: 'Mary Smith',
-    },
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV'],
-    notes: '',
+    main_care_plan_id: 'care_plan_special',
+    status: 'occupied',
+    created_at: new Date(),
+    updated_at: new Date()
   },
   {
-    id: '3',
-    number: '103',
-    type: 'Private',
-    floor: 1,
-    wing: 'East',
-    status: 'Occupied',
-    occupant: {
-      residentId: '3',
-      name: 'William Johnson',
-    },
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV', 'Oxygen Hookup'],
-    notes: 'Requires oxygen supply',
-  },
-  {
-    id: '4',
-    number: '104',
-    type: 'Private',
-    floor: 1,
-    wing: 'East',
-    status: 'Occupied',
-    occupant: {
-      residentId: '4',
-      name: 'Patricia Brown',
-    },
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV', 'Ceiling Lift'],
-    notes: 'Ceiling lift installed for transfers',
-  },
-  {
-    id: '5',
-    number: '105',
-    type: 'Private',
-    floor: 1,
-    wing: 'East',
-    status: 'Occupied',
-    occupant: {
-      residentId: '5',
-      name: 'Richard Miller',
-    },
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV'],
-    notes: '',
-  },
-  {
-    id: '6',
-    number: '201',
-    type: 'Private',
+    id: 'room_201',
+    room_number: '201',
+    bed_count: 4,
+    room_type: '4_5_bed',
+    gender: 'male',
     floor: 2,
-    wing: 'West',
-    status: 'Available',
-    occupant: null,
-    features: ['Hospital Bed', 'Private Bathroom', 'Window View', 'TV'],
-    notes: 'Recently renovated',
+    main_care_plan_id: 'care_plan_standard',
+    status: 'available',
+    created_at: new Date(),
+    updated_at: new Date()
   },
   {
-    id: '7',
-    number: '202',
-    type: 'Semi-Private',
+    id: 'room_202',
+    room_number: '202',
+    bed_count: 3,
+    room_type: '3_bed',
+    gender: 'female',
     floor: 2,
-    wing: 'West',
-    status: 'Available',
-    occupant: null,
-    features: ['Hospital Bed', 'Shared Bathroom', 'Window View'],
-    notes: '',
+    main_care_plan_id: 'care_plan_standard',
+    status: 'available',
+    created_at: new Date(),
+    updated_at: new Date()
   },
+  {
+    id: 'room_301',
+    room_number: '301',
+    bed_count: 6,
+    room_type: '6_8_bed',
+    gender: 'male',
+    floor: 3,
+    main_care_plan_id: 'care_plan_standard',
+    status: 'available',
+    created_at: new Date(),
+    updated_at: new Date()
+  },
+  {
+    id: 'room_302',
+    room_number: '302',
+    bed_count: 5,
+    room_type: '4_5_bed',
+    gender: 'female',
+    floor: 3,
+    main_care_plan_id: 'care_plan_standard',
+    status: 'available',
+    created_at: new Date(),
+    updated_at: new Date()
+  },
+  {
+    id: 'room_401',
+    room_number: '401',
+    bed_count: 2,
+    room_type: '2_bed',
+    gender: 'male',
+    floor: 4,
+    main_care_plan_id: 'care_plan_special',
+    status: 'available',
+    created_at: new Date(),
+    updated_at: new Date()
+  }
 ];
 
 // Mock data for notifications
@@ -2504,4 +2496,16 @@ export const visits = [
     numberOfVisitors: 1,
     notes: '',
   },
+];
+
+// Mock data for beds (đồng bộ room_id)
+export const beds = [
+  { id: 'bed_101A', room_id: 'room_101', bed_number: '101-A', bed_type: 'standard', status: 'available' },
+  { id: 'bed_101B', room_id: 'room_101', bed_number: '101-B', bed_type: 'standard', status: 'occupied' },
+  { id: 'bed_102A', room_id: 'room_102', bed_number: '102-A', bed_type: 'electric', status: 'available' },
+  { id: 'bed_102B', room_id: 'room_102', bed_number: '102-B', bed_type: 'standard', status: 'available' },
+  { id: 'bed_201A', room_id: 'room_201', bed_number: '201-A', bed_type: 'standard', status: 'available' },
+  { id: 'bed_201B', room_id: 'room_201', bed_number: '201-B', bed_type: 'standard', status: 'available' },
+  { id: 'bed_202A', room_id: 'room_202', bed_number: '202-A', bed_type: 'electric', status: 'available' },
+  { id: 'bed_202B', room_id: 'room_202', bed_number: '202-B', bed_type: 'standard', status: 'available' },
 ]; 

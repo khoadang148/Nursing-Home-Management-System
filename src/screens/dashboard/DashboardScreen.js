@@ -12,6 +12,7 @@ import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
+import { residents, activities } from '../../api/mockData';
 
 const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
 
@@ -88,6 +89,9 @@ const upcomingShifts = [
 const DashboardScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
   const [refreshing, setRefreshing] = useState(false);
+  // Lấy số lượng thực tế từ mockData
+  const residentCount = residents.length;
+  const activityCount = activities.length;
   const [dashboardData, setDashboardData] = useState(mockDashboardData);
 
   // Lấy thông tin user, fallback nếu chưa đăng nhập
@@ -151,46 +155,9 @@ const DashboardScreen = ({ navigation }) => {
               <FontAwesome5 name="user-injured" size={24} color={COLORS.surface} />
             </View>
             <Text style={styles.cardTitle}>Cư Dân</Text>
-            <Text style={styles.cardValue}>{dashboardData.residents.total}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>
-                {dashboardData.residents.newAdmissions} mới
-              </Text>
-            </View>
+            <Text style={styles.cardValue}>{residentCount}</Text>
+            {/* Có thể thêm thông tin phụ nếu muốn */}
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.summaryCard, { backgroundColor: COLORS.accent }]}
-            onPress={() => navigation.navigate('NhiemVu')}
-          >
-            <View style={styles.cardIconContainer}>
-              <MaterialIcons name="assignment" size={24} color={COLORS.surface} />
-            </View>
-            <Text style={styles.cardTitle}>Nhiệm Vụ</Text>
-            <Text style={styles.cardValue}>{dashboardData.tasks.pending}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>
-                {dashboardData.tasks.overdue} quá hạn
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.cardRow}>
-          <TouchableOpacity
-            style={[styles.summaryCard, { backgroundColor: COLORS.secondary }]}
-            onPress={() => navigation.navigate('Thuoc')}
-          >
-            <View style={styles.cardIconContainer}>
-              <FontAwesome5 name="pills" size={24} color={COLORS.surface} />
-            </View>
-            <Text style={styles.cardTitle}>Thuốc</Text>
-            <Text style={styles.cardValue}>{dashboardData.medications.pending}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>Đang chờ</Text>
-            </View>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.summaryCard, { backgroundColor: COLORS.info }]}
             onPress={() => navigation.navigate('HoatDong')}
@@ -199,14 +166,12 @@ const DashboardScreen = ({ navigation }) => {
               <MaterialIcons name="event" size={24} color={COLORS.surface} />
             </View>
             <Text style={styles.cardTitle}>Hoạt Động</Text>
-            <Text style={styles.cardValue}>{dashboardData.activities.today}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardFooterText}>Hôm nay</Text>
-            </View>
+            <Text style={styles.cardValue}>{activityCount}</Text>
+            {/* Có thể thêm thông tin phụ nếu muốn */}
           </TouchableOpacity>
         </View>
-
-        {/* Upcoming Shifts */}
+        {/* Ẩn các card nhiệm vụ và thuốc */}
+        {/* Upcoming Shifts, Recent Alerts giữ nguyên nếu muốn */}
         <Card style={styles.shiftCard}>
           <Card.Title
             title="Ca Làm Sắp Tới"
@@ -223,7 +188,7 @@ const DashboardScreen = ({ navigation }) => {
           />
           <Card.Content>
             {upcomingShifts.map((shift) => (
-                              <View key={shift.id} style={styles.shiftItem}>
+              <View key={shift.id} style={styles.shiftItem}>
                 <View style={styles.shiftInfo}>
                   <Text style={styles.shiftDate}>{shift.date}</Text>
                   <Text style={styles.shiftTime}>
@@ -240,8 +205,6 @@ const DashboardScreen = ({ navigation }) => {
             ))}
           </Card.Content>
         </Card>
-
-        {/* Recent Alerts */}
         <Card style={styles.alertsCard}>
           <Card.Title
             title="Cảnh Báo Gần Đây"

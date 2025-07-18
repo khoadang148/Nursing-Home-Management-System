@@ -21,6 +21,7 @@ import {
 } from '../../api/carePlanService';
 import { useSelector } from 'react-redux';
 import { COLORS, FONTS } from '../../constants/theme';
+import { rooms, beds } from '../../api/mockData';
 
 const CarePlanSelectionScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +38,8 @@ const CarePlanSelectionScreen = () => {
   const [selectedMainPlan, setSelectedMainPlan] = useState(null);
   const [selectedSupplementaryPlans, setSelectedSupplementaryPlans] = useState([]);
   const [selectedRoomType, setSelectedRoomType] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedBed, setSelectedBed] = useState(null);
   const [consultationNotes, setConsultationNotes] = useState('');
   const [familyPreferences, setFamilyPreferences] = useState({
     preferredRoomGender: '',
@@ -106,6 +109,16 @@ const CarePlanSelectionScreen = () => {
       return;
     }
 
+    if (!selectedRoom) {
+      Alert.alert('Lỗi', 'Vui lòng chọn phòng');
+      return;
+    }
+
+    if (!selectedBed) {
+      Alert.alert('Lỗi', 'Vui lòng chọn giường');
+      return;
+    }
+
     try {
       const selectedPlans = [selectedMainPlan, ...selectedSupplementaryPlans];
       const costCalculation = calculateTotalCost(selectedPlans, selectedRoomType.room_type, roomTypes);
@@ -123,7 +136,9 @@ const CarePlanSelectionScreen = () => {
         room_monthly_cost: costCalculation.roomCost,
         care_plans_monthly_cost: costCalculation.carePlansCost,
         status: 'consulting',
-        payment_status: 'pending'
+        payment_status: 'pending',
+        room_id: selectedRoom.id,
+        bed_id: selectedBed.id
       };
 
       await createCarePlanAssignment(assignmentData);
@@ -156,6 +171,17 @@ const CarePlanSelectionScreen = () => {
     selectedRoomType?.room_type, 
     roomTypes
   );
+
+  // Khi chọn loại phòng, lọc danh sách phòng phù hợp
+  const availableRooms = selectedRoomType
+    ? rooms.filter(
+        r => r.status === 'available' && r.room_type === selectedRoomType.room_type
+      )
+    : [];
+  // Khi chọn phòng, lọc danh sách giường phù hợp
+  const availableBeds = selectedRoom
+    ? beds.filter(b => b.room_id === selectedRoom.id && b.status === 'available')
+    : [];
 
   if (loading) {
     return (
@@ -271,7 +297,11 @@ const CarePlanSelectionScreen = () => {
                 styles.roomCard,
                 selectedRoomType?._id === roomType._id && styles.selectedCard
               ]}
-              onPress={() => handleRoomTypeSelect(roomType)}
+              onPress={() => {
+                setSelectedRoomType(roomType);
+                setSelectedRoom(null);
+                setSelectedBed(null);
+              }}
             >
               <View style={styles.roomHeader}>
                 <Text style={styles.roomName}>{roomType?.type_name || ''}</Text>
@@ -289,10 +319,58 @@ const CarePlanSelectionScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+        {/* Chọn phòng cụ thể */}
+        {selectedRoomType && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>5. Chọn Phòng</Text>
+            {availableRooms.length === 0 ? (
+              <Text style={{ color: COLORS.error }}>Không có phòng phù hợp còn trống.</Text>
+            ) : (
+              availableRooms.map(room => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[
+                    styles.roomCard,
+                    selectedRoom?.id === room.id && styles.selectedCard
+                  ]}
+                  onPress={() => {
+                    setSelectedRoom(room);
+                    setSelectedBed(null);
+                  }}
+                >
+                  <Text style={styles.roomName}>Phòng {room.room_number}</Text>
+                  <Text style={styles.roomDescription}>Tầng {room.floor} - {room.gender === 'male' ? 'Nam' : 'Nữ'}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+        {/* Chọn giường cụ thể */}
+        {selectedRoom && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>6. Chọn Giường</Text>
+            {availableBeds.length === 0 ? (
+              <Text style={{ color: COLORS.error }}>Không còn giường trống trong phòng này.</Text>
+            ) : (
+              availableBeds.map(bed => (
+                <TouchableOpacity
+                  key={bed.id}
+                  style={[
+                    styles.roomCard,
+                    selectedBed?.id === bed.id && styles.selectedCard
+                  ]}
+                  onPress={() => setSelectedBed(bed)}
+                >
+                  <Text style={styles.roomName}>Giường {bed.bed_number} ({bed.bed_type})</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Tổng chi phí */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Tổng Chi Phí</Text>
+          <Text style={styles.sectionTitle}>7. Tổng Chi Phí</Text>
           <View style={styles.costCard}>
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Gói dịch vụ chính:</Text>
@@ -312,6 +390,12 @@ const CarePlanSelectionScreen = () => {
                 {selectedRoomType ? formatPrice(selectedRoomType?.monthly_price || 0) : 'Chưa chọn'}
               </Text>
             </View>
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Chi phí giường:</Text>
+              <Text style={styles.costValue}>
+                {selectedBed ? formatPrice(selectedBed?.monthly_price || 0) : 'Chưa chọn'}
+              </Text>
+            </View>
             <View style={[styles.costRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Tổng cộng:</Text>
               <Text style={styles.totalValue}>{formatPrice(totalCost?.totalCost || 0)}</Text>
@@ -325,10 +409,10 @@ const CarePlanSelectionScreen = () => {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (!selectedResident || !selectedMainPlan || !selectedRoomType) && styles.disabledButton
+            (!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed) && styles.disabledButton
           ]}
           onPress={handleSubmit}
-          disabled={!selectedResident || !selectedMainPlan || !selectedRoomType}
+          disabled={!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed}
         >
           <Text style={styles.submitButtonText}>Đăng Ký Gói Dịch Vụ</Text>
         </TouchableOpacity>
