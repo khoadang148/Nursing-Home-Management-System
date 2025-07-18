@@ -68,6 +68,13 @@ const StaffMenuScreen = () => {
       icon: <MaterialIcons name="event" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('HoatDong'),
     },
+    // Thêm mục quản lý lịch thăm
+    {
+      id: 'visits-management',
+      title: 'Quản lý lịch thăm',
+      icon: <MaterialIcons name="event-available" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('QuanLyLichTham'),
+    },
     {
       id: 'settings',
       title: 'Cài đặt',
