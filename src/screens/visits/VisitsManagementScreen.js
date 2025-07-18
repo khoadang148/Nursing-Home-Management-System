@@ -79,7 +79,7 @@ const VisitsManagementScreen = () => {
           <Text style={styles.familyName}>{getFamilyName(item.family_member_id)}</Text>
           <Text style={styles.dateTime}>{item.visit_date} - {item.visit_time}</Text>
         </View>
-        <Badge style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>{item.status}</Badge>
+        {/* Không hiển thị trạng thái */}
       </View>
       <View style={styles.body}>
         <Text style={styles.purpose}>Mục đích: <Text style={{ fontWeight: 'bold' }}>{item.purpose}</Text></Text>

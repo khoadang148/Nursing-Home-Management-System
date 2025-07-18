@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 // Native components
 import NativeCard from '../../components/NativeCard';
 import NativeButton from '../../components/NativeButton';
@@ -25,6 +25,7 @@ import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import API service
 import apiService from '../../api/apiService';
+import { addNotification } from '../../redux/slices/notificationSlice';
 
 // Update mockVisits to match updated MongoDB schema structure (removed resident_id)
 const mockVisits = [
@@ -77,6 +78,7 @@ const mockVisits = [
 
 const FamilyVisitScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [visits, setVisits] = useState([]);
@@ -161,6 +163,13 @@ const FamilyVisitScreen = ({ navigation }) => {
       
       // For now, simulate API response
       await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+      // Gửi notification khi tạo visit thành công
+      dispatch(addNotification({
+        type: 'info',
+        title: 'Lịch thăm mới',
+        message: `${user?.full_name || 'Một người thân'} vừa đặt lịch thăm vào ngày ${visitData.visit_date} lúc ${visitData.visit_time}.`,
+        timestamp: new Date().toISOString(),
+      }));
       return {
         success: true,
         data: {
