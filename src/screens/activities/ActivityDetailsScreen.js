@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar, Image, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, StatusBar, Image, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { 
   Appbar, 
   Button, 
@@ -14,13 +14,15 @@ import {
   Menu,
   Checkbox,
   TextInput,
-  FAB
+  FAB,
+  Badge
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchActivityDetails, deleteActivity } from '../../redux/slices/activitySlice';
+import * as ImagePicker from 'expo-image-picker';
 
 import dateUtils from '../../utils/dateUtils';
 
@@ -32,7 +34,8 @@ const MOCK_PARTICIPANTS = [
     room: 'Phòng 101-A', 
     status: 'pending',
     notes: '',
-    attended: false
+    attended: false,
+    photos: []
   },
   { 
     id: '2', 
@@ -40,7 +43,8 @@ const MOCK_PARTICIPANTS = [
     room: 'Phòng 102-A', 
     status: 'pending',
     notes: '',
-    attended: false
+    attended: false,
+    photos: []
   },
 ];
 
@@ -55,6 +59,7 @@ const ActivityDetailsScreen = () => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [participants, setParticipants] = useState(MOCK_PARTICIPANTS);
   const [attendanceMode, setAttendanceMode] = useState(false);
+  const [activityPhotos, setActivityPhotos] = useState([]);
   
   useEffect(() => {
     setLoading(true);
@@ -81,6 +86,7 @@ const ActivityDetailsScreen = () => {
   }, [dispatch, activityId]);
 
   const handleAttendanceToggle = (participantId) => {
+    console.log('Toggling attendance for participant:', participantId);
     setParticipants(prev => 
       prev.map(participant => 
         participant.id === participantId 
@@ -101,25 +107,148 @@ const ActivityDetailsScreen = () => {
   };
 
   const handleSaveAttendance = () => {
-    // Simulate saving attendance
+    const attendedCount = participants.filter(p => p.attended).length;
     Alert.alert(
       'Thành công',
-      'Điểm danh đã được lưu thành công!',
+      `Đã điểm danh ${attendedCount}/${participants.length} người tham gia!`,
       [{ text: 'OK' }]
     );
     setAttendanceMode(false);
   };
 
-  const handleAddPhoto = () => {
+  const requestCameraPermission = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Quyền truy cập', 'Cần quyền truy cập camera để chụp ảnh');
+      return false;
+    }
+    return true;
+  };
+
+  const requestMediaLibraryPermission = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Quyền truy cập', 'Cần quyền truy cập thư viện ảnh');
+      return false;
+    }
+    return true;
+  };
+
+  const takePhoto = async () => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        return result.assets[0].uri;
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Lỗi', 'Không thể chụp ảnh');
+    }
+    return null;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestMediaLibraryPermission();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        return result.assets[0].uri;
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh');
+    }
+    return null;
+  };
+
+  const handleAddPhotoForParticipant = async (participantId) => {
     Alert.alert(
-      'Thêm ảnh',
+      'Thêm ảnh cho ' + participants.find(p => p.id === participantId)?.name,
       'Chọn cách thêm ảnh',
       [
-        { text: 'Chụp ảnh', onPress: () => console.log('Camera') },
-        { text: 'Chọn từ thư viện', onPress: () => console.log('Gallery') },
+        { text: 'Chụp ảnh', onPress: async () => {
+          const photoUri = await takePhoto();
+          if (photoUri) {
+            setParticipants(prev => 
+              prev.map(participant => 
+                participant.id === participantId 
+                  ? { ...participant, photos: [...participant.photos, photoUri] }
+                  : participant
+              )
+            );
+          }
+        }},
+        { text: 'Chọn từ thư viện', onPress: async () => {
+          const photoUri = await pickImage();
+          if (photoUri) {
+            setParticipants(prev => 
+              prev.map(participant => 
+                participant.id === participantId 
+                  ? { ...participant, photos: [...participant.photos, photoUri] }
+                  : participant
+              )
+            );
+          }
+        }},
         { text: 'Hủy', style: 'cancel' }
       ]
     );
+  };
+
+  const handleAddActivityPhoto = async () => {
+    Alert.alert(
+      'Thêm ảnh hoạt động',
+      'Chọn cách thêm ảnh',
+      [
+        { text: 'Chụp ảnh', onPress: async () => {
+          const photoUri = await takePhoto();
+          if (photoUri) {
+            setActivityPhotos(prev => [...prev, photoUri]);
+          }
+        }},
+        { text: 'Chọn từ thư viện', onPress: async () => {
+          const photoUri = await pickImage();
+          if (photoUri) {
+            setActivityPhotos(prev => [...prev, photoUri]);
+          }
+        }},
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
+
+  const removePhoto = (participantId, photoIndex) => {
+    setParticipants(prev => 
+      prev.map(participant => 
+        participant.id === participantId 
+          ? { 
+              ...participant, 
+              photos: participant.photos.filter((_, index) => index !== photoIndex) 
+            }
+          : participant
+      )
+    );
+  };
+
+  const removeActivityPhoto = (photoIndex) => {
+    setActivityPhotos(prev => prev.filter((_, index) => index !== photoIndex));
   };
   
   const getActivityIcon = (type) => {
@@ -232,6 +361,7 @@ const ActivityDetailsScreen = () => {
   }
   
   const activityIconColor = getActivityIconColor(activity.type);
+  const attendedCount = participants.filter(p => p.attended).length;
   
   return (
     <View style={styles.container}>
@@ -252,138 +382,209 @@ const ActivityDetailsScreen = () => {
         </Menu>
       </Appbar.Header>
       
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Card style={styles.headerCard}>
-          <Card.Content style={styles.headerCardContent}>
-            <View style={[styles.activityIconContainer, { backgroundColor: activityIconColor }]}>
-              {getActivityIcon(activity.type)}
-            </View>
-            
-            <View style={styles.headerInfo}>
-              <Text style={FONTS.h3}>{activity.name}</Text>
-              <View style={styles.dateTimeContainer}>
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="event" size={18} color={COLORS.textSecondary} />
-                  <Text style={styles.dateText}>{formatDate(activity.scheduledTime)}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <MaterialIcons name="access-time" size={18} color={COLORS.textSecondary} />
-                  <Text style={styles.timeText}>{formatTime(activity.scheduledTime)}</Text>
-                </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+        >
+          <Card style={styles.headerCard}>
+            <Card.Content style={styles.headerCardContent}>
+              <View style={[styles.activityIconContainer, { backgroundColor: activityIconColor }]}>
+                {getActivityIcon(activity.type)}
               </View>
               
-              <Chip 
-                icon="tag" 
-                style={[styles.typeChip, { backgroundColor: `${activityIconColor}20` }]}
-                textStyle={{ color: activityIconColor }}
-              >
-                {getActivityTypeInVietnamese(activity.type)}
-              </Chip>
-            </View>
-          </Card.Content>
-        </Card>
-        
-        <Card style={styles.detailCard}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Mô tả</Text>
-            <Text style={styles.descriptionText}>{activity.description || 'Chưa có mô tả'}</Text>
-            
-            <Divider style={styles.divider} />
-            
-            <Text style={styles.sectionTitle}>Chi tiết</Text>
-            <List.Item
-              title="Địa điểm"
-              description={activity.location || 'Chưa có thông tin'}
-              left={props => <List.Icon {...props} icon="map-marker" color={COLORS.primary} />}
-            />
-            <List.Item
-              title="Thời lượng"
-              description={activity.durationMinutes ? `${activity.durationMinutes} phút` : 'Chưa có thông tin'}
-              left={props => <List.Icon {...props} icon="clock-outline" color={COLORS.primary} />}
-            />
-            <List.Item
-              title="Sức chứa"
-              description={activity.participants ? `${activity.participants} người tham gia` : 'Chưa có thông tin'}
-              left={props => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
-            />
-            <List.Item
-              title="Hướng dẫn viên"
-              description={activity.facilitator || 'Chưa có thông tin'}
-              left={props => <List.Icon {...props} icon="account" color={COLORS.primary} />}
-            />
-          </Card.Content>
-        </Card>
-
-        {/* Attendance Section */}
-        <Card style={styles.detailCard}>
-          <Card.Content>
-            <View style={styles.attendanceHeader}>
-              <Text style={styles.sectionTitle}>Điểm danh ({participants.length} người)</Text>
-              <Button
-                mode={attendanceMode ? "outlined" : "contained"}
-                onPress={() => setAttendanceMode(!attendanceMode)}
-                style={styles.attendanceButton}
-                labelStyle={styles.attendanceButtonText}
-              >
-                {attendanceMode ? 'Hủy' : 'Điểm danh'}
-              </Button>
-            </View>
-
-            {participants.map((participant) => (
-              <View key={participant.id} style={styles.participantCard}>
-                <View style={styles.participantInfo}>
-                  <Avatar.Text 
-                    size={40} 
-                    label={participant.name.split(' ').slice(-2).map(n => n[0]).join('')}
-                    style={{ backgroundColor: COLORS.primary }}
-                  />
-                  <View style={styles.participantDetails}>
-                    <Text style={styles.participantName}>{participant.name}</Text>
-                    <Text style={styles.participantRoom}>{participant.room}</Text>
+              <View style={styles.headerInfo}>
+                <Text style={FONTS.h3}>{activity.name}</Text>
+                <View style={styles.dateTimeContainer}>
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="event" size={18} color={COLORS.textSecondary} />
+                    <Text style={styles.dateText}>{formatDate(activity.scheduledTime)}</Text>
                   </View>
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="access-time" size={18} color={COLORS.textSecondary} />
+                    <Text style={styles.timeText}>{formatTime(activity.scheduledTime)}</Text>
+                  </View>
+                </View>
+                
+                <Chip 
+                  icon="tag" 
+                  style={[styles.typeChip, { backgroundColor: `${activityIconColor}20` }]}
+                  textStyle={{ color: activityIconColor }}
+                >
+                  {getActivityTypeInVietnamese(activity.type)}
+                </Chip>
+              </View>
+            </Card.Content>
+          </Card>
+          
+          <Card style={styles.detailCard}>
+            <Card.Content>
+              <Text style={styles.sectionTitle}>Mô tả</Text>
+              <Text style={styles.descriptionText}>{activity.description || 'Chưa có mô tả'}</Text>
+              
+              <Divider style={styles.divider} />
+              
+              <Text style={styles.sectionTitle}>Chi tiết</Text>
+              <List.Item
+                title="Địa điểm"
+                description={activity.location || 'Chưa có thông tin'}
+                left={props => <List.Icon {...props} icon="map-marker" color={COLORS.primary} />}
+              />
+              <List.Item
+                title="Thời lượng"
+                description={activity.durationMinutes ? `${activity.durationMinutes} phút` : 'Chưa có thông tin'}
+                left={props => <List.Icon {...props} icon="clock-outline" color={COLORS.primary} />}
+              />
+              <List.Item
+                title="Sức chứa"
+                description={activity.participants ? `${activity.participants} người tham gia` : 'Chưa có thông tin'}
+                left={props => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
+              />
+              <List.Item
+                title="Hướng dẫn viên"
+                description={activity.facilitator || 'Chưa có thông tin'}
+                left={props => <List.Icon {...props} icon="account" color={COLORS.primary} />}
+              />
+            </Card.Content>
+          </Card>
+
+          {/* Activity Photos Section */}
+          {activityPhotos.length > 0 && (
+            <Card style={styles.detailCard}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>Ảnh hoạt động ({activityPhotos.length})</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScrollView}>
+                  {activityPhotos.map((photo, index) => (
+                    <View key={index} style={styles.photoContainer}>
+                      <Image source={{ uri: photo }} style={styles.photo} />
+                      <IconButton
+                        icon="close"
+                        size={16}
+                        style={styles.removePhotoButton}
+                        onPress={() => removeActivityPhoto(index)}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Attendance Section */}
+          <Card style={styles.detailCard}>
+            <Card.Content>
+              <View style={styles.attendanceHeader}>
+                <View style={styles.attendanceTitleContainer}>
+                  <Text style={styles.sectionTitle}>Điểm danh ({participants.length} người)</Text>
+                  {attendedCount > 0 && (
+                    <Badge style={styles.attendanceBadge}>{attendedCount}</Badge>
+                  )}
+                </View>
+                <Button
+                  mode="outlined"
+                  onPress={() => setAttendanceMode(!attendanceMode)}
+                  style={styles.attendanceButton}
+                  labelStyle={styles.attendanceButtonText}
+                >
+                  {attendanceMode ? 'Hủy điểm danh' : 'Điểm danh'}
+                </Button>
+              </View>
+
+              {participants.map((participant) => (
+                <View key={participant.id} style={styles.participantCard}>
+                  <View style={styles.participantInfo}>
+                    <Avatar.Text 
+                      size={40} 
+                      label={participant.name.split(' ').slice(-2).map(n => n[0]).join('')}
+                      style={{ backgroundColor: COLORS.primary }}
+                    />
+                    <View style={styles.participantDetails}>
+                      <Text style={styles.participantName}>{participant.name}</Text>
+                      <Text style={styles.participantRoom}>{participant.room}</Text>
+                      {participant.attended && (
+                        <Text style={styles.attendedStatus}>✓ Đã điểm danh</Text>
+                      )}
+                    </View>
+                    {attendanceMode && (
+                      <View style={styles.participantActions}>
+                        <TouchableOpacity 
+                          style={styles.checkboxButton}
+                          onPress={() => handleAttendanceToggle(participant.id)}
+                        >
+                          <MaterialIcons 
+                            name={participant.attended ? "check-box" : "check-box-outline-blank"} 
+                            size={20} 
+                            color={participant.attended ? COLORS.primary : COLORS.textSecondary} 
+                          />
+                        </TouchableOpacity>
+                        <IconButton
+                          icon="camera"
+                          size={20}
+                          onPress={() => handleAddPhotoForParticipant(participant.id)}
+                          style={styles.photoButton}
+                        />
+                      </View>
+                    )}
+                  </View>
+                  
+                  {/* Participant Photos */}
+                  {participant.photos.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantPhotoScrollView}>
+                      {participant.photos.map((photo, index) => (
+                        <View key={index} style={styles.participantPhotoContainer}>
+                          <Image source={{ uri: photo }} style={styles.participantPhoto} />
+                          <IconButton
+                            icon="close"
+                            size={14}
+                            style={styles.removeParticipantPhotoButton}
+                            onPress={() => removePhoto(participant.id, index)}
+                          />
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                  
                   {attendanceMode && (
-                    <Checkbox
-                      status={participant.attended ? 'checked' : 'unchecked'}
-                      onPress={() => handleAttendanceToggle(participant.id)}
+                    <TextInput
+                      label="Ghi chú hoạt động"
+                      value={participant.notes}
+                      onChangeText={(text) => handleNotesChange(participant.id, text)}
+                      multiline
+                      numberOfLines={2}
+                      style={styles.notesInput}
+                      mode="outlined"
+                      placeholder="Nhập ghi chú về hoạt động của cư dân..."
                     />
                   )}
                 </View>
-                
-                {attendanceMode && (
-                  <TextInput
-                    label="Ghi chú hoạt động"
-                    value={participant.notes}
-                    onChangeText={(text) => handleNotesChange(participant.id, text)}
-                    multiline
-                    numberOfLines={2}
-                    style={styles.notesInput}
-                    mode="outlined"
-                    placeholder="Nhập ghi chú về hoạt động của cư dân..."
-                  />
-                )}
-              </View>
-            ))}
+              ))}
 
-            {attendanceMode && (
               <Button
                 mode="contained"
                 onPress={handleSaveAttendance}
                 style={styles.saveButton}
                 icon="check"
+                disabled={attendedCount === 0}
               >
-                Lưu điểm danh
+                Lưu điểm danh ({attendedCount}/{participants.length})
               </Button>
-            )}
-          </Card.Content>
-        </Card>
-      </ScrollView>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
-      {/* Floating Action Button for Photos */}
+      {/* Floating Action Button for Activity Photos */}
       <FAB
         icon="camera"
         style={styles.fab}
-        onPress={handleAddPhoto}
-        label="Thêm ảnh"
+        onPress={handleAddActivityPhoto}
+        label="Thêm ảnh hoạt động"
       />
     </View>
   );
@@ -413,7 +614,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SIZES.padding,
-    paddingBottom: 100,
+    paddingBottom: 50,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   headerCard: {
     marginBottom: SIZES.padding,
@@ -485,8 +689,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  attendanceTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  attendanceBadge: {
+    marginLeft: 8,
+    backgroundColor: COLORS.success,
+  },
   attendanceButton: {
-    minWidth: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
   },
   attendanceButtonText: {
     fontSize: 14,
@@ -517,6 +731,39 @@ const styles = StyleSheet.create({
     ...FONTS.body3,
     color: COLORS.textSecondary,
   },
+  participantActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    padding: 4,
+    borderRadius: 4,
+    minWidth: 60,
+    justifyContent: 'space-between',
+  },
+  photoButton: {
+    marginLeft: 2,
+    padding: 2,
+  },
+  participantPhotoScrollView: {
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  participantPhotoContainer: {
+    marginRight: 8,
+    position: 'relative',
+  },
+  participantPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  removeParticipantPhotoButton: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.error,
+    borderRadius: 10,
+  },
   notesInput: {
     backgroundColor: COLORS.surface,
     marginTop: 8,
@@ -531,6 +778,63 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: COLORS.primary,
+  },
+  photoScrollView: {
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  photoContainer: {
+    marginRight: 8,
+    position: 'relative',
+  },
+  photo: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.error,
+    borderRadius: 10,
+  },
+  attendedStatus: {
+    ...FONTS.body3,
+    color: COLORS.success,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+    backgroundColor: COLORS.surface,
+    padding: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  checkboxLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  attendanceCheckbox: {
+    marginRight: 4,
+  },
+  participantAttendanceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+    backgroundColor: COLORS.surface,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  checkboxButton: {
+    padding: 2,
+    marginRight: 4,
   },
 });
 

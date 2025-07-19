@@ -39,29 +39,43 @@ const EditProfileScreen = () => {
   const [fullName, setFullName] = useState(userData.full_name || '');
   const [email, setEmail] = useState(userData.email || '');
   const [phone, setPhone] = useState(userData.phone || '');
-  const [position, setPosition] = useState(userData.position || '');
-  const [joinDate, setJoinDate] = useState(userData.join_date || '');
-  const [qualification, setQualification] = useState(userData.qualification || '');
-  const [notes, setNotes] = useState(userData.notes || '');
   const [saving, setSaving] = useState(false);
+
+  // Thông tin không thể thay đổi (chỉ admin mới có thể)
+  const position = userData.position || '';
+  const joinDate = userData.join_date || '';
+  const qualification = userData.qualification || '';
+  const notes = userData.notes || '';
+
+  // Format ngày theo định dạng Việt Nam (dd-mm-yyyy)
+  const formatDateToVietnamese = (dateString) => {
+    if (!dateString) return 'Chưa cập nhật';
+    // Nếu là dạng yyyy-mm-dd thì chuyển sang dd-mm-yyyy
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+      const [y, m, d] = dateString.split('-');
+      return `${d}-${m}-${y}`;
+    }
+    return dateString;
+  };
 
   const handleSave = () => {
     setSaving(true);
-    // Dispatch cập nhật profile lên Redux
+    // Dispatch cập nhật profile lên Redux - chỉ thông tin có thể thay đổi
     dispatch(updateProfile({
       ...reduxUser,
       full_name: fullName,
       email,
       phone,
-      position,
-      join_date: joinDate,
       avatar,
-      qualification,
-      notes,
+      // Giữ nguyên thông tin không thể thay đổi
+      position: reduxUser?.position || position,
+      join_date: reduxUser?.join_date || joinDate,
+      qualification: reduxUser?.qualification || qualification,
+      notes: reduxUser?.notes || notes,
     }));
     setTimeout(() => {
       setSaving(false);
-    navigation.goBack();
+      navigation.goBack();
     }, 500);
   };
 
@@ -141,44 +155,43 @@ const EditProfileScreen = () => {
           />
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Vị trí công việc</Text>
-          <TextInput
-            style={styles.input}
-            value={position}
-            onChangeText={setPosition}
-            placeholder="Nhập vị trí công việc"
-          />
-        </View>
+        {/* Thông tin không thể thay đổi - Chỉ admin mới có thể */}
+        <View style={styles.readOnlySection}>
+          <Text style={styles.readOnlyTitle}>Thông tin quản lý (Chỉ admin mới có thể thay đổi)</Text>
+          
+          <View style={styles.readOnlyItem}>
+            <Text style={styles.readOnlyLabel}>Vị trí công việc</Text>
+            <View style={styles.readOnlyValueContainer}>
+              <Text style={styles.readOnlyValue}>{position || 'Chưa cập nhật'}</Text>
+              <MaterialIcons name="lock" size={16} color={COLORS.textSecondary} style={styles.lockIcon} />
+            </View>
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Ngày vào làm</Text>
-          <TextInput
-            style={styles.input}
-            value={joinDate}
-            onChangeText={setJoinDate}
-            placeholder="dd/mm/yyyy hoặc yyyy-mm-dd"
-          />
-        </View>
+          <View style={styles.readOnlyItem}>
+            <Text style={styles.readOnlyLabel}>Ngày vào làm</Text>
+            <View style={styles.readOnlyValueContainer}>
+              <Text style={styles.readOnlyValue}>{formatDateToVietnamese(joinDate)}</Text>
+              <MaterialIcons name="lock" size={16} color={COLORS.textSecondary} style={styles.lockIcon} />
+            </View>
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Bằng cấp</Text>
-          <TextInput
-            style={styles.input}
-            value={qualification}
-            onChangeText={setQualification}
-            placeholder="Nhập bằng cấp chuyên môn"
-          />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Ghi chú</Text>
-          <TextInput
-            style={[styles.input, {height: 60}]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Ghi chú thêm về nhân viên (nếu có)"
-            multiline
-          />
+          <View style={styles.readOnlyItem}>
+            <Text style={styles.readOnlyLabel}>Bằng cấp</Text>
+            <View style={styles.readOnlyValueContainer}>
+              <Text style={styles.readOnlyValue}>{qualification || 'Chưa cập nhật'}</Text>
+              <MaterialIcons name="lock" size={16} color={COLORS.textSecondary} style={styles.lockIcon} />
+            </View>
+          </View>
+
+          {notes && (
+            <View style={styles.readOnlyItem}>
+              <Text style={styles.readOnlyLabel}>Ghi chú</Text>
+              <View style={styles.readOnlyValueContainer}>
+                <Text style={styles.readOnlyValue}>{notes}</Text>
+                <MaterialIcons name="lock" size={16} color={COLORS.textSecondary} style={styles.lockIcon} />
+              </View>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity 
@@ -288,6 +301,45 @@ const styles = StyleSheet.create({
     color: COLORS.surface,
     fontSize: 18,
     fontWeight: '600',
+  },
+  readOnlySection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  readOnlyTitle: {
+    ...FONTS.body2,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  readOnlyItem: {
+    marginBottom: 10,
+  },
+  readOnlyLabel: {
+    ...FONTS.body3,
+    marginBottom: 4,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  readOnlyValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  readOnlyValue: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    flex: 1,
+  },
+  lockIcon: {
+    marginLeft: 8,
   },
 });
 

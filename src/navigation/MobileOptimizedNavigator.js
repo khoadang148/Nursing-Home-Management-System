@@ -26,6 +26,7 @@ import StaffDetailsScreen from '../screens/profile/StaffDetailsScreen';
 import ActivityNavigator from './ActivityNavigator';
 import FamilyStackNavigator from './FamilyNavigator';
 import VisitsManagementScreen from '../screens/visits/VisitsManagementScreen';
+import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -140,6 +141,7 @@ const StaffMainStack = () => (
     <Stack.Screen name="ChiTietNhanVien" component={StaffDetailsScreen} />
     <Stack.Screen name="HoatDong" component={ActivityNavigator} />
     <Stack.Screen name="QuanLyLichTham" component={VisitsManagementScreen} />
+    <Stack.Screen name="DoiMatKhau" component={ChangePasswordScreen} />
     </Stack.Navigator>
   );
 

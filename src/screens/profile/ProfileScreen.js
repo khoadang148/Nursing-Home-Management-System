@@ -23,7 +23,8 @@ import {
   Title,
 } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { logout } from '../../redux/slices/authSlice';
+import { logout, updateProfile } from '../../redux/slices/authSlice';
+import * as ImagePicker from 'expo-image-picker';
 
 // Import constants
 import { COLORS, FONTS } from '../../constants/theme';
@@ -84,8 +85,54 @@ const ProfileScreen = () => {
       'Thay đổi ảnh đại diện',
       'Chọn cách thay đổi ảnh',
       [
-        { text: 'Chụp ảnh', onPress: () => console.log('Camera') },
-        { text: 'Chọn từ thư viện', onPress: () => console.log('Gallery') },
+        { 
+          text: 'Chụp ảnh', 
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
+              return;
+            }
+
+            let result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.7,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+              console.log('Camera photo:', result.assets[0].uri);
+              // Dispatch action to update user avatar
+              dispatch(updateProfile({ avatar: result.assets[0].uri }));
+              Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện!');
+            }
+          }
+        },
+        { 
+          text: 'Chọn từ thư viện', 
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
+              return;
+            }
+
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.7,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+              console.log('Gallery photo:', result.assets[0].uri);
+              // Dispatch action to update user avatar
+              dispatch(updateProfile({ avatar: result.assets[0].uri }));
+              Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện!');
+            }
+          }
+        },
         { text: 'Hủy', style: 'cancel' }
       ]
     );
@@ -203,55 +250,6 @@ const ProfileScreen = () => {
                 </View>
               </>
             )}
-          </Card.Content>
-        </Card>
-        
-        {/* Quick Actions Card */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.cardTitle}>Truy cập nhanh</Title>
-            
-            <List.Item
-              title="Đổi mật khẩu"
-              description="Thay đổi mật khẩu đăng nhập"
-              left={(props) => <List.Icon {...props} icon="lock" color={COLORS.primary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => navigation.navigate('DoiMatKhau')}
-              style={styles.listItem}
-            />
-            
-            <Divider />
-            
-            <List.Item
-              title="Danh bạ nhân viên"
-              description="Xem danh sách nhân viên"
-              left={(props) => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => navigation.navigate('DanhBaNhanVien')}
-              style={styles.listItem}
-            />
-            
-            <Divider />
-            
-            <List.Item
-              title="Liên hệ người nhà"
-              description="Quản lý thông tin liên hệ"
-              left={(props) => <List.Icon {...props} icon="phone" color={COLORS.primary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => navigation.navigate('LienHeNguoiNha')}
-              style={styles.listItem}
-            />
-            
-            <Divider />
-            
-            <List.Item
-              title="Hoạt động"
-              description="Xem lịch hoạt động"
-              left={(props) => <List.Icon {...props} icon="calendar" color={COLORS.primary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => navigation.navigate('HoatDong')}
-              style={styles.listItem}
-            />
           </Card.Content>
         </Card>
         

@@ -17,7 +17,14 @@ const StaffMenuScreen = () => {
 
   // Fallback nếu thiếu thông tin user
   const getUserData = () => {
-    if (user && user.full_name) return user;
+    if (user && user.full_name) {
+      // Chuyển đổi role từ "staff" thành "Nhân Viên"
+      const displayRole = user.role === 'staff' ? 'Nhân Viên' : user.role;
+      return {
+        ...user,
+        role: displayRole
+      };
+    }
     return {
       full_name: 'Nguyễn Văn A',
       role: 'Y Tá',
@@ -76,10 +83,10 @@ const StaffMenuScreen = () => {
       onPress: () => navigation.navigate('QuanLyLichTham'),
     },
     {
-      id: 'settings',
-      title: 'Cài đặt',
-      icon: <Ionicons name="settings-outline" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('CaiDat'),
+      id: 'change-password',
+      title: 'Đổi mật khẩu',
+      icon: <MaterialIcons name="lock" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('DoiMatKhau'),
     },
     {
       id: 'logout',

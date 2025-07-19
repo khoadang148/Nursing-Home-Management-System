@@ -4,9 +4,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LogBox } from 'react-native';
 import { store } from './src/redux/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import { NotificationProvider } from './src/components/NotificationSystem';
+
+// Ignore specific warnings that don't affect functionality
+LogBox.ignoreLogs([
+  'Text strings must be rendered within a <Text> component',
+  'VirtualizedLists should never be nested',
+  'Warning: Failed prop type',
+]);
 
 // Configure the app theme
 import { COLORS } from './src/constants/theme';
