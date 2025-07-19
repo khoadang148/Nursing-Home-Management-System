@@ -236,9 +236,9 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <View style={styles.conditionsContainer}>
             {resident.medical_history ? (
               resident.medical_history.split(', ').map((condition, index) => (
-                <Chip key={index} style={styles.conditionChip}>
+              <Chip key={index} style={styles.conditionChip}>
                   {capitalizeFirst(condition)}
-                </Chip>
+              </Chip>
               ))
             ) : (
               <Text style={styles.infoValue}>Không có thông tin bệnh lý</Text>
@@ -290,7 +290,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
 
   // Tab Hoạt Động
   const renderActivityTab = () => (
-    <View style={styles.sectionContainer}>
+      <View style={styles.sectionContainer}>
       <Text style={styles.sectionTitle}>Hoạt Động Đã Tham Gia</Text>
       {mockActivities.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -322,7 +322,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <Text style={styles.sectionTitle}>Hình Ảnh Của Cư Dân</Text>
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Chưa có hình ảnh nào</Text>
-          </View>
+                  </View>
         </View>
       );
     }
@@ -352,20 +352,20 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 <Text style={styles.photoDate}>Ngày: {item.taken_date ? new Date(item.taken_date).toLocaleDateString('vi-VN') : ''}</Text>
                 <View style={styles.photoTagsRow}>
                   {displayTags.map((tag, idx) => (
-                    <Chip
+                  <Chip
                       key={idx}
                       style={styles.photoTagChip}
                       textStyle={styles.photoTagText}
                       compact
                     >
                       <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoTagText}>{tag}</Text>
-                    </Chip>
+                  </Chip>
                   ))}
                   {hasMoreTags && (
                     <Chip style={[styles.photoTagChip, { backgroundColor: '#ccc' }]} textStyle={styles.photoTagText} compact>...</Chip>
                   )}
                 </View>
-              </Surface>
+            </Surface>
             );
           }}
           showsVerticalScrollIndicator={false}
@@ -380,16 +380,16 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Đánh Giá Chung</Text>
-        <Button
+            <Button
           mode="contained"
-          icon="plus"
+              icon="plus"
           onPress={() => navigation.navigate('AddAssessment', { residentId: resident._id })}
           style={styles.addButton}
           labelStyle={styles.addButtonText}
-        >
+            >
           Ghi Nhận
-        </Button>
-      </View>
+            </Button>
+          </View>
       {mockAssessments.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Chưa có đánh giá nào</Text>
@@ -404,8 +404,8 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             <Text style={styles.assessmentRec}>Khuyến nghị: {as.recommendations}</Text>
           </Surface>
         ))
-      )}
-    </View>
+        )}
+      </View>
   );
 
   const renderMedicationsTab = () => (
@@ -418,33 +418,33 @@ const ResidentDetailScreen = ({ route, navigation }) => {
         {resident.current_medications && resident.current_medications.length > 0 ? (
           resident.current_medications.map((med, index) => (
             <Surface key={index} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
-              <View style={styles.medicationHeader}>
+                <View style={styles.medicationHeader}>
                 <Text style={styles.medicationName}>{med.medication_name}</Text>
-                <Chip
-                  style={[
-                    styles.statusChip,
-                    {
+                  <Chip
+                    style={[
+                      styles.statusChip,
+                      {
                       backgroundColor: COLORS.success + '20',
-                    },
-                  ]}
-                  textStyle={{
+                      },
+                    ]}
+                    textStyle={{
                     color: COLORS.success,
-                  }}
-                >
+                    }}
+                  >
                   Đang Sử Dụng
-                </Chip>
-              </View>
-              
-              <View style={styles.medicationDetails}>
-                <View style={styles.medicationDetail}>
-                  <Text style={styles.medicationLabel}>Liều Lượng:</Text>
-                  <Text style={styles.medicationValue}>{med.dosage}</Text>
+                  </Chip>
                 </View>
-                <View style={styles.medicationDetail}>
-                  <Text style={styles.medicationLabel}>Tần Suất:</Text>
-                  <Text style={styles.medicationValue}>{med.frequency}</Text>
+                
+                <View style={styles.medicationDetails}>
+                  <View style={styles.medicationDetail}>
+                    <Text style={styles.medicationLabel}>Liều Lượng:</Text>
+                    <Text style={styles.medicationValue}>{med.dosage}</Text>
+                  </View>
+                  <View style={styles.medicationDetail}>
+                    <Text style={styles.medicationLabel}>Tần Suất:</Text>
+                    <Text style={styles.medicationValue}>{med.frequency}</Text>
+                  </View>
                 </View>
-              </View>
             </Surface>
           ))
         ) : (
@@ -472,10 +472,10 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           </Button>
         </View>
         
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Chưa có dấu hiệu sinh tồn được ghi nhận</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Chưa có dấu hiệu sinh tồn được ghi nhận</Text>
           <Text style={styles.emptyText}>Dữ liệu sẽ được hiển thị khi có thông tin</Text>
-        </View>
+          </View>
       </View>
     </>
   );
@@ -558,7 +558,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               Tổng Quan
             </Text>
           </TouchableOpacity>
-
+          
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'activity' && styles.activeTabButton]}
             onPress={() => setActiveTab('activity')}
@@ -577,7 +577,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               Hoạt Động
             </Text>
           </TouchableOpacity>
-
+          
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'meds' && styles.activeTabButton]}
             onPress={() => setActiveTab('meds')}
@@ -596,7 +596,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               Thuốc
             </Text>
           </TouchableOpacity>
-
+          
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'vitals' && styles.activeTabButton]}
             onPress={() => setActiveTab('vitals')}

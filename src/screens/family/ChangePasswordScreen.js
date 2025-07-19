@@ -48,7 +48,7 @@ const ChangePasswordScreen = ({ navigation }) => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-
+      
       Alert.alert(
         'Thành công',
         'Mật khẩu đã được thay đổi thành công',
@@ -70,36 +70,36 @@ const ChangePasswordScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
           <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
+            </TouchableOpacity>
         <Text style={styles.customHeaderTitle}>Đổi Mật Khẩu</Text>
         <View style={styles.headerRight} />
-      </View>
+          </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Card style={styles.card}>
-          <Card.Content>
+            <Card.Content>
             <Title style={styles.cardTitle}>Thông Tin Bảo Mật</Title>
             <Paragraph style={styles.cardSubtitle}>
               Để đảm bảo tài khoản của bạn được bảo vệ tốt nhất, vui lòng sử dụng mật khẩu mạnh với ít nhất 6 ký tự.
-            </Paragraph>
-          </Card.Content>
-        </Card>
+              </Paragraph>
+            </Card.Content>
+          </Card>
 
         <View style={styles.formContainer}>
-          {/* Current Password */}
-          <View style={styles.inputContainer}>
+              {/* Current Password */}
+              <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Mật khẩu hiện tại</Text>
             <View style={styles.passwordInputContainer}>
-              <TextInput
+                <TextInput
                 style={styles.passwordInput}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry={!showCurrentPassword}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  secureTextEntry={!showCurrentPassword}
                 placeholder="Nhập mật khẩu hiện tại"
                 mode="outlined"
                 outlineColor={COLORS.border}
@@ -107,7 +107,7 @@ const ChangePasswordScreen = ({ navigation }) => {
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                      onPress={() => setShowCurrentPassword(!showCurrentPassword)}
               >
                 <MaterialIcons
                   name={showCurrentPassword ? 'visibility' : 'visibility-off'}
@@ -116,17 +116,17 @@ const ChangePasswordScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
+              </View>
 
-          {/* New Password */}
-          <View style={styles.inputContainer}>
+              {/* New Password */}
+              <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Mật khẩu mới</Text>
             <View style={styles.passwordInputContainer}>
-              <TextInput
+                <TextInput
                 style={styles.passwordInput}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry={!showNewPassword}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
                 placeholder="Nhập mật khẩu mới"
                 mode="outlined"
                 outlineColor={COLORS.border}
@@ -134,26 +134,26 @@ const ChangePasswordScreen = ({ navigation }) => {
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowNewPassword(!showNewPassword)}
+                      onPress={() => setShowNewPassword(!showNewPassword)}
               >
                 <MaterialIcons
                   name={showNewPassword ? 'visibility' : 'visibility-off'}
                   size={24}
                   color={COLORS.textSecondary}
-                />
+                        />
               </TouchableOpacity>
-            </View>
-          </View>
+                  </View>
+              </View>
 
-          {/* Confirm Password */}
-          <View style={styles.inputContainer}>
+              {/* Confirm Password */}
+              <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Xác nhận mật khẩu mới</Text>
             <View style={styles.passwordInputContainer}>
-              <TextInput
+                <TextInput
                 style={styles.passwordInput}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
                 placeholder="Nhập lại mật khẩu mới"
                 mode="outlined"
                 outlineColor={COLORS.border}
@@ -161,7 +161,7 @@ const ChangePasswordScreen = ({ navigation }) => {
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 <MaterialIcons
                   name={showConfirmPassword ? 'visibility' : 'visibility-off'}
@@ -170,52 +170,52 @@ const ChangePasswordScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
+              </View>
 
-          {/* Password Requirements */}
+              {/* Password Requirements */}
           <Card style={styles.requirementsCard}>
             <Card.Content>
               <Title style={styles.requirementsTitle}>Yêu cầu mật khẩu:</Title>
               <View style={styles.requirementItem}>
-                <MaterialIcons
+                  <MaterialIcons 
                   name={newPassword.length >= 6 ? 'check-circle' : 'radio-button-unchecked'}
-                  size={16}
-                  color={newPassword.length >= 6 ? COLORS.success : COLORS.textSecondary}
-                />
+                    size={16} 
+                    color={newPassword.length >= 6 ? COLORS.success : COLORS.textSecondary} 
+                  />
                 <Text style={styles.requirementText}>Ít nhất 6 ký tự</Text>
-              </View>
+                </View>
               <View style={styles.requirementItem}>
-                <MaterialIcons
+                  <MaterialIcons 
                   name={newPassword !== currentPassword ? 'check-circle' : 'radio-button-unchecked'}
-                  size={16}
+                    size={16} 
                   color={newPassword !== currentPassword ? COLORS.success : COLORS.textSecondary}
-                />
+                  />
                 <Text style={styles.requirementText}>Khác với mật khẩu hiện tại</Text>
-              </View>
+                </View>
               <View style={styles.requirementItem}>
-                <MaterialIcons
+                  <MaterialIcons 
                   name={newPassword === confirmPassword && newPassword.length > 0 ? 'check-circle' : 'radio-button-unchecked'}
-                  size={16}
+                    size={16} 
                   color={newPassword === confirmPassword && newPassword.length > 0 ? COLORS.success : COLORS.textSecondary}
-                />
+                  />
                 <Text style={styles.requirementText}>Xác nhận mật khẩu khớp</Text>
               </View>
             </Card.Content>
           </Card>
 
-          {/* Submit Button */}
-          <Button
-            mode="contained"
-            onPress={handleChangePassword}
-            loading={loading}
-            disabled={loading}
-            style={styles.submitButton}
+              {/* Submit Button */}
+              <Button
+                mode="contained"
+                onPress={handleChangePassword}
+                loading={loading}
+                disabled={loading}
+                style={styles.submitButton}
             labelStyle={styles.submitButtonText}
-          >
+              >
             {loading ? 'Đang xử lý...' : 'Thay đổi mật khẩu'}
-          </Button>
+              </Button>
         </View>
-      </ScrollView>
+        </ScrollView>
     </SafeAreaView>
   );
 };

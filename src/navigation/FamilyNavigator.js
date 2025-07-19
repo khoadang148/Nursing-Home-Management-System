@@ -131,8 +131,8 @@ const FamilyStackNavigator = () => {
         component={TermsOfServiceScreen}
         options={{ headerShown: false }}
       />
-    </Stack.Navigator>
-  );
+  </Stack.Navigator>
+);
 };
 
 // Family Home Stack
@@ -193,7 +193,7 @@ const FamilyTabNavigator = () => {
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
   const insets = useSafeAreaInsets();
   const { isTablet } = useResponsive();
-
+  
   return (
     <Tab.Navigator
       screenOptions={{

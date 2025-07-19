@@ -140,8 +140,8 @@ const StaffMainStack = () => (
     <Stack.Screen name="ChiTietNhanVien" component={StaffDetailsScreen} />
     <Stack.Screen name="HoatDong" component={ActivityNavigator} />
     <Stack.Screen name="QuanLyLichTham" component={VisitsManagementScreen} />
-  </Stack.Navigator>
-);
+    </Stack.Navigator>
+  );
 
 // Family Main Stack - Use the new FamilyStackNavigator directly
 const FamilyMainStack = () => <FamilyStackNavigator />;

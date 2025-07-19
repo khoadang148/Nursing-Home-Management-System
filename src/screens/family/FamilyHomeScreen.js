@@ -83,9 +83,9 @@ const FamilyHomeScreen = ({ navigation }) => {
         setSelectedResident(familyResidents[0]);
       }
       
-              // Mock upcoming visit for selected resident
-        setUpcomingVisit({
-          id: 'visit_001',
+      // Mock upcoming visit for selected resident
+      setUpcomingVisit({
+        id: 'visit_001',
           residentId: familyResidents[0]?._id,
           residentName: familyResidents[0]?.full_name || 'Không có tên',
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],

@@ -71,7 +71,7 @@ const AddResidentScreen = ({ navigation }) => {
   const [relationshipOption, setRelationshipOption] = useState('');
   const [customRelationship, setCustomRelationship] = useState('');
   const [relationshipMenuVisible, setRelationshipMenuVisible] = useState(false);
-
+  
   const onChangeDateOfBirth = (event, selectedDate) => {
     const currentDate = selectedDate || dateOfBirth;
     setShowDatePicker(Platform.OS === 'ios');
@@ -202,7 +202,7 @@ const AddResidentScreen = ({ navigation }) => {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+      navigation.goBack();
   };
 
   const hasUnsavedChanges = () => {
@@ -268,20 +268,20 @@ const AddResidentScreen = ({ navigation }) => {
             <Text style={styles.inputLabel}>Ngày sinh *</Text>
             <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
               <View pointerEvents="none">
-                <TextInput
+            <TextInput
                   label="Ngày sinh *"
-                  value={format(dateOfBirth, 'dd/MM/yyyy')}
-                  editable={false}
-                  mode="outlined"
-                  right={<TextInput.Icon icon="calendar" />}
-                  style={styles.input}
-                />
+              value={format(dateOfBirth, 'dd/MM/yyyy')}
+              editable={false}
+              mode="outlined"
+              right={<TextInput.Icon icon="calendar" />}
+              style={styles.input}
+            />
               </View>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth}
-                mode="date"
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={dateOfBirth}
+              mode="date"
                 display="spinner"
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(false);
@@ -445,13 +445,13 @@ const AddResidentScreen = ({ navigation }) => {
                     ))}
                   </Menu>
                   {relationshipOption === 'khác' && (
-                    <TextInput
+          <TextInput
                       label="Nhập mối quan hệ"
                       value={customRelationship}
                       onChangeText={setCustomRelationship}
-                      style={styles.input}
-                      mode="outlined"
-                    />
+            style={styles.input}
+            mode="outlined"
+          />
                   )}
                   <View style={{ marginTop: 10, marginBottom: 10 }}>
                     <Text style={{ color: COLORS.textSecondary }}>
@@ -466,29 +466,29 @@ const AddResidentScreen = ({ navigation }) => {
             </>
           ) : (
             <>
-              <TextInput
+          <TextInput
                 label="Họ tên *"
                 value={familyName}
                 onChangeText={setFamilyName}
-                style={styles.input}
-                mode="outlined"
-              />
-              <TextInput
+            style={styles.input}
+            mode="outlined"
+          />
+          <TextInput
                 label="Số điện thoại *"
                 value={familyPhone}
                 onChangeText={setFamilyPhone}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="phone-pad"
-              />
-              <TextInput
-                label="Email"
+            style={styles.input}
+            mode="outlined"
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            label="Email"
                 value={familyEmail}
                 onChangeText={setFamilyEmail}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="email-address"
-              />
+            style={styles.input}
+            mode="outlined"
+            keyboardType="email-address"
+          />
               <TextInput
                 label="Mối quan hệ *"
                 value={familyRelationship}

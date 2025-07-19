@@ -347,22 +347,22 @@ const BillingScreen = ({ navigation }) => {
               <View style={styles.filterButtons}>
                 {residents.length > 0 ? (
                   residents.filter(resident => resident && resident._id && resident.name && resident.room).map(resident => (
-                    <TouchableOpacity
+                  <TouchableOpacity
                       key={resident._id}
-                      style={[
-                        styles.filterButtonOption,
+                    style={[
+                      styles.filterButtonOption,
                         filters.residentId === resident._id && styles.filterButtonActive
-                      ]}
-                      onPress={() => setFilters(prev => ({
-                        ...prev,
+                    ]}
+                    onPress={() => setFilters(prev => ({
+                      ...prev,
                         residentId: prev.residentId === resident._id ? null : resident._id
-                      }))}
-                    >
-                      <Text style={[
-                        styles.filterButtonText,
+                    }))}
+                  >
+                    <Text style={[
+                      styles.filterButtonText,
                         filters.residentId === resident._id && styles.filterButtonTextActive
-                      ]}>{resident.name} ({resident.room})</Text>
-                    </TouchableOpacity>
+                    ]}>{resident.name} ({resident.room})</Text>
+                  </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.filterButtonText}>Không có dữ liệu người cao tuổi</Text>

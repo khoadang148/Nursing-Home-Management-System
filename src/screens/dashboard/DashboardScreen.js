@@ -188,7 +188,7 @@ const DashboardScreen = ({ navigation }) => {
           />
           <Card.Content>
             {upcomingShifts.map((shift) => (
-              <View key={shift.id} style={styles.shiftItem}>
+                              <View key={shift.id} style={styles.shiftItem}>
                 <View style={styles.shiftInfo}>
                   <Text style={styles.shiftDate}>{shift.date}</Text>
                   <Text style={styles.shiftTime}>

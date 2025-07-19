@@ -138,12 +138,12 @@ const ProfileScreen = () => {
               size={100}
               style={styles.avatar}
             />
-            <TouchableOpacity 
+        <TouchableOpacity 
               style={styles.editAvatarButton}
               onPress={handleChangeAvatar}
-            >
+        >
               <MaterialIcons name="edit" size={20} color={COLORS.surface} />
-            </TouchableOpacity>
+        </TouchableOpacity>
           </View>
           
           <View style={styles.profileInfo}>
@@ -227,7 +227,7 @@ const ProfileScreen = () => {
               description="Xem danh sách nhân viên"
               left={(props) => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => navigation.navigate('DanhBaNhanVien')}
+          onPress={() => navigation.navigate('DanhBaNhanVien')}
               style={styles.listItem}
             />
             
@@ -256,7 +256,7 @@ const ProfileScreen = () => {
         </Card>
         
         <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
-      </ScrollView>
+    </ScrollView>
     </SafeAreaView>
   );
 };

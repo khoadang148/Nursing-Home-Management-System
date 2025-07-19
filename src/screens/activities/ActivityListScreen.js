@@ -143,7 +143,7 @@ const ActivityListScreen = () => {
     { value: 'upcoming', label: 'Sắp tới', icon: 'calendar-clock' },
     { value: 'past', label: 'Đã qua', icon: 'calendar-check' },
   ];
-
+  
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* Header + Search + Filter block */}
@@ -165,15 +165,15 @@ const ActivityListScreen = () => {
         <Text style={styles.headerTitleNew}>Hoạt Động</Text>
         <View style={styles.searchBoxWrapper}>
           <MaterialIcons name="search" size={22} color={COLORS.textSecondary} style={{ marginLeft: 10 }} />
-          <Searchbar
-            placeholder="Tìm kiếm hoạt động"
-            onChangeText={setSearchQuery}
-            value={searchQuery}
+        <Searchbar
+          placeholder="Tìm kiếm hoạt động"
+          onChangeText={setSearchQuery}
+          value={searchQuery}
             style={styles.searchbarNew}
             inputStyle={{ fontSize: 16 }}
             iconColor="transparent"
-          />
-        </View>
+        />
+      </View>
         <View style={styles.filterTabsWrapper}>
           {filterTabs.map(tab => (
             <TouchableOpacity

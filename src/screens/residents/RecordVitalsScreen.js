@@ -55,12 +55,12 @@ const RecordVitalsScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <View style={styles.container}>
-        <Appbar.Header style={styles.appbar}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
+    <View style={styles.container}>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
           <Appbar.Content title="Ghi nhận chỉ số sinh hiệu" />
-        </Appbar.Header>
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 0 }]} keyboardShouldPersistTaps="handled">
+      </Appbar.Header>
+        <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 0 }}>
           <Surface style={styles.card}>
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons name="stethoscope" size={28} color={COLORS.primary} style={{ marginRight: 8 }} />
@@ -68,60 +68,60 @@ const RecordVitalsScreen = () => {
             </View>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="water" size={28} color={COLORS.primary} />
-              <TextInput
-                label="Huyết áp (SYS/DIA)"
-                value={vitals.bloodPressure}
-                onChangeText={text => handleChange('bloodPressure', text)}
+        <TextInput
+          label="Huyết áp (SYS/DIA)"
+          value={vitals.bloodPressure}
+          onChangeText={text => handleChange('bloodPressure', text)}
                 style={styles.inputSmall}
                 keyboardType="default"
                 placeholder="120/80"
-              />
+        />
             </View>
             <Text style={styles.inputDesc}>Ví dụ: 120/80 mmHg</Text>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="heart-pulse" size={28} color={COLORS.error} />
-              <TextInput
-                label="Nhịp tim (bpm)"
-                value={vitals.heartRate}
-                onChangeText={text => handleChange('heartRate', text)}
+        <TextInput
+          label="Nhịp tim (bpm)"
+          value={vitals.heartRate}
+          onChangeText={text => handleChange('heartRate', text)}
                 style={styles.inputSmall}
-                keyboardType="numeric"
+          keyboardType="numeric"
                 placeholder="75"
-              />
+        />
             </View>
             <Text style={styles.inputDesc}>Bình thường: 60-100 bpm</Text>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="thermometer" size={28} color={COLORS.warning} />
-              <TextInput
-                label="Nhiệt độ (°C)"
-                value={vitals.temperature}
-                onChangeText={text => handleChange('temperature', text)}
+        <TextInput
+          label="Nhiệt độ (°C)"
+          value={vitals.temperature}
+          onChangeText={text => handleChange('temperature', text)}
                 style={styles.inputSmall}
-                keyboardType="numeric"
+          keyboardType="numeric"
                 placeholder="36.5"
-              />
+        />
             </View>
             <Text style={styles.inputDesc}>Bình thường: 36.5-37.5°C</Text>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="lungs" size={28} color={COLORS.success} />
-              <TextInput
-                label="Nhịp thở (lần/phút)"
-                value={vitals.respiratoryRate}
-                onChangeText={text => handleChange('respiratoryRate', text)}
+        <TextInput
+          label="Nhịp thở (lần/phút)"
+          value={vitals.respiratoryRate}
+          onChangeText={text => handleChange('respiratoryRate', text)}
                 style={styles.inputSmall}
-                keyboardType="numeric"
+          keyboardType="numeric"
                 placeholder="18"
-              />
+        />
             </View>
             <Text style={styles.inputDesc}>Bình thường: 12-20 lần/phút</Text>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="water-percent" size={28} color={COLORS.info} />
-              <TextInput
-                label="SpO2 (%)"
-                value={vitals.oxygenSaturation}
-                onChangeText={text => handleChange('oxygenSaturation', text)}
+        <TextInput
+          label="SpO2 (%)"
+          value={vitals.oxygenSaturation}
+          onChangeText={text => handleChange('oxygenSaturation', text)}
                 style={styles.inputSmall}
-                keyboardType="numeric"
+          keyboardType="numeric"
                 placeholder="98"
               />
             </View>
@@ -135,38 +135,40 @@ const RecordVitalsScreen = () => {
             </View>
             <View style={styles.inputRow}>
               <MaterialCommunityIcons name="weight-kilogram" size={28} color={COLORS.primary} />
-              <TextInput
-                label="Cân nặng (kg)"
-                value={vitals.weight}
-                onChangeText={text => handleChange('weight', text)}
+        <TextInput
+          label="Cân nặng (kg)"
+          value={vitals.weight}
+          onChangeText={text => handleChange('weight', text)}
                 style={styles.inputSmall}
-                keyboardType="numeric"
+          keyboardType="numeric"
                 placeholder="65"
-              />
+        />
             </View>
             <Text style={styles.inputDesc}>Ví dụ: 65.5 kg</Text>
-            <TextInput
-              label="Ghi chú"
-              value={vitals.notes}
-              onChangeText={text => handleChange('notes', text)}
-              style={styles.input}
-              multiline
+        <TextInput
+          label="Ghi chú"
+          value={vitals.notes}
+          onChangeText={text => handleChange('notes', text)}
+          style={styles.input}
+          multiline
               placeholder="Ghi chú thêm về tình trạng sinh hiệu..."
-            />
+        />
           </Surface>
 
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            loading={loading}
-            style={styles.saveButton}
-            labelStyle={styles.saveButtonText}
-            contentStyle={{ paddingVertical: 8 }}
-          >
-            Lưu sinh hiệu
-          </Button>
-        </ScrollView>
-      </View>
+          <View style={styles.buttonContainer}>
+        <Button
+          mode="contained"
+          onPress={handleSave}
+          loading={loading}
+          style={styles.saveButton}
+                labelStyle={styles.saveButtonText}
+                contentStyle={{ paddingVertical: 8 }}
+        >
+          Lưu sinh hiệu
+        </Button>
+          </View>
+      </ScrollView>
+    </View>
     </KeyboardAvoidingView>
   );
 };
@@ -174,6 +176,9 @@ const RecordVitalsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   appbar: { backgroundColor: COLORS.primary },
+  scrollView: {
+    flex: 1,
+  },
   content: { padding: 16 },
   card: {
     backgroundColor: COLORS.surface,
@@ -207,8 +212,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 0,
   },
+  buttonContainer: {
+    padding: SIZES.padding,
+    marginBottom: 20,
+  },
   saveButton: {
-    marginTop: 8,
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.radius,
     ...SHADOWS.medium,
