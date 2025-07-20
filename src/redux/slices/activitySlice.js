@@ -1,25 +1,33 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getAllActivities, getActivityById, createNewActivity, updateActivityById, deleteActivityById } from '../../api/activityService';
+import activityService from '../../api/services/activityService';
 
 // Async thunks
 export const fetchActivities = createAsyncThunk(
-  'activities/fetchActivities',
+  'activity/fetchActivities',
   async (_, { rejectWithValue }) => {
     try {
-      const data = await getAllActivities();
-      return data;
+      const response = await activityService.getAllActivities();
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-export const fetchActivityDetails = createAsyncThunk(
-  'activities/fetchActivityDetails',
-  async (activityId, { rejectWithValue }) => {
+export const fetchActivityById = createAsyncThunk(
+  'activity/fetchActivityById',
+  async (id, { rejectWithValue }) => {
     try {
-      const data = await getActivityById(activityId);
-      return data;
+      const response = await activityService.getActivityById(id);
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -27,11 +35,16 @@ export const fetchActivityDetails = createAsyncThunk(
 );
 
 export const createActivity = createAsyncThunk(
-  'activities/createActivity',
+  'activity/createActivity',
   async (activityData, { rejectWithValue }) => {
     try {
-      const data = await createNewActivity(activityData);
-      return data;
+      const formattedData = activityService.formatActivityData(activityData);
+      const response = await activityService.createActivity(formattedData);
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -39,11 +52,16 @@ export const createActivity = createAsyncThunk(
 );
 
 export const updateActivity = createAsyncThunk(
-  'activities/updateActivity',
-  async ({ activityId, activityData }, { rejectWithValue }) => {
+  'activity/updateActivity',
+  async ({ id, updateData }, { rejectWithValue }) => {
     try {
-      const data = await updateActivityById(activityId, activityData);
-      return data;
+      const formattedData = activityService.formatActivityData(updateData);
+      const response = await activityService.updateActivity(id, formattedData);
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -51,11 +69,15 @@ export const updateActivity = createAsyncThunk(
 );
 
 export const deleteActivity = createAsyncThunk(
-  'activities/deleteActivity',
-  async (activityId, { rejectWithValue }) => {
+  'activity/deleteActivity',
+  async (id, { rejectWithValue }) => {
     try {
-      await deleteActivityById(activityId);
-      return activityId;
+      const response = await activityService.deleteActivity(id);
+      if (response.success) {
+        return id;
+      } else {
+        return rejectWithValue(response.error);
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -64,37 +86,32 @@ export const deleteActivity = createAsyncThunk(
 
 const initialState = {
   activities: [],
-  selectedActivity: null,
+  currentActivity: null,
   loading: false,
   error: null,
-  activeFilters: {
-    type: 'all',
-    date: 'upcoming',
-    search: '',
-  }
+  success: false,
 };
 
 const activitySlice = createSlice({
-  name: 'activities',
+  name: 'activity',
   initialState,
   reducers: {
-    clearSelectedActivity: (state) => {
-      state.selectedActivity = null;
+    clearError: (state) => {
+      state.error = null;
     },
-    setActiveFilters: (state, action) => {
-      state.activeFilters = { ...state.activeFilters, ...action.payload };
+    clearSuccess: (state) => {
+      state.success = false;
     },
-    resetFilters: (state) => {
-      state.activeFilters = {
-        type: 'all',
-        date: 'upcoming',
-        search: '',
-      };
-    }
+    setCurrentActivity: (state, action) => {
+      state.currentActivity = action.payload;
+    },
+    clearCurrentActivity: (state) => {
+      state.currentActivity = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Fetch Activities
+      // Fetch activities
       .addCase(fetchActivities.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -102,27 +119,29 @@ const activitySlice = createSlice({
       .addCase(fetchActivities.fulfilled, (state, action) => {
         state.loading = false;
         state.activities = action.payload;
+        state.success = true;
       })
       .addCase(fetchActivities.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
       
-      // Fetch Activity Details
-      .addCase(fetchActivityDetails.pending, (state) => {
+      // Fetch activity by ID
+      .addCase(fetchActivityById.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchActivityDetails.fulfilled, (state, action) => {
+      .addCase(fetchActivityById.fulfilled, (state, action) => {
         state.loading = false;
-        state.selectedActivity = action.payload;
+        state.currentActivity = action.payload;
+        state.success = true;
       })
-      .addCase(fetchActivityDetails.rejected, (state, action) => {
+      .addCase(fetchActivityById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
       
-      // Create Activity
+      // Create activity
       .addCase(createActivity.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -130,50 +149,53 @@ const activitySlice = createSlice({
       .addCase(createActivity.fulfilled, (state, action) => {
         state.loading = false;
         state.activities.push(action.payload);
+        state.success = true;
       })
       .addCase(createActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
       
-      // Update Activity
+      // Update activity
       .addCase(updateActivity.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateActivity.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.activities.findIndex(activity => activity.id === action.payload.id);
+        const index = state.activities.findIndex(activity => activity._id === action.payload._id);
         if (index !== -1) {
           state.activities[index] = action.payload;
         }
-        if (state.selectedActivity && state.selectedActivity.id === action.payload.id) {
-          state.selectedActivity = action.payload;
+        if (state.currentActivity && state.currentActivity._id === action.payload._id) {
+          state.currentActivity = action.payload;
         }
+        state.success = true;
       })
       .addCase(updateActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
       
-      // Delete Activity
+      // Delete activity
       .addCase(deleteActivity.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteActivity.fulfilled, (state, action) => {
         state.loading = false;
-        state.activities = state.activities.filter(activity => activity.id !== action.payload);
-        if (state.selectedActivity && state.selectedActivity.id === action.payload) {
-          state.selectedActivity = null;
+        state.activities = state.activities.filter(activity => activity._id !== action.payload);
+        if (state.currentActivity && state.currentActivity._id === action.payload) {
+          state.currentActivity = null;
         }
+        state.success = true;
       })
       .addCase(deleteActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
-  }
+  },
 });
 
-export const { clearSelectedActivity, setActiveFilters, resetFilters } = activitySlice.actions;
+export const { clearError, clearSuccess, setCurrentActivity, clearCurrentActivity } = activitySlice.actions;
 export default activitySlice.reducer; 

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import authService from '../../api/authService';
+import authService from '../../api/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Check if user is already logged in
@@ -94,7 +94,7 @@ export const resetPassword = createAsyncThunk(
 // Initial state
 const initialState = {
   user: null,
-  tokens: null,
+  accessToken: null,
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
@@ -140,7 +140,7 @@ const authSlice = createSlice({
           state.message = 'Đã đăng nhập thành công';
         } else {
           state.user = null;
-          state.tokens = null;
+          state.accessToken = null;
           state.isAuthenticated = false;
         }
       })
@@ -148,7 +148,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isInitialized = true;
         state.user = null;
-        state.tokens = null;
+        state.accessToken = null;
         state.isAuthenticated = false;
         state.message = null;
       })
@@ -163,7 +163,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.tokens = action.payload.tokens;
+        state.accessToken = action.payload.accessToken;
         state.error = null;
         state.message = 'Đăng nhập thành công!';
       })
@@ -200,7 +200,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = false;
         state.user = null;
-        state.tokens = null;
+        state.accessToken = null;
         state.error = null;
         state.message = 'Đã đăng xuất thành công';
       })
@@ -209,7 +209,7 @@ const authSlice = createSlice({
         // Even if logout fails on server, clear local state
         state.isAuthenticated = false;
         state.user = null;
-        state.tokens = null;
+        state.accessToken = null;
         state.message = 'Đã đăng xuất';
       })
       
@@ -218,8 +218,8 @@ const authSlice = createSlice({
         state.message = 'Đang làm mới phiên đăng nhập...';
       })
       .addCase(refreshToken.fulfilled, (state, action) => {
-        if (state.tokens) {
-          state.tokens.authToken = action.payload.authToken;
+        if (state.accessToken) {
+          state.accessToken = action.payload.accessToken;
         }
         state.message = null;
       })
@@ -227,7 +227,7 @@ const authSlice = createSlice({
         // Token refresh failed, logout user
         state.isAuthenticated = false;
         state.user = null;
-        state.tokens = null;
+        state.accessToken = null;
         state.error = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
         state.message = null;
       })
