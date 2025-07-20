@@ -199,29 +199,33 @@ export const apiService = {
  * @param {Object} error - Error object từ axios
  */
 const handleApiError = (error) => {
-  // Log error cho debugging
-  console.error('API Error:', error);
+  // Log minimal error info for debugging (without exposing technical details)
+  console.log('API Error occurred:', {
+    status: error.response?.status,
+    hasResponse: !!error.response,
+    hasRequest: !!error.request,
+    message: error.message ? 'Error occurred' : 'Unknown error'
+  });
 
   // Xử lý các trường hợp lỗi cụ thể
   if (error.response) {
     // Server trả về response với status code nằm ngoài range 2xx
-    console.error('Error data:', error.response.data);
-    console.error('Error status:', error.response.status);
+    console.log('Error status:', error.response.status);
     
-    // Hiển thị thông báo lỗi từ server nếu có
+    // Hiển thị thông báo lỗi từ server nếu có (trừ 401 để tránh duplicate)
     if (error.response.data?.message && error.response.status !== 401) {
       Alert.alert('Lỗi', error.response.data.message);
     }
   } else if (error.request) {
     // Request đã được gửi nhưng không nhận được response
-    console.error('Error request:', error.request);
+    console.log('Network error occurred');
     Alert.alert(
       'Lỗi kết nối',
       'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.'
     );
   } else {
     // Có lỗi khi setting up request
-    console.error('Error message:', error.message);
+    console.log('Request setup error occurred');
     Alert.alert('Lỗi', 'Đã xảy ra lỗi. Vui lòng thử lại sau.');
   }
 };

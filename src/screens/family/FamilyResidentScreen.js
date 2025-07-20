@@ -11,24 +11,27 @@ import {
   Dimensions,
   SafeAreaView,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Card, Title, Paragraph, Divider, ActivityIndicator, Chip, Searchbar } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
-// Import mock data
-import { residents as mockResidents, familyMembers, carePlans, carePlanAssignments } from '../../api/mockData';
+// Import Redux actions
+import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
+
+// Import services
+import residentService from '../../api/services/residentService';
 
 const { width } = Dimensions.get('window');
 
-// Mock recent updates tích hợp từ MongoDB collections
+// Mock recent updates - sẽ được cập nhật với dữ liệu thực sau
 const mockRecentUpdates = [
   {
     id: '1',
     type: 'assessment',
-    title: 'Đánh giá trong ngày cho Nguyễn Văn Nam',
+    title: 'Đánh giá trong ngày',
     subtitle: 'Tình trạng ổn định, cần theo dõi đường huyết',
     time: '2 giờ trước',
     resident_id: 'res_001',
@@ -38,7 +41,7 @@ const mockRecentUpdates = [
   {
     id: '2',
     type: 'vital_signs',
-    title: 'Đo chỉ số sinh hiệu cho Lê Thị Hoa',
+    title: 'Đo chỉ số sinh hiệu',
     subtitle: 'Huyết áp 140/85, cần theo dõi',
     time: '4 giờ trước',
     resident_id: 'res_002',
@@ -48,7 +51,7 @@ const mockRecentUpdates = [
   {
     id: '3',
     type: 'activity',
-    title: 'Hoạt động mới cho Trần Văn Bình',
+    title: 'Hoạt động mới',
     subtitle: 'Tham gia tập thể dục buổi sáng',
     time: '6 giờ trước',
     resident_id: 'res_003',
@@ -58,10 +61,11 @@ const mockRecentUpdates = [
 ];
 
 const FamilyResidentScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const { familyResidents, loading, error } = useSelector((state) => state.residents);
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [residents, setResidents] = useState([]);
   const [recentUpdates, setRecentUpdates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredResidents, setFilteredResidents] = useState([]);
@@ -105,75 +109,34 @@ const FamilyResidentScreen = ({ navigation }) => {
 
   useEffect(() => {
     filterResidents();
-  }, [searchQuery, residents]);
+  }, [searchQuery, familyResidents]);
   
   const loadData = async () => {
-    setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Load residents for current family member based on imported mock data
-    const userResidentIds = userData?.residentIds || [];
-    const familyResidents = mockResidents.filter(r => userResidentIds.includes(r._id));
-    
-    // Transform data to match new schema expectations
-    const transformedResidents = familyResidents.map(resident => {
-      // Find care plan assignment for this resident
-      const assignment = carePlanAssignments.find(ca => ca.resident_id === resident._id);
-      const carePlan = assignment ? carePlans.find(cp => cp._id === assignment.care_plan_id) : null;
+    try {
+      // Fetch residents for this family member
+      if (userData?.id || userData?._id) {
+        const familyMemberId = userData.id || userData._id;
+        await dispatch(fetchResidentsByFamilyMember(familyMemberId)).unwrap();
+      }
       
-      return {
-        _id: resident._id,
-        full_name: resident.full_name,
-        date_of_birth: resident.date_of_birth,
-        gender: resident.gender,
-        avatar: resident.avatar || resident.photo,
-        admission_date: resident.admission_date,
-        family_member_id: resident.family_member_id,
-        medical_history: resident.medical_history,
-        allergies: resident.allergies,
-        emergency_contact: resident.emergency_contact,
-        care_level: resident.care_level,
-        status: resident.status,
-        room: { 
-          room_number: resident.room_number,
-          bed_number: `${resident.room_number}-${resident.bed_number}` 
-        },
-        care_plan: carePlan ? {
-          plan_name: carePlan.plan_name,
-          total_monthly_cost: assignment?.total_monthly_cost || carePlan.monthly_price,
-          status: assignment?.status || 'active'
-        } : {
-          plan_name: 'Gói Chăm Sóc Tiêu Chuẩn',
-          total_monthly_cost: 15000000,
-          status: 'active'
-        },
-        latest_vital: {
-          temperature: 36.5 + Math.random() * 1,
-          heart_rate: 70 + Math.floor(Math.random() * 20),
-          blood_pressure: '130/80',
-          date: new Date()
-        },
-        recent_activities: ['Tập thể dục buổi sáng', 'Bữa ăn tối'],
-        payment_status: assignment?.payment_status || 'paid'
-      };
-    });
-    
-    setResidents(transformedResidents);
-      
-          // Update recent updates with actual resident names
-      const updatedRecentUpdates = mockRecentUpdates.map(update => {
-        const resident = mockResidents.find(r => r._id === update.resident_id);
+      // Load additional data (updates, etc.)
+      await loadAdditionalData();
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
+  
+  const loadAdditionalData = async () => {
+    // Update recent updates with actual resident names
+    const updatedRecentUpdates = mockRecentUpdates.map(update => {
+      const resident = familyResidents.find(r => r._id === update.resident_id);
       return {
         ...update,
-        title: `${update.title.split(' cho ')[0]} cho ${resident?.full_name || 'Không tìm thấy'}`
+        title: `${update.title.split(' cho ')[0]} cho ${resident?.full_name || 'Người cao tuổi'}`
       };
     });
     
     setRecentUpdates(updatedRecentUpdates);
-    
-    setLoading(false);
   };
   
   const onRefresh = async () => {
@@ -184,14 +147,14 @@ const FamilyResidentScreen = ({ navigation }) => {
 
   const filterResidents = () => {
     if (!searchQuery.trim()) {
-      setFilteredResidents(residents);
+      setFilteredResidents(familyResidents);
       return;
     }
 
-    const filtered = residents.filter(resident =>
-      resident.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      resident.room.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      resident.care_plan.plan_name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filtered = familyResidents.filter(resident =>
+      resident.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.medical_history?.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredResidents(filtered);
   };
@@ -207,6 +170,7 @@ const FamilyResidentScreen = ({ navigation }) => {
   };
   
   const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 0;
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -223,10 +187,11 @@ const FamilyResidentScreen = ({ navigation }) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   const handleResidentPress = (resident) => {
+    dispatch(setCurrentResident(resident));
     navigation.navigate('FamilyResidentDetail', { 
       residentId: resident._id,
       residentName: resident.full_name 
@@ -235,7 +200,7 @@ const FamilyResidentScreen = ({ navigation }) => {
 
   const handleRecentUpdatePress = (update) => {
     // Navigate to specific section of resident detail
-    const residentName = mockResidents.find(r => r.id === update.resident_id)?.full_name || 'Không tìm thấy';
+    const resident = familyResidents.find(r => r._id === update.resident_id);
     
     const tabMapping = {
       'assessment': 'assessments',
@@ -245,11 +210,14 @@ const FamilyResidentScreen = ({ navigation }) => {
     
     const initialTab = tabMapping[update.type] || 'overview';
     
-    navigation.navigate('FamilyResidentDetail', { 
-      residentId: update.resident_id,
-      residentName: residentName,
-      initialTab: initialTab
-    });
+    if (resident) {
+      dispatch(setCurrentResident(resident));
+      navigation.navigate('FamilyResidentDetail', { 
+        residentId: update.resident_id,
+        residentName: resident.full_name,
+        initialTab: initialTab
+      });
+    }
   };
 
   const renderResidentCard = ({ item: resident }) => (
@@ -260,21 +228,27 @@ const FamilyResidentScreen = ({ navigation }) => {
     >
       <View style={styles.cardHeader}>
         <Image 
-          source={{ uri: resident.avatar }}
+          source={{ uri: resident.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
           style={styles.residentPhoto}
         />
         <View style={styles.residentInfo}>
-          <Text style={styles.residentName}>{resident.full_name}</Text>
+          <Text style={styles.residentName}>{resident.full_name || 'Không có tên'}</Text>
           <View style={styles.infoRow}>
             <MaterialIcons name="room" size={14} color={COLORS.primary} />
             <Text style={styles.infoText}>
-              Phòng {resident.room.room_number} • Giường {resident.room.bed_number}
+              Phòng {resident.roomNumber || 'Chưa phân phòng'} • Giường {resident.bedNumber || '--'}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <MaterialIcons name="cake" size={14} color={COLORS.primary} />
             <Text style={styles.infoText}>
               {calculateAge(resident.date_of_birth)} tuổi
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="favorite" size={14} color={COLORS.error} />
+            <Text style={styles.infoText}>
+              {resident.relationship || 'Chưa cập nhật'}
             </Text>
           </View>
         </View>
@@ -293,44 +267,60 @@ const FamilyResidentScreen = ({ navigation }) => {
             style={[styles.statusChip, {backgroundColor: COLORS.success + '20'}]}
             textStyle={{color: COLORS.success, fontSize: 11}}
           >
-            {resident.status === 'active' ? 'Đang chăm sóc' : resident.status}
+            {resident.status === 'active' ? 'Đang chăm sóc' : resident.status || 'Chưa cập nhật'}
           </Chip>
           <Chip 
-            style={[styles.statusChip, {backgroundColor: 
-              resident.payment_status === 'paid' ? COLORS.success + '20' : COLORS.warning + '20'
-            }]}
-            textStyle={{color: 
-              resident.payment_status === 'paid' ? COLORS.success : COLORS.warning, 
-              fontSize: 11
-            }}
+            style={[styles.statusChip, {backgroundColor: COLORS.primary + '20'}]}
+            textStyle={{color: COLORS.primary, fontSize: 11}}
           >
-            {resident.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+            {resident.gender === 'male' ? 'Nam' : 'Nữ'}
           </Chip>
         </View>
 
-        {/* Care plan info */}
-        <View style={styles.carePlanInfo}>
-          <Text style={styles.carePlanName}>{resident.care_plan.plan_name}</Text>
-          <Text style={styles.carePlanCost}>
-            {formatCurrency(resident.care_plan.total_monthly_cost)}/tháng
-          </Text>
-        </View>
+        {/* Medical info */}
+        {resident.medical_history && (
+          <View style={styles.medicalInfo}>
+            <Text style={styles.medicalTitle}>Tiền sử bệnh:</Text>
+            <Text style={styles.medicalText} numberOfLines={2}>
+              {resident.medical_history}
+            </Text>
+          </View>
+        )}
 
-        {/* Latest vital signs */}
-        {resident.latest_vital && (
-          <View style={styles.vitalPreview}>
-            <Text style={styles.vitalTitle}>Chỉ số gần nhất:</Text>
-            <View style={styles.vitalRow}>
-              <Text style={styles.vitalText}>
-                🌡️ {resident.latest_vital.temperature || '--'}°C
+        {/* Current medications */}
+        {resident.current_medications && resident.current_medications.length > 0 && (
+          <View style={styles.medicationInfo}>
+            <Text style={styles.medicationTitle}>Thuốc hiện tại:</Text>
+            {resident.current_medications.slice(0, 2).map((med, index) => (
+              <Text key={index} style={styles.medicationText}>
+                • {med.medication_name} - {med.dosage} ({med.frequency})
               </Text>
-              <Text style={styles.vitalText}>
-                ❤️ {resident.latest_vital.heart_rate || '--'} bpm
+            ))}
+            {resident.current_medications.length > 2 && (
+              <Text style={styles.medicationText}>
+                • Và {resident.current_medications.length - 2} thuốc khác...
               </Text>
-              <Text style={styles.vitalText}>
-                🩸 {resident.latest_vital.blood_pressure || '--'} mmHg
-              </Text>
-            </View>
+            )}
+          </View>
+        )}
+
+        {/* Allergies */}
+        {resident.allergies && resident.allergies.length > 0 && (
+          <View style={styles.allergyInfo}>
+            <Text style={styles.allergyTitle}>Dị ứng:</Text>
+            <Text style={styles.allergyText}>
+              {resident.allergies.join(', ')}
+            </Text>
+          </View>
+        )}
+
+        {/* Emergency contact */}
+        {resident.emergency_contact && (
+          <View style={styles.emergencyInfo}>
+            <Text style={styles.emergencyTitle}>Liên hệ khẩn cấp:</Text>
+            <Text style={styles.emergencyText}>
+              {resident.emergency_contact.name} - {resident.emergency_contact.phone}
+            </Text>
           </View>
         )}
       </View>
@@ -384,12 +374,12 @@ const FamilyResidentScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Người Thân</Text>
         <Text style={styles.headerSubtitle}>
-          {residents.length} người đang được chăm sóc
+          {familyResidents.length} người đang được chăm sóc
         </Text>
         
         {/* Search bar */}
         <Searchbar
-          placeholder="Tìm kiếm người thân, phòng, gói dịch vụ..."
+          placeholder="Tìm kiếm người thân, phòng, tiền sử bệnh..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
@@ -421,15 +411,20 @@ const FamilyResidentScreen = ({ navigation }) => {
             <View key={resident._id}>
               {renderResidentCard({ item: resident })}
               {index < filteredResidents.length - 1 && <View style={{ height: 16 }} />}
-                </View>
-              ))
-            ) : (
+            </View>
+          ))
+        ) : (
           <View style={styles.emptyContainer}>
             <MaterialIcons name="people-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
               {searchQuery ? 'Không tìm thấy người thân nào' : 'Chưa có người thân nào được đăng ký'}
-                    </Text>
-                  </View>
+            </Text>
+            {!searchQuery && (
+              <Text style={styles.emptySubtext}>
+                Vui lòng liên hệ với ban quản lý để được hỗ trợ đăng ký
+              </Text>
+            )}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -628,6 +623,73 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 16,
     textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  medicalInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  medicalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  medicalText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  medicationInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  medicationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  medicationText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  allergyInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  allergyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  allergyText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  emergencyInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  emergencyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  emergencyText: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

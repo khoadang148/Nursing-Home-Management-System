@@ -82,6 +82,13 @@ const StaffMenuScreen = () => {
       icon: <MaterialIcons name="event-available" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('QuanLyLichTham'),
     },
+    // Thêm mục quản lý giường
+    {
+      id: 'bed-management',
+      title: 'Quản lý giường',
+      icon: <MaterialIcons name="bed" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('QuanLyGiuong'),
+    },
     {
       id: 'change-password',
       title: 'Đổi mật khẩu',

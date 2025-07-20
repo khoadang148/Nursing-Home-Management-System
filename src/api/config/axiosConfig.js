@@ -54,24 +54,23 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    // Log error details
-    console.error('❌ API Error:', {
-      message: error.message,
+    // Log minimal error info for debugging (without exposing technical details)
+    console.log('❌ API Error occurred:', {
       status: error.response?.status,
-      statusText: error.response?.statusText,
       url: error.config?.url,
-      data: error.response?.data,
-      isNetworkError: !error.response,
-      isTimeout: error.code === 'ECONNABORTED'
+      hasResponse: !!error.response,
+      hasRequest: !!error.request,
+      isTimeout: error.code === 'ECONNABORTED',
+      message: error.message ? 'Error occurred' : 'Unknown error'
     });
 
     // Xử lý timeout error cho iPhone
     if (error.code === 'ECONNABORTED') {
-      console.error('⏰ Timeout Error - Có thể do:');
-      console.error('1. iPhone không thể truy cập IP của máy host');
-      console.error('2. Không cùng mạng WiFi');
-      console.error('3. Firewall chặn kết nối');
-      console.error('4. Backend server không chạy');
+      console.log('⏰ Timeout Error - Có thể do:');
+      console.log('1. iPhone không thể truy cập IP của máy host');
+      console.log('2. Không cùng mạng WiFi');
+      console.log('3. Firewall chặn kết nối');
+      console.log('4. Backend server không chạy');
     }
 
     const originalRequest = error.config;

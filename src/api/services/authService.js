@@ -31,11 +31,58 @@ class AuthService {
         };
       }
     } catch (error) {
-      console.error('Login error:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Đăng nhập thất bại',
-      };
+      // Log minimal error info for debugging (without exposing technical details)
+      console.log('Login failed:', {
+        status: error.response?.status,
+        hasResponse: !!error.response,
+        hasRequest: !!error.request,
+        message: error.message ? 'Error occurred' : 'Unknown error'
+      });
+      
+      // Xử lý các loại lỗi cụ thể
+      if (error.response) {
+        const { status, data } = error.response;
+        
+        switch (status) {
+          case 401:
+            return {
+              success: false,
+              error: 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.',
+            };
+          case 404:
+            return {
+              success: false,
+              error: 'Tài khoản không tồn tại. Vui lòng kiểm tra email.',
+            };
+          case 422:
+            return {
+              success: false,
+              error: data?.message || 'Dữ liệu đăng nhập không hợp lệ.',
+            };
+          case 500:
+            return {
+              success: false,
+              error: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+            };
+          default:
+            return {
+              success: false,
+              error: data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.',
+            };
+        }
+      } else if (error.request) {
+        // Network error
+        return {
+          success: false,
+          error: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.',
+        };
+      } else {
+        // Other errors
+        return {
+          success: false,
+          error: 'Đăng nhập thất bại. Vui lòng thử lại.',
+        };
+      }
     }
   }
 

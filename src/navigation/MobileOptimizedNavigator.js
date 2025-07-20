@@ -28,6 +28,12 @@ import FamilyStackNavigator from './FamilyNavigator';
 import VisitsManagementScreen from '../screens/visits/VisitsManagementScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 
+// Import Bed screens
+import BedListScreen from '../screens/beds/BedListScreen';
+import AddBedScreen from '../screens/beds/AddBedScreen';
+import BedDetailScreen from '../screens/beds/BedDetailScreen';
+import EditBedScreen from '../screens/beds/EditBedScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
@@ -142,8 +148,14 @@ const StaffMainStack = () => (
     <Stack.Screen name="HoatDong" component={ActivityNavigator} />
     <Stack.Screen name="QuanLyLichTham" component={VisitsManagementScreen} />
     <Stack.Screen name="DoiMatKhau" component={ChangePasswordScreen} />
-    </Stack.Navigator>
-  );
+    
+    {/* Bed Management Screens */}
+    <Stack.Screen name="QuanLyGiuong" component={BedListScreen} />
+    <Stack.Screen name="ThemGiuong" component={AddBedScreen} />
+    <Stack.Screen name="ChiTietGiuong" component={BedDetailScreen} />
+    <Stack.Screen name="ChinhSuaGiuong" component={EditBedScreen} />
+  </Stack.Navigator>
+);
 
 // Family Main Stack - Use the new FamilyStackNavigator directly
 const FamilyMainStack = () => <FamilyStackNavigator />;

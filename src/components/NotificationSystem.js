@@ -15,6 +15,56 @@ import { COLORS, FONTS, SIZES } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
+// Helper function to sanitize error messages
+const sanitizeErrorMessage = (message) => {
+  if (!message || typeof message !== 'string') {
+    return 'Đã xảy ra lỗi. Vui lòng thử lại.';
+  }
+
+  // Remove technical error details
+  const technicalPatterns = [
+    /AxiosError.*/i,
+    /Request failed with status code \d+/i,
+    /Network Error/i,
+    /Timeout of \d+ms exceeded/i,
+    /ECONNREFUSED/i,
+    /ENOTFOUND/i,
+    /Check auth error.*/i,
+    /API Error.*/i,
+    /Login error.*/i,
+    /\[.*Error.*\]/i,
+    /Error:.*/i,
+    /Exception:.*/i,
+    /at .*\(.*\)/i,
+    /\.js:\d+:\d+/i,
+    /\.ts:\d+:\d+/i,
+    /\.tsx:\d+:\d+/i,
+    /\.jsx:\d+:\d+/i,
+  ];
+
+  let sanitizedMessage = message;
+
+  // Remove technical patterns
+  technicalPatterns.forEach(pattern => {
+    sanitizedMessage = sanitizedMessage.replace(pattern, '');
+  });
+
+  // Remove multiple spaces and trim
+  sanitizedMessage = sanitizedMessage.replace(/\s+/g, ' ').trim();
+
+  // If message is empty after sanitization, return default message
+  if (!sanitizedMessage) {
+    return 'Đã xảy ra lỗi. Vui lòng thử lại.';
+  }
+
+  // If message is too long, truncate it
+  if (sanitizedMessage.length > 100) {
+    sanitizedMessage = sanitizedMessage.substring(0, 97) + '...';
+  }
+
+  return sanitizedMessage;
+};
+
 // Context for global notification system
 const NotificationContext = createContext(null);
 
@@ -136,7 +186,9 @@ const Toast = React.memo(({ visible, message, type, onHide, duration = 3000 }) =
           activeOpacity={0.9}
         >
           <Text style={styles.toastIcon}>{icon}</Text>
-          <Text style={styles.toastMessage}>{message}</Text>
+          <Text style={styles.toastMessage}>
+            {type === 'error' ? sanitizeErrorMessage(message) : message}
+          </Text>
           <TouchableOpacity onPress={hideToast} style={styles.toastCloseButton}>
             <Text style={styles.toastCloseText}>✕</Text>
           </TouchableOpacity>
@@ -214,7 +266,9 @@ const AlertDialog = React.memo(({ visible, title, message, buttons, onDismiss })
         >
           <View style={styles.alertContent}>
             {title && <Text style={styles.alertTitle}>{title}</Text>}
-            <Text style={styles.alertMessage}>{message}</Text>
+            <Text style={styles.alertMessage}>
+              {sanitizeErrorMessage(message)}
+            </Text>
           </View>
           <View style={styles.alertActions}>
             {buttons?.map((button, index) => (

@@ -63,7 +63,54 @@ const LoginScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (error) {
-      showError(error);
+      // Parse error message and show user-friendly message
+      let userFriendlyMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      
+      if (typeof error === 'string') {
+        // Handle string errors
+        if (error.includes('401') || error.includes('Unauthorized')) {
+          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+        } else if (error.includes('404') || error.includes('User not found')) {
+          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+        } else if (error.includes('network') || error.includes('timeout')) {
+          userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+        } else if (error.includes('password') || error.includes('credentials')) {
+          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+        } else {
+          // For any other technical errors, show generic message
+          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+        }
+      } else if (error && typeof error === 'object') {
+        // Handle object errors
+        if (error.status === 401 || error.statusCode === 401) {
+          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+        } else if (error.status === 404 || error.statusCode === 404) {
+          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+        } else if (error.status === 500 || error.statusCode === 500) {
+          userFriendlyMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
+        } else if (error.message) {
+          // Check for specific error messages
+          const errorMsg = error.message.toLowerCase();
+          if (errorMsg.includes('unauthorized') || errorMsg.includes('invalid credentials')) {
+            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+          } else if (errorMsg.includes('user not found')) {
+            userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+          } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+            userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+          } else {
+            // For any other technical errors, show generic message
+            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+          }
+        } else {
+          // For any other technical errors, show generic message
+          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+        }
+      }
+      
+      // Log technical error to console for debugging (but don't show to user)
+      console.log('Technical error (hidden from user):', error);
+      
+      showError(userFriendlyMessage);
       dispatch(resetAuthError());
     }
   }, [error, showError, dispatch]);
