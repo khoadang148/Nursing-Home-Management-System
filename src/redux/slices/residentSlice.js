@@ -1,414 +1,249 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import residentService from '../../api/residentService';
+import residentService from '../../api/services/residentService';
 
-// Fetch all residents
+// Async thunks
 export const fetchAllResidents = createAsyncThunk(
-  'residents/fetchAll',
+  'resident/fetchAllResidents',
   async (_, { rejectWithValue }) => {
     try {
       const response = await residentService.getAllResidents();
-      if (!response.success) {
+      if (response.success) {
+        return response.data.map(resident => residentService.formatResidentForDisplay(resident));
+      } else {
         return rejectWithValue(response.error);
       }
-      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to fetch residents');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Fetch resident details
-export const fetchResidentDetails = createAsyncThunk(
-  'residents/fetchDetails',
+export const fetchResidentById = createAsyncThunk(
+  'resident/fetchResidentById',
   async (id, { rejectWithValue }) => {
     try {
-      const response = await residentService.getResidentDetails(id);
-      if (!response.success) {
+      const response = await residentService.getResidentById(id);
+      if (response.success) {
+        return residentService.formatResidentForDisplay(response.data);
+      } else {
         return rejectWithValue(response.error);
       }
-      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to fetch resident details');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Fetch resident medications
-export const fetchResidentMedications = createAsyncThunk(
-  'residents/fetchMedications',
-  async (id, { rejectWithValue }) => {
+export const fetchResidentsByFamilyMember = createAsyncThunk(
+  'resident/fetchResidentsByFamilyMember',
+  async (familyMemberId, { rejectWithValue }) => {
     try {
-      const response = await residentService.getMedications(id);
-      if (!response.success) {
+      const response = await residentService.getResidentsByFamilyMember(familyMemberId);
+      if (response.success) {
+        return response.data.map(resident => residentService.formatResidentForDisplay(resident));
+      } else {
         return rejectWithValue(response.error);
       }
-      return { residentId: id, medications: response.data };
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to fetch medications');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Fetch resident care plans
-export const fetchResidentCarePlans = createAsyncThunk(
-  'residents/fetchCarePlans',
-  async (id, { rejectWithValue }) => {
-    try {
-      const response = await residentService.getCarePlans(id);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return { residentId: id, carePlans: response.data };
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to fetch care plans');
-    }
-  }
-);
-
-// Fetch resident vital signs
-export const fetchResidentVitals = createAsyncThunk(
-  'residents/fetchVitals',
-  async (id, { rejectWithValue }) => {
-    try {
-      const response = await residentService.getVitals(id);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return { residentId: id, vitals: response.data };
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to fetch vitals');
-    }
-  }
-);
-
-// Create new resident
 export const createResident = createAsyncThunk(
-  'residents/create',
+  'resident/createResident',
   async (residentData, { rejectWithValue }) => {
     try {
-      const response = await residentService.createResident(residentData);
-      if (!response.success) {
+      const formattedData = residentService.formatResidentData(residentData);
+      const response = await residentService.createResident(formattedData);
+      if (response.success) {
+        return residentService.formatResidentForDisplay(response.data);
+      } else {
         return rejectWithValue(response.error);
       }
-      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to create resident');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Update resident
 export const updateResident = createAsyncThunk(
-  'residents/update',
-  async ({ id, data }, { rejectWithValue }) => {
+  'resident/updateResident',
+  async ({ id, updateData }, { rejectWithValue }) => {
     try {
-      const response = await residentService.updateResident(id, data);
-      if (!response.success) {
+      const formattedData = residentService.formatResidentData(updateData);
+      const response = await residentService.updateResident(id, formattedData);
+      if (response.success) {
+        return residentService.formatResidentForDisplay(response.data);
+      } else {
         return rejectWithValue(response.error);
       }
-      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to update resident');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Delete resident
 export const deleteResident = createAsyncThunk(
-  'residents/delete',
+  'resident/deleteResident',
   async (id, { rejectWithValue }) => {
     try {
       const response = await residentService.deleteResident(id);
-      if (!response.success) {
+      if (response.success) {
+        return id;
+      } else {
         return rejectWithValue(response.error);
       }
-      return id;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to delete resident');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Search residents
-export const searchResidents = createAsyncThunk(
-  'residents/search',
-  async (criteria, { rejectWithValue }) => {
-    try {
-      const response = await residentService.searchResidents(criteria);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to search residents');
-    }
-  }
-);
-
-// Add medication for resident
-export const addMedication = createAsyncThunk(
-  'residents/addMedication',
-  async ({ residentId, medicationData }, { rejectWithValue }) => {
-    try {
-      const response = await residentService.addMedication(residentId, medicationData);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return { residentId, medication: response.data };
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to add medication');
-    }
-  }
-);
-
-// Add care plan for resident
-export const addCarePlan = createAsyncThunk(
-  'residents/addCarePlan',
-  async ({ residentId, carePlanData }, { rejectWithValue }) => {
-    try {
-      const response = await residentService.addCarePlan(residentId, carePlanData);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return { residentId, carePlan: response.data };
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to add care plan');
-    }
-  }
-);
-
-// Record vital signs for resident
-export const recordVitals = createAsyncThunk(
-  'residents/recordVitals',
-  async ({ residentId, vitalsData }, { rejectWithValue }) => {
-    try {
-      const response = await residentService.recordVitals(residentId, vitalsData);
-      if (!response.success) {
-        return rejectWithValue(response.error);
-      }
-      return { residentId, vitals: response.data };
-    } catch (error) {
-      return rejectWithValue(error.message || 'Failed to record vitals');
-    }
-  }
-);
-
-// Initial state
 const initialState = {
-  residents: [],
+  allResidents: [],
+  familyResidents: [],
   currentResident: null,
-  medications: {},
-  carePlans: {},
-  vitals: {},
-  searchResults: [],
-  isLoading: false,
+  loading: false,
   error: null,
+  success: false,
 };
 
-// Resident slice
 const residentSlice = createSlice({
-  name: 'residents',
+  name: 'resident',
   initialState,
   reducers: {
-    resetResidentError: (state) => {
+    clearError: (state) => {
       state.error = null;
+    },
+    clearSuccess: (state) => {
+      state.success = false;
+    },
+    setCurrentResident: (state, action) => {
+      state.currentResident = action.payload;
     },
     clearCurrentResident: (state) => {
       state.currentResident = null;
+    },
+    clearFamilyResidents: (state) => {
+      state.familyResidents = [];
     },
   },
   extraReducers: (builder) => {
     builder
       // Fetch all residents
       .addCase(fetchAllResidents.pending, (state) => {
-        state.isLoading = true;
+        state.loading = true;
         state.error = null;
       })
       .addCase(fetchAllResidents.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.residents = action.payload;
+        state.loading = false;
+        state.allResidents = action.payload;
+        state.success = true;
       })
       .addCase(fetchAllResidents.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch residents';
+        state.loading = false;
+        state.error = action.payload;
       })
       
-      // Fetch resident details
-      .addCase(fetchResidentDetails.pending, (state) => {
-        state.isLoading = true;
+      // Fetch resident by ID
+      .addCase(fetchResidentById.pending, (state) => {
+        state.loading = true;
         state.error = null;
       })
-      .addCase(fetchResidentDetails.fulfilled, (state, action) => {
-        state.isLoading = false;
+      .addCase(fetchResidentById.fulfilled, (state, action) => {
+        state.loading = false;
         state.currentResident = action.payload;
-        
-        // Update in residents array if exists
-        const index = state.residents.findIndex(r => r.id === action.payload.id);
-        if (index !== -1) {
-          state.residents[index] = action.payload;
-        }
+        state.success = true;
       })
-      .addCase(fetchResidentDetails.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch resident details';
+      .addCase(fetchResidentById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       
-      // Fetch resident medications
-      .addCase(fetchResidentMedications.pending, (state) => {
-        state.isLoading = true;
+      // Fetch residents by family member
+      .addCase(fetchResidentsByFamilyMember.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchResidentMedications.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.medications[action.payload.residentId] = action.payload.medications;
+      .addCase(fetchResidentsByFamilyMember.fulfilled, (state, action) => {
+        state.loading = false;
+        state.familyResidents = action.payload;
+        state.success = true;
       })
-      .addCase(fetchResidentMedications.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch medications';
-      })
-      
-      // Fetch resident care plans
-      .addCase(fetchResidentCarePlans.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(fetchResidentCarePlans.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.carePlans[action.payload.residentId] = action.payload.carePlans;
-      })
-      .addCase(fetchResidentCarePlans.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch care plans';
+      .addCase(fetchResidentsByFamilyMember.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       
-      // Fetch resident vitals
-      .addCase(fetchResidentVitals.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(fetchResidentVitals.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.vitals[action.payload.residentId] = action.payload.vitals;
-      })
-      .addCase(fetchResidentVitals.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch vitals';
-      })
-      
-      // Create new resident
+      // Create resident
       .addCase(createResident.pending, (state) => {
-        state.isLoading = true;
+        state.loading = true;
         state.error = null;
       })
       .addCase(createResident.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.residents.push(action.payload);
+        state.loading = false;
+        state.allResidents.push(action.payload);
+        state.familyResidents.push(action.payload);
+        state.success = true;
       })
       .addCase(createResident.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to create resident';
+        state.loading = false;
+        state.error = action.payload;
       })
       
       // Update resident
       .addCase(updateResident.pending, (state) => {
-        state.isLoading = true;
+        state.loading = true;
         state.error = null;
       })
       .addCase(updateResident.fulfilled, (state, action) => {
-        state.isLoading = false;
-        
-        // Update in residents array
-        const index = state.residents.findIndex(r => r.id === action.payload.id);
+        state.loading = false;
+        const index = state.allResidents.findIndex(resident => resident._id === action.payload._id);
         if (index !== -1) {
-          state.residents[index] = action.payload;
+          state.allResidents[index] = action.payload;
         }
-        
-        // Update current resident if it's the same one
-        if (state.currentResident && state.currentResident.id === action.payload.id) {
+        const familyIndex = state.familyResidents.findIndex(resident => resident._id === action.payload._id);
+        if (familyIndex !== -1) {
+          state.familyResidents[familyIndex] = action.payload;
+        }
+        if (state.currentResident && state.currentResident._id === action.payload._id) {
           state.currentResident = action.payload;
         }
+        state.success = true;
       })
       .addCase(updateResident.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to update resident';
+        state.loading = false;
+        state.error = action.payload;
       })
       
       // Delete resident
       .addCase(deleteResident.pending, (state) => {
-        state.isLoading = true;
+        state.loading = true;
         state.error = null;
       })
       .addCase(deleteResident.fulfilled, (state, action) => {
-        state.isLoading = false;
-        
-        // Remove from residents array
-        state.residents = state.residents.filter(r => r.id !== action.payload);
-        
-        // Clear current resident if it's the same one
-        if (state.currentResident && state.currentResident.id === action.payload) {
+        state.loading = false;
+        state.allResidents = state.allResidents.filter(resident => resident._id !== action.payload);
+        state.familyResidents = state.familyResidents.filter(resident => resident._id !== action.payload);
+        if (state.currentResident && state.currentResident._id === action.payload) {
           state.currentResident = null;
         }
-        
-        // Clear related data
-        if (state.medications[action.payload]) {
-          delete state.medications[action.payload];
-        }
-        if (state.carePlans[action.payload]) {
-          delete state.carePlans[action.payload];
-        }
-        if (state.vitals[action.payload]) {
-          delete state.vitals[action.payload];
-        }
+        state.success = true;
       })
       .addCase(deleteResident.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to delete resident';
-      })
-      
-      // Search residents
-      .addCase(searchResidents.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(searchResidents.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.searchResults = action.payload;
-      })
-      .addCase(searchResidents.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to search residents';
-        state.searchResults = [];
-      })
-      
-      // Add medication
-      .addCase(addMedication.fulfilled, (state, action) => {
-        const { residentId, medication } = action.payload;
-        if (state.medications[residentId]) {
-          state.medications[residentId].push(medication);
-        } else {
-          state.medications[residentId] = [medication];
-        }
-      })
-      
-      // Add care plan
-      .addCase(addCarePlan.fulfilled, (state, action) => {
-        const { residentId, carePlan } = action.payload;
-        if (state.carePlans[residentId]) {
-          state.carePlans[residentId].push(carePlan);
-        } else {
-          state.carePlans[residentId] = [carePlan];
-        }
-      })
-      
-      // Record vitals
-      .addCase(recordVitals.fulfilled, (state, action) => {
-        const { residentId, vitals } = action.payload;
-        if (state.vitals[residentId]) {
-          state.vitals[residentId].push(vitals);
-        } else {
-          state.vitals[residentId] = [vitals];
-        }
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
 
-export const { resetResidentError, clearCurrentResident } = residentSlice.actions;
+export const { 
+  clearError, 
+  clearSuccess, 
+  setCurrentResident, 
+  clearCurrentResident,
+  clearFamilyResidents 
+} = residentSlice.actions;
 
 export default residentSlice.reducer; 

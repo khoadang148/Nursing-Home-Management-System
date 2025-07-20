@@ -39,6 +39,34 @@ class AuthService {
     }
   }
 
+  // Register
+  async register(userData) {
+    try {
+      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData);
+
+      // Response format có thể khác nhau, kiểm tra cả 2 format
+      if (response.data.success || response.data.access_token) {
+        const data = response.data.data || response.data;
+        return {
+          success: true,
+          data: data,
+          message: response.data.message || 'Đăng ký thành công',
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Đăng ký thất bại',
+        };
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Đăng ký thất bại',
+      };
+    }
+  }
+
   // Logout
   async logout() {
     try {

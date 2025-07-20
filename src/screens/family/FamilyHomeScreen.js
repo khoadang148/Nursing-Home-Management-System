@@ -9,22 +9,26 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Card, Title, Paragraph, ActivityIndicator, useTheme, Chip } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
-// Import mock data (for now)
-import { residents as mockResidents, medications, activities, familyMembers, recentUpdates } from '../../api/mockData';
+// Import Redux actions
+import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
+
+// Import services
+import residentService from '../../api/services/residentService';
 
 const FamilyHomeScreen = ({ navigation }) => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const { familyResidents, loading, error } = useSelector((state) => state.residents);
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [userResidents, setUserResidents] = useState([]);
   const [selectedResident, setSelectedResident] = useState(null);
   const [upcomingVisit, setUpcomingVisit] = useState(null);
   const [latestUpdates, setLatestUpdates] = useState([]);
@@ -50,8 +54,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     }
     
     // Fallback to mock data
-    const mockUser = familyMembers.find(fm => fm.id === 'f1');
-    return mockUser || {
+    return {
       id: 'f1',
       full_name: 'Trần Lê Chi Bảo',
       email: 'bao@gmail.com',
@@ -69,25 +72,28 @@ const FamilyHomeScreen = ({ navigation }) => {
   }, [user]);
   
   const loadData = async () => {
-    setLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Find all residents assigned to this family member
-    if (userData?.residentIds && userData.residentIds.length > 0) {
-      const familyResidents = mockResidents.filter(r => userData.residentIds.includes(r._id));
-      setUserResidents(familyResidents);
-      
-      // Select first resident by default
-      if (familyResidents.length > 0) {
-        setSelectedResident(familyResidents[0]);
+    try {
+      // Fetch residents for this family member
+      if (userData?.id || userData?._id) {
+        const familyMemberId = userData.id || userData._id;
+        await dispatch(fetchResidentsByFamilyMember(familyMemberId)).unwrap();
       }
       
-      // Mock upcoming visit for selected resident
+      // Load other data (visits, updates, activities)
+      await loadAdditionalData();
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
+  
+  const loadAdditionalData = async () => {
+    // Mock upcoming visit for selected resident
+    if (familyResidents.length > 0) {
+      const firstResident = familyResidents[0];
       setUpcomingVisit({
         id: 'visit_001',
-          residentId: familyResidents[0]?._id,
-          residentName: familyResidents[0]?.full_name || 'Không có tên',
+        residentId: firstResident._id,
+        residentName: firstResident.full_name || 'Không có tên',
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: '15:00',
         duration: 60,
@@ -95,140 +101,135 @@ const FamilyHomeScreen = ({ navigation }) => {
         purpose: 'Thăm viếng định kỳ',
         notes: 'Đã được phê duyệt bởi quản lý'
       });
-      
-      // Use mock recent updates data with real resident data
-      const updatedRecentUpdates = [
-        {
-          id: 'update_001',
-          type: 'assessment',
-          title: 'Đánh giá trong ngày',
-          residentName: 'Nguyễn Văn Nam',
-          residentId: 'res_001',
-          message: 'Tình trạng ổn định, cần theo dõi đường huyết. Tinh thần tốt, ăn uống bình thường.',
-          date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          time: '14:30',
-          read: false,
-          staffName: 'Bác sĩ Phạm Thị Doctor'
-        },
-        {
-          id: 'update_002',
-          type: 'vital_signs',
-          title: 'Đo chỉ số sinh hiệu',
-          residentName: 'Lê Thị Hoa',
-          residentId: 'res_002',
-          message: 'Huyết áp: 140/85 mmHg, Nhịp tim: 78 BPM, Nhiệt độ: 36.7°C. Cần theo dõi huyết áp.',
-          date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          time: '12:15',
-          read: false,
-          staffName: 'Y tá Lê Văn Nurse'
-        },
-        {
-          id: 'update_003',
-          type: 'activity',
-          title: 'Tham gia hoạt động',
-          residentName: 'Trần Văn Bình',
-          residentId: 'res_003',
-          message: 'Tham gia tập thể dục buổi sáng rất tích cực. Thời gian: 30 phút.',
-          date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          time: '09:00',
-          read: false,
-          staffName: 'Nhân viên Hoàng Văn Caregiver'
-        },
-        {
-          id: 'update_004',
-          type: 'medication',
-          title: 'Uống thuốc theo lịch',
-          residentName: 'Nguyễn Văn Nam',
-          residentId: 'res_001',
-          message: 'Đã uống đầy đủ thuốc theo chỉ định: Metformin 500mg, Amlodipine 5mg.',
-          date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-          time: '08:00',
-          read: true,
-          staffName: 'Y tá Lê Văn Nurse'
-        },
-        {
-          id: 'update_005',
-          type: 'assessment',
-          title: 'Đánh giá tình trạng giấc ngủ',
-          residentName: 'Lê Thị Hoa',
-          residentId: 'res_002',
-          message: 'Ngủ được 6 tiếng, thức giấc 2 lần trong đêm. Cần theo dõi thêm.',
-          date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          time: '07:30',
-          read: true,
-          staffName: 'Y tá Lê Văn Nurse'
-        }
-      ];
-      
-      setLatestUpdates(updatedRecentUpdates);
-      
-      // Mock upcoming activities for today (not yet completed)
-      const currentTime = new Date();
-      const todayStr = currentTime.toISOString().split('T')[0];
-      const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      setUpcomingActivities([
-        { 
-          id: 'act_001', 
-          title: 'Liệu pháp âm nhạc nhóm', 
-          residentName: 'Nguyễn Văn Nam',
-          date: todayStr,
-          time: '15:30',
-          location: 'Phòng Giải Trí',
-          residentId: 'res_001'
-        },
-        { 
-          id: 'act_002', 
-          title: 'Khám sức khỏe định kỳ', 
-          residentName: 'Lê Thị Hoa',
-          date: todayStr,
-          time: '16:30',
-          location: 'Phòng Y Tế',
-          residentId: 'res_002'
-        },
-        { 
-          id: 'act_003', 
-          title: 'Tập thể dục buổi sáng', 
-          residentName: 'Trần Văn Bình',
-          date: tomorrowStr,
-          time: '07:30',
-          location: 'Sân Tập',
-          residentId: 'res_003'
-        },
-        { 
-          id: 'act_004', 
-          title: 'Đi dạo vườn', 
-          residentName: 'Nguyễn Văn Nam & Lê Thị Hoa',
-          date: tomorrowStr,
-          time: '09:00',
-          location: 'Sân Vườn',
-          residentId: 'multiple'
-        },
-        { 
-          id: 'act_005', 
-          title: 'Hoạt động vẽ tranh', 
-          residentName: 'Trần Văn Bình',
-          date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-          time: '14:00',
-          location: 'Phòng Nghệ Thuật',
-          residentId: 'res_003'
-        },
-      ]);
-    } else if (userData?.residentId) {
-      // Fallback for single resident (backward compatibility)
-      const residentData = mockResidents.find(r => r._id === userData.residentId);
-      if (residentData) {
-        setUserResidents([residentData]);
-        setSelectedResident(residentData);
-      }
-    } else {
-      // No residents assigned - show empty state
-      setUserResidents([]);
-      setSelectedResident(null);
     }
     
-    setLoading(false);
+    // Mock recent updates data
+    const updatedRecentUpdates = [
+      {
+        id: 'update_001',
+        type: 'assessment',
+        title: 'Đánh giá trong ngày',
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        residentId: familyResidents[0]?._id || 'res_001',
+        message: 'Tình trạng ổn định, cần theo dõi đường huyết. Tinh thần tốt, ăn uống bình thường.',
+        date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        time: '14:30',
+        read: false,
+        staffName: 'Bác sĩ Phạm Thị Doctor'
+      },
+      {
+        id: 'update_002',
+        type: 'vital_signs',
+        title: 'Đo chỉ số sinh hiệu',
+        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
+        residentId: familyResidents[1]?._id || 'res_002',
+        message: 'Huyết áp: 140/85 mmHg, Nhịp tim: 78 BPM, Nhiệt độ: 36.7°C. Cần theo dõi huyết áp.',
+        date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+        time: '12:15',
+        read: false,
+        staffName: 'Y tá Lê Văn Nurse'
+      },
+      {
+        id: 'update_003',
+        type: 'activity',
+        title: 'Tham gia hoạt động',
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        residentId: familyResidents[0]?._id || 'res_003',
+        message: 'Tham gia tập thể dục buổi sáng rất tích cực. Thời gian: 30 phút.',
+        date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+        time: '09:00',
+        read: false,
+        staffName: 'Nhân viên Hoàng Văn Caregiver'
+      },
+      {
+        id: 'update_004',
+        type: 'medication',
+        title: 'Uống thuốc theo lịch',
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        residentId: familyResidents[0]?._id || 'res_001',
+        message: 'Đã uống đầy đủ thuốc theo chỉ định: Metformin 500mg, Amlodipine 5mg.',
+        date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+        time: '08:00',
+        read: true,
+        staffName: 'Y tá Lê Văn Nurse'
+      },
+      {
+        id: 'update_005',
+        type: 'assessment',
+        title: 'Đánh giá tình trạng giấc ngủ',
+        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
+        residentId: familyResidents[1]?._id || 'res_002',
+        message: 'Ngủ được 6 tiếng, thức giấc 2 lần trong đêm. Cần theo dõi thêm.',
+        date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+        time: '07:30',
+        read: true,
+        staffName: 'Y tá Lê Văn Nurse'
+      }
+    ];
+    
+    setLatestUpdates(updatedRecentUpdates);
+    
+    // Mock upcoming activities
+    const currentTime = new Date();
+    const todayStr = currentTime.toISOString().split('T')[0];
+    const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    setUpcomingActivities([
+      { 
+        id: 'act_001', 
+        title: 'Liệu pháp âm nhạc nhóm', 
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        date: todayStr,
+        time: '15:30',
+        location: 'Phòng Giải Trí',
+        residentId: familyResidents[0]?._id || 'res_001'
+      },
+      { 
+        id: 'act_002', 
+        title: 'Khám sức khỏe định kỳ', 
+        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
+        date: todayStr,
+        time: '16:30',
+        location: 'Phòng Y Tế',
+        residentId: familyResidents[1]?._id || 'res_002'
+      },
+      { 
+        id: 'act_003', 
+        title: 'Tập thể dục buổi sáng', 
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        date: tomorrowStr,
+        time: '07:30',
+        location: 'Sân Tập',
+        residentId: familyResidents[0]?._id || 'res_003'
+      },
+      { 
+        id: 'act_004', 
+        title: 'Đi dạo vườn', 
+        residentName: `${familyResidents[0]?.full_name || 'Người cao tuổi'} & ${familyResidents[1]?.full_name || 'Người cao tuổi'}`,
+        date: tomorrowStr,
+        time: '09:00',
+        location: 'Sân Vườn',
+        residentId: 'multiple'
+      },
+      { 
+        id: 'act_005', 
+        title: 'Hoạt động vẽ tranh', 
+        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
+        date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
+        time: '14:00',
+        location: 'Phòng Nghệ Thuật',
+        residentId: familyResidents[0]?._id || 'res_003'
+      },
+    ]);
   };
+  
+  // Set selected resident when familyResidents changes
+  useEffect(() => {
+    if (familyResidents.length > 0 && !selectedResident) {
+      setSelectedResident(familyResidents[0]);
+      dispatch(setCurrentResident(familyResidents[0]));
+    }
+  }, [familyResidents, selectedResident, dispatch]);
   
   const onRefresh = async () => {
     setRefreshing(true);
@@ -332,17 +333,17 @@ const FamilyHomeScreen = ({ navigation }) => {
         </View>
         
         {/* Resident Selection & Info Section */}
-        {userResidents.length > 0 ? (
+        {familyResidents.length > 0 ? (
           <Card style={styles.residentSectionCard} mode="elevated">
             <Card.Content>
               <Title style={styles.sectionTitle}>Thông Tin Người Thân</Title>
               
               {/* Resident Selection Chips (if multiple residents) */}
-              {userResidents.length > 1 && (
+              {familyResidents.length > 1 && (
                 <View style={styles.residentChipsContainer}>
                   <Text style={styles.chipLabel}>Chọn người thân:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScrollView}>
-                    {userResidents.map((resident) => (
+                    {familyResidents.map((resident) => (
                       <Chip
                         key={resident._id}
                         mode={selectedResident?._id === resident._id ? 'flat' : 'outlined'}
@@ -383,7 +384,7 @@ const FamilyHomeScreen = ({ navigation }) => {
                       <View style={styles.residentDetailRow}>
                         <MaterialIcons name="cake" size={16} color={COLORS.textSecondary} />
                         <Text style={styles.residentDetails}>
-                          {selectedResident.age || 75} tuổi
+                          {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
                         </Text>
                       </View>
                       <View style={styles.residentDetailRow}>

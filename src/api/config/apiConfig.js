@@ -34,11 +34,12 @@ export const API_CONFIG = {
       DELETE: '/activities/:id',
     },
     RESIDENT: {
-      LIST: '/resident',
-      DETAIL: '/resident/:id',
-      CREATE: '/resident',
-      UPDATE: '/resident/:id',
-      DELETE: '/resident/:id',
+      LIST: '/residents',
+      DETAIL: '/residents/:id',
+      CREATE: '/residents',
+      UPDATE: '/residents/:id',
+      DELETE: '/residents/:id',
+      BY_FAMILY_MEMBER: '/residents/family-member/:familyMemberId',
     },
     STAFF: {
       LIST: '/staff',
