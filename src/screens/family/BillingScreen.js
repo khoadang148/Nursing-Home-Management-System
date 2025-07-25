@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { billingService } from '../../api/billingService';
+import billsService from '../../api/services/billsService';
 import { formatCurrency, formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
+import { useSelector } from 'react-redux';
 
 const BillingScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const user = useSelector((state) => state.auth.user);
   const [bills, setBills] = useState([]);
   const [residents, setResidents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,41 +32,56 @@ const BillingScreen = ({ navigation }) => {
     residentId: null,
     period: null,
   });
+  const [selectedResidentId, setSelectedResidentId] = useState(null);
+  const [bedAssignments, setBedAssignments] = useState({});
 
 
   useEffect(() => {
     fetchBills();
-    fetchResidents();
   }, [filters, searchQuery]);
+
+  // Lấy thông tin bed assignment cho tất cả resident_id trong bills
+  useEffect(() => {
+    const fetchBedAssignments = async () => {
+      const assignments = {};
+      const residentIds = Array.from(new Set(bills.map(b => b.resident_id?._id || b.resident_id).filter(Boolean)));
+      for (const residentId of residentIds) {
+        if (!bedAssignments[residentId]) {
+          const assignment = await billsService.billingService.getBedAssignmentByResident(residentId);
+          assignments[residentId] = assignment;
+        }
+      }
+      setBedAssignments(prev => ({ ...prev, ...assignments }));
+    };
+    if (bills.length > 0) fetchBedAssignments();
+    // eslint-disable-next-line
+  }, [bills]);
 
   const fetchBills = async () => {
     try {
-      const result = await billingService.getBills({
-        ...filters,
-        search: searchQuery,
-      });
-      console.log('Fetched bills:', result.data);
-      // Filter out any bills without proper id and resident
-      const validBills = result.data.filter(bill => bill && (bill.id || bill._id) && bill.resident);
-      setBills(validBills);
+      if (user && user.id) {
+        // Lấy toàn bộ bill của family member qua API mới
+        const params = {};
+        params.family_member_id = user.id;
+        if (searchQuery) params.search = searchQuery;
+        if (filters.status) params.status = filters.status;
+        if (filters.type) params.type = filters.type;
+        if (filters.period) params.period = filters.period;
+        console.log('[BillingScreen] params truyền vào API getBills:', params);
+        const result = await billsService.billingService.getBillsByFamilyMember(params);
+        console.log('[BillingScreen] API response:', result);
+        const validBills = result.data.filter(bill => bill && (bill.id || bill._id));
+        setBills(validBills);
+      } else {
+        setBills([]);
+      }
     } catch (error) {
       console.error('Error fetching bills:', error);
+      setBills([]);
     }
   };
 
-  const fetchResidents = async () => {
-    try {
-      const residentsData = await billingService.getResidents();
-      console.log('Fetched residents:', residentsData);
-      // Filter out any residents without proper _id, name, and room
-      const validResidents = residentsData.filter(resident => 
-        resident && resident._id && resident.name && resident.room
-      );
-      setResidents(validResidents);
-    } catch (error) {
-      console.error('Error fetching residents:', error);
-    }
-  };
+  // Xóa fetchResidents và residents liên quan, chỉ giữ lại logic hiển thị bill
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,53 +104,67 @@ const BillingScreen = ({ navigation }) => {
   };
 
   const renderBillItem = ({ item }) => {
-    // Safety check for item
-    if (!item || !item.resident) {
-      return null;
+    const residentId = item.resident_id?._id || item.resident_id;
+    const residentName = item.resident_id?.full_name || 'Không rõ';
+    // Lấy thông tin phòng/giường thực tế từ bedAssignments
+    const bedAssignment = bedAssignments[residentId];
+    const room = bedAssignment?.bed_id?.room_id?.room_number || 'Không rõ';
+    const bed = bedAssignment?.bed_id?.bed_number;
+    const title = item.title || 'Hóa đơn chăm sóc';
+    const amount = item.amount || 0;
+    const dueDate = item.dueDate || item.due_date;
+    const status = item.status;
+    const daysRemaining = getDaysRemaining(dueDate);
+    const isOverdue = status === 'overdue';
+
+    // Xác định màu và text trạng thái
+    let statusColor = '#FFA000', statusText = 'Chờ thanh toán';
+    if (status === 'paid') {
+      statusColor = '#4CAF50';
+      statusText = 'Đã thanh toán';
+    } else if (status === 'overdue') {
+      statusColor = '#F44336';
+      statusText = 'Quá hạn';
     }
 
-    const daysRemaining = getDaysRemaining(item.dueDate);
-    
-    // Sử dụng trạng thái từ API đã được tính toán chính xác
-    const isOverdue = item.status === 'overdue';
+    // Tính số ngày còn lại/quá hạn
+    let daysText = '';
+    if (status === 'pending') {
+      daysText = daysRemaining === 0 ? 'Quá hạn 0 ngày' : `Còn ${daysRemaining} ngày`;
+    } else if (status === 'overdue') {
+      daysText = `Quá hạn ${Math.abs(daysRemaining)} ngày`;
+    }
 
     return (
       <TouchableOpacity
         style={styles.billItem}
-        onPress={() => navigation.navigate('BillDetail', { billId: item.id || item._id })}
+        onPress={() => navigation.navigate('BillDetail', { billId: item._id || item.id, bedAssignment })}
       >
         <View style={styles.billHeader}>
           <View style={styles.billTitleContainer}>
-          <Text style={styles.billTitle}>{item.title || 'Hóa đơn chăm sóc'}</Text>
+            <Text style={styles.billTitle}>{title}</Text>
             <View style={styles.residentInfo}>
               <Ionicons name="person-outline" size={14} color="#666" />
-              <Text style={styles.residentName}>{item.resident.name || 'Unknown'}</Text>
-              <Text style={styles.roomNumber}>• Phòng {item.resident.room || 'Unknown'}</Text>
+              <Text style={styles.residentName}>{residentName}</Text>
+              <Text style={styles.roomNumber}>• Phòng {room}{bed ? ` - Giường ${bed}` : ''}</Text>
             </View>
           </View>
-          <View style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item) }
-          ]}>
-            <Text style={styles.statusText}>{getStatusText(item)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}> 
+            <Text style={styles.statusText}>{statusText}</Text>
           </View>
         </View>
-        <Text style={styles.billAmount}>{formatCurrency(item.amount || 0)}</Text>
+        <Text style={styles.billAmount}>{formatCurrency(amount)}</Text>
         <View style={styles.billFooter}>
           <Text style={styles.dueDate}>
-            Hạn thanh toán: {formatDate(item.dueDate)}
+            Hạn thanh toán: {formatDate(dueDate)}
           </Text>
-          {item.status !== 'paid' && (
+          {(status === 'pending' || status === 'overdue') && (
             <Text style={[
               styles.daysRemaining,
               isOverdue && styles.overdueText,
               daysRemaining === 0 && !isOverdue && styles.dueTodayText
             ]}>
-              {isOverdue 
-                ? `Quá hạn ${Math.abs(daysRemaining)} ngày`
-                : daysRemaining === 0 
-                  ? `Đến hạn hôm nay`
-                  : `Còn ${daysRemaining} ngày`}
+              {daysText}
             </Text>
           )}
         </View>
@@ -250,10 +281,10 @@ const BillingScreen = ({ navigation }) => {
       )}
 
       <FlatList
-        data={bills.filter(bill => bill && (bill.id || bill._id) && bill.resident)}
+        data={bills.filter(bill => bill && (bill.id || bill._id))}
         renderItem={renderBillItem}
         keyExtractor={item => item.id || item._id || `bill_${Math.random()}`}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, { flexGrow: 1 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -346,22 +377,23 @@ const BillingScreen = ({ navigation }) => {
               <Text style={styles.filterSectionTitle}>Người cao tuổi</Text>
               <View style={styles.filterButtons}>
                 {residents.length > 0 ? (
-                  residents.filter(resident => resident && resident._id && resident.name && resident.room).map(resident => (
+                  residents.map(resident => (
                   <TouchableOpacity
                       key={resident._id}
                     style={[
                       styles.filterButtonOption,
-                        filters.residentId === resident._id && styles.filterButtonActive
+                        selectedResidentId === resident._id && styles.filterButtonActive
                     ]}
-                    onPress={() => setFilters(prev => ({
-                      ...prev,
-                        residentId: prev.residentId === resident._id ? null : resident._id
-                    }))}
+                      onPress={() => {
+                        setSelectedResidentId(resident._id);
+                        setFilters(prev => ({ ...prev, residentId: resident._id }));
+                        setShowFilters(false);
+                      }}
                   >
                     <Text style={[
                       styles.filterButtonText,
-                        filters.residentId === resident._id && styles.filterButtonTextActive
-                    ]}>{resident.name} ({resident.room})</Text>
+                        selectedResidentId === resident._id && styles.filterButtonTextActive
+                      ]}>{resident.full_name || resident.name}</Text>
                   </TouchableOpacity>
                   ))
                 ) : (

@@ -1,48 +1,15 @@
 import apiClient from '../config/axiosConfig';
+import { delay } from '../../utils/helpers';
 
 /**
- * Vital Signs Service - Quản lý dấu hiệu sinh tồn
+ * Vital Signs Service - Quản lý chỉ số sinh hiệu
  */
 const vitalSignsService = {
-  /**
-   * Tạo dấu hiệu sinh tồn mới
-   * @param {Object} vitalSignsData - Dữ liệu dấu hiệu sinh tồn
-   * @param {string} vitalSignsData.resident_id - ID cư dân
-   * @param {number} vitalSignsData.temperature - Nhiệt độ
-   * @param {number} vitalSignsData.blood_pressure_systolic - Huyết áp tâm thu
-   * @param {number} vitalSignsData.blood_pressure_diastolic - Huyết áp tâm trương
-   * @param {number} vitalSignsData.heart_rate - Nhịp tim
-   * @param {number} vitalSignsData.respiratory_rate - Nhịp thở
-   * @param {number} vitalSignsData.oxygen_saturation - Độ bão hòa oxy
-   * @param {string} vitalSignsData.notes - Ghi chú
-   * @param {string} vitalSignsData.recorded_by - ID người ghi
-   * @returns {Promise} - Promise với response data
-   */
-  createVitalSigns: async (vitalSignsData) => {
-    try {
-      const response = await apiClient.post('/vital-signs', vitalSignsData);
-      return {
-        success: true,
-        data: response.data,
-        message: 'Ghi dấu hiệu sinh tồn thành công'
-      };
-    } catch (error) {
-      console.log('Create vital signs error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Ghi dấu hiệu sinh tồn thất bại'
-      };
-    }
-  },
+  // ==================== API ENDPOINTS (REAL API) ====================
 
   /**
-   * Lấy tất cả dấu hiệu sinh tồn
+   * Lấy tất cả vital signs
    * @param {Object} params - Query parameters (optional)
-   * @param {string} params.resident_id - Lọc theo ID cư dân
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @param {number} params.limit - Giới hạn số lượng
-   * @param {number} params.page - Trang
    * @returns {Promise} - Promise với response data
    */
   getAllVitalSigns: async (params = {}) => {
@@ -51,182 +18,311 @@ const vitalSignsService = {
       return {
         success: true,
         data: response.data,
-        message: 'Lấy danh sách dấu hiệu sinh tồn thành công'
+        message: 'Lấy danh sách chỉ số sinh hiệu thành công'
       };
     } catch (error) {
       console.log('Get all vital signs error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy danh sách dấu hiệu sinh tồn thất bại'
+        error: error.response?.data || error.message || 'Lấy danh sách chỉ số sinh hiệu thất bại'
       };
     }
   },
 
   /**
-   * Lấy dấu hiệu sinh tồn theo ID
-   * @param {string} vitalSignsId - ID dấu hiệu sinh tồn
+   * Lấy vital signs theo resident ID
+   * @param {string} residentId - ID của resident
    * @returns {Promise} - Promise với response data
    */
-  getVitalSignsById: async (vitalSignsId) => {
+  getVitalSignsByResidentId: async (residentId) => {
     try {
-      const response = await apiClient.get(`/vital-signs/${vitalSignsId}`);
+      const response = await apiClient.get(`/vital-signs/resident/${residentId}`);
       return {
         success: true,
         data: response.data,
-        message: 'Lấy thông tin dấu hiệu sinh tồn thành công'
-      };
-    } catch (error) {
-      console.log('Get vital signs by ID error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Lấy thông tin dấu hiệu sinh tồn thất bại'
-      };
-    }
-  },
-
-  /**
-   * Lấy dấu hiệu sinh tồn theo cư dân
-   * @param {string} residentId - ID cư dân
-   * @param {Object} params - Tham số lọc
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @param {number} params.limit - Giới hạn số lượng
-   * @returns {Promise} - Promise với response data
-   */
-  getVitalSignsByResidentId: async (residentId, params = {}) => {
-    try {
-      const response = await apiClient.get(`/vital-signs/resident/${residentId}`, { params });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Lấy dấu hiệu sinh tồn theo cư dân thành công'
+        message: 'Lấy chỉ số sinh hiệu theo resident thành công'
       };
     } catch (error) {
       console.log('Get vital signs by resident ID error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy dấu hiệu sinh tồn theo cư dân thất bại'
+        error: error.response?.data || error.message || 'Lấy chỉ số sinh hiệu theo resident thất bại'
       };
     }
   },
 
   /**
-   * Cập nhật dấu hiệu sinh tồn
-   * @param {string} vitalSignsId - ID dấu hiệu sinh tồn
+   * Lấy vital signs theo ID
+   * @param {string} vitalSignId - ID của vital sign
+   * @returns {Promise} - Promise với response data
+   */
+  getVitalSignById: async (vitalSignId) => {
+    try {
+      const response = await apiClient.get(`/vital-signs/${vitalSignId}`);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy thông tin chỉ số sinh hiệu thành công'
+      };
+    } catch (error) {
+      console.log('Get vital sign by ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy thông tin chỉ số sinh hiệu thất bại'
+      };
+    }
+  },
+
+  /**
+   * Tạo vital sign mới
+   * @param {Object} vitalSignData - Dữ liệu vital sign
+   * @returns {Promise} - Promise với response data
+   */
+  createVitalSign: async (vitalSignData) => {
+    try {
+      const response = await apiClient.post('/vital-signs', vitalSignData);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Tạo chỉ số sinh hiệu thành công'
+      };
+    } catch (error) {
+      console.log('Create vital sign error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Tạo chỉ số sinh hiệu thất bại'
+      };
+    }
+  },
+
+  /**
+   * Cập nhật vital sign
+   * @param {string} vitalSignId - ID của vital sign
    * @param {Object} updateData - Dữ liệu cập nhật
    * @returns {Promise} - Promise với response data
    */
-  updateVitalSigns: async (vitalSignsId, updateData) => {
+  updateVitalSign: async (vitalSignId, updateData) => {
     try {
-      const response = await apiClient.patch(`/vital-signs/${vitalSignsId}`, updateData);
+      const response = await apiClient.patch(`/vital-signs/${vitalSignId}`, updateData);
       return {
         success: true,
         data: response.data,
-        message: 'Cập nhật dấu hiệu sinh tồn thành công'
+        message: 'Cập nhật chỉ số sinh hiệu thành công'
       };
     } catch (error) {
-      console.log('Update vital signs error:', error);
+      console.log('Update vital sign error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Cập nhật dấu hiệu sinh tồn thất bại'
+        error: error.response?.data || error.message || 'Cập nhật chỉ số sinh hiệu thất bại'
       };
     }
   },
 
   /**
-   * Xóa dấu hiệu sinh tồn
-   * @param {string} vitalSignsId - ID dấu hiệu sinh tồn
+   * Xóa vital sign
+   * @param {string} vitalSignId - ID của vital sign
    * @returns {Promise} - Promise với response data
    */
-  deleteVitalSigns: async (vitalSignsId) => {
+  deleteVitalSign: async (vitalSignId) => {
     try {
-      const response = await apiClient.delete(`/vital-signs/${vitalSignsId}`);
+      const response = await apiClient.delete(`/vital-signs/${vitalSignId}`);
       return {
         success: true,
         data: response.data,
-        message: 'Xóa dấu hiệu sinh tồn thành công'
+        message: 'Xóa chỉ số sinh hiệu thành công'
       };
     } catch (error) {
-      console.log('Delete vital signs error:', error);
+      console.log('Delete vital sign error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Xóa dấu hiệu sinh tồn thất bại'
+        error: error.response?.data || error.message || 'Xóa chỉ số sinh hiệu thất bại'
       };
     }
   },
 
+  // ==================== MOCK DATA FUNCTIONS (DEVELOPMENT) ====================
+
   /**
-   * Lấy dấu hiệu sinh tồn mới nhất của cư dân
-   * @param {string} residentId - ID cư dân
-   * @returns {Promise} - Promise với response data
+   * Lấy chỉ số sinh hiệu gần nhất theo resident ID (Mock Data)
+   * @param {string} residentId - ID của resident
+   * @returns {Promise<Object>} Chỉ số sinh hiệu gần nhất
    */
   getLatestVitalSigns: async (residentId) => {
+    await delay(300); // Simulate API delay
+    
     try {
-      const response = await apiClient.get(`/vital-signs/resident/${residentId}/latest`);
+      // Mock data dựa trên API response structure
+      const mockVitalSigns = {
+        '6876a174bf6a67b00112017e': [ // Nguyễn Văn Nam
+          {
+            "_id": "vital_001",
+            "resident_id": "6876a174bf6a67b00112017e",
+            "date_time": "2024-03-01T08:00:00.000Z",
+            "temperature": 36.5,
+            "heart_rate": 75,
+            "blood_pressure": "130/80",
+            "respiratory_rate": 18,
+            "oxygen_level": 98.5,
+            "weight": 65.5,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          },
+          {
+            "_id": "vital_002",
+            "resident_id": "6876a174bf6a67b00112017e",
+            "date_time": "2024-02-29T08:00:00.000Z",
+            "temperature": 36.7,
+            "heart_rate": 72,
+            "blood_pressure": "125/82",
+            "respiratory_rate": 16,
+            "oxygen_level": 99.0,
+            "weight": 65.2,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          }
+        ],
+        '6876a174bf6a67b00112017f': [ // Nguyễn Văn An
+          {
+            "_id": "vital_003",
+            "resident_id": "6876a174bf6a67b00112017f",
+            "date_time": "2024-03-01T08:30:00.000Z",
+            "temperature": 36.8,
+            "heart_rate": 82,
+            "blood_pressure": "140/85",
+            "respiratory_rate": 20,
+            "oxygen_level": 97.8,
+            "weight": 58.2,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          },
+          {
+            "_id": "vital_004",
+            "resident_id": "6876a174bf6a67b00112017f",
+            "date_time": "2024-02-29T08:30:00.000Z",
+            "temperature": 37.0,
+            "heart_rate": 85,
+            "blood_pressure": "145/88",
+            "respiratory_rate": 22,
+            "oxygen_level": 97.5,
+            "weight": 58.0,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          }
+        ],
+        '6876a174bf6a67b001120180': [ // Trần Thị Lan
+          {
+            "_id": "vital_005",
+            "resident_id": "6876a174bf6a67b001120180",
+            "date_time": "2024-03-01T09:00:00.000Z",
+            "temperature": 36.6,
+            "heart_rate": 70,
+            "blood_pressure": "120/75",
+            "respiratory_rate": 16,
+            "oxygen_level": 99.2,
+            "weight": 72.3,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          }
+        ]
+      };
+
+      const vitalSigns = mockVitalSigns[residentId];
+      
+      if (!vitalSigns || vitalSigns.length === 0) {
+        return {
+          success: false,
+          error: 'Không tìm thấy chỉ số sinh hiệu cho resident này'
+        };
+      }
+
+      // Tìm chỉ số gần nhất (mới nhất)
+      const latestVitalSign = vitalSigns.reduce((latest, current) => {
+        return new Date(current.date_time) > new Date(latest.date_time) ? current : latest;
+      });
+
       return {
         success: true,
-        data: response.data,
-        message: 'Lấy dấu hiệu sinh tồn mới nhất thành công'
+        data: {
+          temperature: latestVitalSign.temperature,
+          heartRate: latestVitalSign.heart_rate,
+          bloodPressure: latestVitalSign.blood_pressure,
+          respiratoryRate: latestVitalSign.respiratory_rate,
+          oxygenLevel: latestVitalSign.oxygen_level,
+          weight: latestVitalSign.weight,
+          recordedAt: latestVitalSign.date_time,
+          recordedBy: latestVitalSign.recorded_by.full_name
+        },
+        message: 'Lấy chỉ số sinh hiệu gần nhất thành công'
       };
     } catch (error) {
-      console.log('Get latest vital signs error:', error);
+      console.error('Error fetching latest vital signs:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy dấu hiệu sinh tồn mới nhất thất bại'
+        error: 'Không thể tải chỉ số sinh hiệu'
       };
     }
   },
 
   /**
-   * Lấy thống kê dấu hiệu sinh tồn
-   * @param {Object} params - Tham số thống kê
-   * @param {string} params.resident_id - ID cư dân
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @returns {Promise} - Promise với response data
+   * Lấy tất cả vital signs theo resident ID (Mock Data)
+   * @param {string} residentId - ID của resident
+   * @returns {Promise<Array>} Danh sách chỉ số sinh hiệu
    */
-  getVitalSignsStatistics: async (params = {}) => {
+  getVitalSignsByResidentIdMock: async (residentId) => {
+    await delay(300);
+    
     try {
-      const response = await apiClient.get('/vital-signs/statistics', { params });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Lấy thống kê dấu hiệu sinh tồn thành công'
+      const mockVitalSigns = {
+        '6876a174bf6a67b00112017e': [
+          {
+            "_id": "vital_001",
+            "resident_id": "6876a174bf6a67b00112017e",
+            "date_time": "2024-03-01T08:00:00.000Z",
+            "temperature": 36.5,
+            "heart_rate": 75,
+            "blood_pressure": "130/80",
+            "respiratory_rate": 18,
+            "oxygen_level": 98.5,
+            "weight": 65.5,
+            "recorded_by": {
+              "_id": "staff_001",
+              "full_name": "Lê Văn Nurse"
+            }
+          }
+        ]
       };
-    } catch (error) {
-      console.log('Get vital signs statistics error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Lấy thống kê dấu hiệu sinh tồn thất bại'
-      };
-    }
-  },
 
-  /**
-   * Tìm kiếm dấu hiệu sinh tồn
-   * @param {Object} searchParams - Tham số tìm kiếm
-   * @param {string} searchParams.resident_id - ID cư dân
-   * @param {string} searchParams.start_date - Ngày bắt đầu
-   * @param {string} searchParams.end_date - Ngày kết thúc
-   * @param {string} searchParams.recorded_by - ID người ghi
-   * @returns {Promise} - Promise với response data
-   */
-  searchVitalSigns: async (searchParams = {}) => {
-    try {
-      const response = await apiClient.get('/vital-signs/search', { params: searchParams });
+      const vitalSigns = mockVitalSigns[residentId] || [];
+      
       return {
         success: true,
-        data: response.data,
-        message: 'Tìm kiếm dấu hiệu sinh tồn thành công'
+        data: vitalSigns,
+        message: 'Lấy danh sách chỉ số sinh hiệu thành công'
       };
     } catch (error) {
-      console.log('Search vital signs error:', error);
+      console.error('Error fetching vital signs:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Tìm kiếm dấu hiệu sinh tồn thất bại'
+        error: 'Không thể tải danh sách chỉ số sinh hiệu'
       };
     }
   }
+};
+
+// API endpoints - sẽ được sử dụng khi có API thực tế
+const API_ENDPOINTS = {
+  VITAL_SIGNS: '/vital-signs',
+  BY_RESIDENT: '/vital-signs/by-resident',
 };
 
 export default vitalSignsService; 

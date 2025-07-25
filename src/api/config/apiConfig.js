@@ -3,7 +3,7 @@ export const API_CONFIG = {
   // Base URL cho backend thực tế
   // Thay đổi URL và port theo backend của bạn
   // Sử dụng IP thay vì localhost cho React Native
-  BASE_URL: 'http://192.168.1.13:8000', // IP WiFi thực tế từ ipconfig
+  BASE_URL: 'http://192.168.2.5:8000', // IP WiFi thực tế từ ipconfig
   // BASE_URL: 'http://192.168.56.1:8000', // IP thực tế của máy user
   // BASE_URL: 'http://10.0.2.2:8000', // Android Emulator
   // BASE_URL: 'http://localhost:8000', // iOS Simulator

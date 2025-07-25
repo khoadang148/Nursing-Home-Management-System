@@ -133,6 +133,20 @@ const activityParticipationService = {
   },
 
   /**
+   * Lấy danh sách tham gia hoạt động theo resident (API thật)
+   * @param {string} residentId
+   * @returns {Promise}
+   */
+  getParticipationsByResident: async (residentId) => {
+    try {
+      const response = await apiClient.get('/activity-participations/by-resident', { params: { resident_id: residentId } });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data || error.message };
+    }
+  },
+
+  /**
    * Cập nhật tham gia hoạt động
    * @param {string} participationId - ID tham gia
    * @param {Object} updateData - Dữ liệu cập nhật

@@ -15,12 +15,25 @@ import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+
+// Fallback nếu API_BASE_URL bị undefined
+const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
+const getApiBaseUrl = () => {
+  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
+    return CONFIG_API_BASE_URL;
+  }
+  console.warn('[FamilyHomeScreen] API_BASE_URL is undefined, fallback to default:', DEFAULT_API_BASE_URL);
+  return DEFAULT_API_BASE_URL;
+};
 
 // Import Redux actions
 import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
 
 // Import services
 import residentService from '../../api/services/residentService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
+import visitsService from '../../api/services/visitsService';
 
 const FamilyHomeScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -30,9 +43,38 @@ const FamilyHomeScreen = ({ navigation }) => {
   
   const [refreshing, setRefreshing] = useState(false);
   const [selectedResident, setSelectedResident] = useState(null);
-  const [upcomingVisit, setUpcomingVisit] = useState(null);
+  const [residentBedInfo, setResidentBedInfo] = useState(null);
+  const [bedInfoLoading, setBedInfoLoading] = useState(false);
+  const [upcomingVisits, setUpcomingVisits] = useState([]);
   const [latestUpdates, setLatestUpdates] = useState([]);
   const [upcomingActivities, setUpcomingActivities] = useState([]);
+  
+  // Hàm chào theo giờ
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Chào Buổi Sáng';
+    if (hour < 17) return 'Chào Buổi Chiều';
+    return 'Chào Buổi Tối';
+  };
+
+  // Hàm format ngày + giờ cho cập nhật gần đây
+  const formatDateTime = (dateString, timeString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    let dateStr;
+    if (date.toDateString() === today.toDateString()) {
+      dateStr = 'Hôm nay';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      dateStr = 'Hôm qua';
+    } else {
+      dateStr = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    }
+
+    return `${timeString} ${dateStr}`;
+  };
   
   // Get user data with fallback to mock data
   const getUserData = () => {
@@ -67,9 +109,47 @@ const FamilyHomeScreen = ({ navigation }) => {
 
   const userData = getUserData();
   
+  const getAvatarUri = (avatar) => {
+    if (!avatar) return 'https://randomuser.me/api/portraits/men/20.jpg';
+    if (avatar.startsWith('http') || avatar.startsWith('https')) return avatar;
+    // Chuyển toàn bộ \\ hoặc \ thành /
+    const cleanPath = avatar.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
+    const baseUrl = getApiBaseUrl();
+    const uri = `${baseUrl}/${cleanPath}`;
+    console.log('[FamilyHomeScreen] API_BASE_URL:', baseUrl, 'avatar:', avatar, 'cleanPath:', cleanPath, 'uri:', uri);
+    return uri;
+  };
+
   useEffect(() => {
     loadData();
   }, [user]);
+  
+  // Sắp xếp residents theo admission_date tăng dần
+  const sortedFamilyResidents = [...familyResidents].sort((a, b) => new Date(a.admission_date) - new Date(b.admission_date));
+
+  // Set selected resident when familyResidents changes
+  useEffect(() => {
+    if (sortedFamilyResidents.length > 0 && !selectedResident) {
+      setSelectedResident(sortedFamilyResidents[0]);
+      dispatch(setCurrentResident(sortedFamilyResidents[0]));
+    }
+  }, [familyResidents, selectedResident, dispatch]);
+
+  // Load bed info when selected resident changes
+  useEffect(() => {
+    if (selectedResident && selectedResident._id) {
+      loadResidentBedInfo(selectedResident._id);
+    }
+  }, [selectedResident]);
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    if (selectedResident && selectedResident._id) {
+      await loadResidentBedInfo(selectedResident._id);
+    }
+    setRefreshing(false);
+  };
   
   const loadData = async () => {
     try {
@@ -86,21 +166,45 @@ const FamilyHomeScreen = ({ navigation }) => {
     }
   };
   
+  const loadResidentBedInfo = async (residentId) => {
+    try {
+      setBedInfoLoading(true);
+      const result = await bedAssignmentService.getResidentBedInfo(residentId);
+      if (result.success) {
+        setResidentBedInfo(result.data);
+      } else {
+        console.log('Error loading bed info:', result.error);
+        setResidentBedInfo(null);
+      }
+    } catch (error) {
+      console.error('Error loading resident bed info:', error);
+      setResidentBedInfo(null);
+    } finally {
+      setBedInfoLoading(false);
+    }
+  };
+  
   const loadAdditionalData = async () => {
-    // Mock upcoming visit for selected resident
-    if (familyResidents.length > 0) {
-      const firstResident = familyResidents[0];
-      setUpcomingVisit({
-        id: 'visit_001',
-        residentId: firstResident._id,
-        residentName: firstResident.full_name || 'Không có tên',
-        date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        time: '15:00',
-        duration: 60,
-        status: 'Confirmed',
-        purpose: 'Thăm viếng định kỳ',
-        notes: 'Đã được phê duyệt bởi quản lý'
-      });
+    // Lấy lịch thăm từ API
+    if (userData?.id || userData?._id) {
+      try {
+        const familyMemberId = userData.id || userData._id;
+        const res = await visitsService.getVisitsByFamilyMemberId(familyMemberId);
+        if (res.success && Array.isArray(res.data)) {
+          // Lọc các lịch có thời gian lớn hơn hiện tại
+          const now = new Date();
+          const futureVisits = res.data.filter(v => new Date(v.visit_time) > now);
+          // Sắp xếp tăng dần theo thời gian
+          futureVisits.sort((a, b) => new Date(a.visit_time) - new Date(b.visit_time));
+          setUpcomingVisits(futureVisits);
+        } else {
+          setUpcomingVisits([]);
+        }
+      } catch (e) {
+        setUpcomingVisits([]);
+      }
+    } else {
+      setUpcomingVisits([]);
     }
     
     // Mock recent updates data
@@ -222,66 +326,6 @@ const FamilyHomeScreen = ({ navigation }) => {
       },
     ]);
   };
-  
-  // Set selected resident when familyResidents changes
-  useEffect(() => {
-    if (familyResidents.length > 0 && !selectedResident) {
-      setSelectedResident(familyResidents[0]);
-      dispatch(setCurrentResident(familyResidents[0]));
-    }
-  }, [familyResidents, selectedResident, dispatch]);
-  
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-  
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Chào Buổi Sáng';
-    if (hour < 17) return 'Chào Buổi Chiều';
-    return 'Chào Buổi Tối';
-  };
-  
-  // Format date to friendly format with time
-  const formatDateTime = (dateString, timeString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    let dateStr;
-    if (date.toDateString() === today.toDateString()) {
-      dateStr = 'Hôm nay';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      dateStr = 'Hôm qua';
-    } else {
-      dateStr = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
-    }
-    
-    return `${timeString} ${dateStr}`;
-  };
-
-  // Navigate to detailed view based on update type
-  const handleUpdatePress = (update) => {
-    const tabMapping = {
-      'vital_signs': 'vitals',
-      'assessment': 'assessments', 
-      'activity': 'activities',
-      'medication': 'medications',
-      'meal': 'overview'
-    };
-    
-    const targetTab = tabMapping[update.type] || 'overview';
-    
-    // Navigate directly to FamilyResidentDetail (not nested)
-    navigation.navigate('FamilyResidentDetail', {
-      residentId: update.residentId,
-      residentName: update.residentName,
-      initialTab: targetTab
-    });
-  };
 
   // Get icon for update type
   const getUpdateIcon = (type) => {
@@ -326,24 +370,24 @@ const FamilyHomeScreen = ({ navigation }) => {
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('HoSo')}>
             <Image 
-              source={{ uri: userData.photo || 'https://randomuser.me/api/portraits/men/20.jpg' }}
+              source={{ uri: getAvatarUri(userData.avatar) }}
               style={styles.avatar}
             />
           </TouchableOpacity>
         </View>
         
         {/* Resident Selection & Info Section */}
-        {familyResidents.length > 0 ? (
+        {sortedFamilyResidents.length > 0 ? (
           <Card style={styles.residentSectionCard} mode="elevated">
             <Card.Content>
               <Title style={styles.sectionTitle}>Thông Tin Người Thân</Title>
               
               {/* Resident Selection Chips (if multiple residents) */}
-              {familyResidents.length > 1 && (
+              {sortedFamilyResidents.length > 1 && (
                 <View style={styles.residentChipsContainer}>
                   <Text style={styles.chipLabel}>Chọn người thân:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScrollView}>
-                    {familyResidents.map((resident) => (
+                    {sortedFamilyResidents.map((resident) => (
                       <Chip
                         key={resident._id}
                         mode={selectedResident?._id === resident._id ? 'flat' : 'outlined'}
@@ -370,7 +414,7 @@ const FamilyHomeScreen = ({ navigation }) => {
                 <View style={styles.selectedResidentInfo}>
                   <View style={styles.residentCardContent}>
               <Image 
-                      source={{ uri: selectedResident.photo || 'https://randomuser.me/api/portraits/men/1.jpg' }}
+                      source={{ uri: selectedResident.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
                 style={styles.residentPhoto}
               />
               <View style={styles.residentInfo}>
@@ -379,18 +423,29 @@ const FamilyHomeScreen = ({ navigation }) => {
                       </Text>
                       <View style={styles.residentDetailRow}>
                         <MaterialIcons name="room" size={16} color={COLORS.textSecondary} />
-                        <Text style={styles.residentDetails}>Phòng {selectedResident.roomNumber}</Text>
+                        {bedInfoLoading ? (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                            <Text style={[styles.residentDetails, { marginLeft: 8 }]}>Đang tải...</Text>
                       </View>
+                        ) : (
+                          <Text style={styles.residentDetails}>
+                            Phòng {residentBedInfo ? residentBedInfo.fullRoomInfo : (selectedResident.roomNumber || 'Chưa phân công')}
+                          </Text>
+                        )}
+                      </View>
+                      {selectedResident.admission_date && (
+                      <View style={styles.residentDetailRow}>
+                          <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
+                        <Text style={styles.residentDetails}>
+                            Ngày vào viện: {new Date(selectedResident.admission_date).toLocaleDateString('vi-VN')}
+                        </Text>
+                      </View>
+                      )}
                       <View style={styles.residentDetailRow}>
                         <MaterialIcons name="cake" size={16} color={COLORS.textSecondary} />
                         <Text style={styles.residentDetails}>
                           {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
-                        </Text>
-                      </View>
-                      <View style={styles.residentDetailRow}>
-                        <MaterialIcons name="favorite" size={16} color={COLORS.error} />
-                        <Text style={[styles.residentDetails, { color: COLORS.success }]}>
-                          Tình trạng: Ổn định
                         </Text>
                       </View>
                     </View>
@@ -500,36 +555,62 @@ const FamilyHomeScreen = ({ navigation }) => {
           </View>
         </View>
         
-        {/* Upcoming Visit */}
-        {upcomingVisit && (
+        {/* Upcoming Visits */}
+        {upcomingVisits.length > 0 ? (
           <Card style={styles.card} mode="elevated">
             <Card.Content>
               <View style={styles.cardHeader}>
                 <MaterialIcons name="event" size={24} color={COLORS.primary} />
                 <Title style={styles.cardTitle}>Lịch Thăm Sắp Tới</Title>
               </View>
-              <View style={styles.visitInfo}>
+              {upcomingVisits.map((visit) => (
+                <View key={visit._id} style={styles.visitInfo}>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Ngày:</Text>
-                  <Text style={styles.visitValue}>{upcomingVisit.date}</Text>
+                    <Text style={styles.visitValue}>{new Date(visit.visit_time).toLocaleDateString('vi-VN')}</Text>
                 </View>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Giờ:</Text>
-                  <Text style={styles.visitValue}>{upcomingVisit.time}</Text>
+                    <Text style={styles.visitValue}>{new Date(visit.visit_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
                 </View>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Trạng thái:</Text>
                   <Text style={[styles.visitValue, { color: COLORS.success }]}>
-                    {upcomingVisit.status === 'Confirmed' ? 'Đã xác nhận' : upcomingVisit.status}
+                      {visit.status === 'Confirmed' ? 'Đã xác nhận' : visit.status}
                   </Text>
                 </View>
+                  <View style={styles.visitDetail}>
+                    <Text style={styles.visitLabel}>Mục đích:</Text>
+                    <Text style={styles.visitValue}>{visit.purpose || 'Chưa có'}</Text>
               </View>
+                  {visit.notes && (
+                    <View style={styles.visitDetail}>
+                      <Text style={styles.visitLabel}>Ghi chú:</Text>
+                      <Text style={styles.visitValue}>{visit.notes}</Text>
+                    </View>
+                  )}
+                  <View style={{height: 1, backgroundColor: '#e9ecef', marginVertical: 8}} />
+                </View>
+              ))}
               <TouchableOpacity 
                 style={styles.cardButton}
                 onPress={() => navigation.navigate('LichTham')}
               >
                 <Text style={styles.cardButtonText}>Quản Lý Lịch Thăm</Text>
               </TouchableOpacity>
+            </Card.Content>
+          </Card>
+        ) : (
+          <Card style={styles.card} mode="elevated">
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <MaterialIcons name="event" size={24} color={COLORS.primary} />
+                <Title style={styles.cardTitle}>Lịch Thăm Sắp Tới</Title>
+              </View>
+              <View style={styles.noActivitiesContainer}>
+                <MaterialIcons name="event-available" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.noActivitiesText}>Không có lịch thăm sắp tới</Text>
+              </View>
             </Card.Content>
           </Card>
         )}
@@ -641,6 +722,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#6c757d',
     fontSize: 16,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   scrollContent: {
     paddingTop: 20,

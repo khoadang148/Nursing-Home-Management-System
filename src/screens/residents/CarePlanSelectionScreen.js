@@ -18,7 +18,7 @@ import {
   getResidents, 
   createCarePlanAssignment,
   calculateTotalCost 
-} from '../../api/carePlanService';
+} from '../../api/services/carePlanService';
 import { useSelector } from 'react-redux';
 import { COLORS, FONTS } from '../../constants/theme';
 import { rooms, beds } from '../../api/mockData';

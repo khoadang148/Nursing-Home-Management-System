@@ -24,6 +24,19 @@ import {
   Title,
 } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import userService from '../../api/services/userService';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+
+// Fallback nếu API_BASE_URL bị undefined
+const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
+const getApiBaseUrl = () => {
+  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
+    return CONFIG_API_BASE_URL;
+  }
+  console.warn('[FamilyProfileScreen] API_BASE_URL is undefined, fallback to default:', DEFAULT_API_BASE_URL);
+  return DEFAULT_API_BASE_URL;
+};
 
 // Import constants
 import { COLORS, FONTS } from '../../constants/theme';
@@ -173,6 +186,48 @@ const FamilyProfileScreen = ({ navigation }) => {
     // In a real app, this would save the settings to the server
   };
 
+  // Đổi avatar
+  const handleChangeAvatar = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Bạn cần cấp quyền truy cập ảnh để đổi avatar!');
+        return;
+      }
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (pickerResult.cancelled) return;
+      setLoading(true);
+      const res = await userService.updateAvatar(userData.id || userData._id, pickerResult.assets ? pickerResult.assets[0].uri : pickerResult.uri);
+      setLoading(false);
+      if (res.success) {
+        // Cập nhật lại avatar cho user trong Redux
+        dispatch({ type: 'UPDATE_USER', payload: { ...user, avatar: res.data.avatar } });
+        showSuccess('Đổi avatar thành công!');
+      } else {
+        showError(res.error || 'Đổi avatar thất bại!');
+      }
+    } catch (e) {
+      setLoading(false);
+      showError('Có lỗi khi đổi avatar!');
+    }
+  };
+
+  const getAvatarUri = (avatar) => {
+    if (!avatar) return 'https://randomuser.me/api/portraits/men/20.jpg';
+    if (avatar.startsWith('http') || avatar.startsWith('https')) return avatar;
+    // Chuyển toàn bộ \\ hoặc \ thành /
+    const cleanPath = avatar.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
+    const baseUrl = getApiBaseUrl();
+    const uri = `${baseUrl}/${cleanPath}`;
+    console.log('[FamilyProfileScreen] API_BASE_URL:', baseUrl, 'avatar:', avatar, 'cleanPath:', cleanPath, 'uri:', uri);
+    return uri;
+  };
+
   // Get resident names for relationship display
   const getResidentNames = () => {
     if (userData.residentIds) {
@@ -214,11 +269,11 @@ const FamilyProfileScreen = ({ navigation }) => {
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <Avatar.Image
-              source={{ uri: userData.photo || 'https://randomuser.me/api/portraits/men/20.jpg' }}
+              source={{ uri: getAvatarUri(userData.avatar) }}
               size={100}
               style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editAvatarButton}>
+            <TouchableOpacity style={styles.editAvatarButton} onPress={handleChangeAvatar}>
               <MaterialIcons name="edit" size={20} color={COLORS.surface} />
             </TouchableOpacity>
           </View>

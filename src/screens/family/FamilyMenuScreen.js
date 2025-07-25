@@ -13,6 +13,29 @@ import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { logout } from '../../redux/slices/authSlice';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+
+// Fallback nếu API_BASE_URL bị undefined
+const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
+const getApiBaseUrl = () => {
+  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
+    return CONFIG_API_BASE_URL;
+  }
+  console.warn('[FamilyMenuScreen] API_BASE_URL is undefined, fallback to default:', DEFAULT_API_BASE_URL);
+  return DEFAULT_API_BASE_URL;
+};
+
+// Helper để đồng bộ logic avatar
+const getAvatarUri = (avatar) => {
+  if (!avatar) return 'https://randomuser.me/api/portraits/men/20.jpg';
+  if (avatar.startsWith('http') || avatar.startsWith('https')) return avatar;
+  // Chuyển toàn bộ \\ hoặc \ thành /
+  const cleanPath = avatar.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
+  const baseUrl = getApiBaseUrl();
+  const uri = `${baseUrl}/${cleanPath}`;
+  console.log('[FamilyMenuScreen] API_BASE_URL:', baseUrl, 'avatar:', avatar, 'cleanPath:', cleanPath, 'uri:', uri);
+  return uri;
+};
 
 const FamilyMenuScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
@@ -133,7 +156,7 @@ const FamilyMenuScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('HoSo')}
         >
           <Image 
-            source={{ uri: user?.photo || 'https://randomuser.me/api/portraits/women/11.jpg' }}
+            source={{ uri: getAvatarUri(user?.avatar || user?.photo) }}
             style={styles.userAvatar}
           />
           <View style={styles.userInfo}>

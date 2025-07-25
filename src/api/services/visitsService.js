@@ -113,6 +113,28 @@ const visitsService = {
   },
 
   /**
+   * Lấy lịch thăm theo family member id
+   * @param {string} familyMemberId - ID thành viên gia đình
+   * @returns {Promise} - Promise với response data
+   */
+  getVisitsByFamilyMemberId: async (familyMemberId) => {
+    try {
+      const response = await apiClient.get('/visits/family', { params: { family_member_id: familyMemberId } });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy lịch thăm theo thành viên gia đình thành công'
+      };
+    } catch (error) {
+      console.log('Get visits by family member ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy lịch thăm theo thành viên gia đình thất bại'
+      };
+    }
+  },
+
+  /**
    * Cập nhật lịch thăm
    * @param {string} visitId - ID lịch thăm
    * @param {Object} updateData - Dữ liệu cập nhật

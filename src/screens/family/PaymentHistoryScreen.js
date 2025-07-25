@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { billingService } from '../../api/billingService';
+import billsService from '../../api/services/billsService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 
@@ -25,7 +25,7 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
   const fetchPayments = async () => {
     try {
-      const result = await billingService.getBills({ status: 'paid' });
+      const result = await billsService.billingService.getBills({ status: 'paid' });
       setPayments(result.data);
     } catch (error) {
       console.error('Error fetching payments:', error);

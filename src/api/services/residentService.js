@@ -1,11 +1,11 @@
-import { apiRequest } from '../config/axiosConfig';
+import apiClient from '../config/axiosConfig';
 import { API_CONFIG, buildUrl } from '../config/apiConfig';
 
 class ResidentService {
   // Get all residents
   async getAllResidents() {
     try {
-      const response = await apiRequest.get(API_CONFIG.ENDPOINTS.RESIDENT.LIST);
+      const response = await apiClient.get(API_CONFIG.ENDPOINTS.RESIDENT.LIST);
       
       if (response.data && Array.isArray(response.data)) {
         return {
@@ -31,8 +31,9 @@ class ResidentService {
   async getResidentById(id) {
     try {
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.DETAIL, { id });
-      const response = await apiRequest.get(url);
-      
+      const response = await apiClient.get(url);
+      // Log response để debug
+      console.log('[residentService] getResidentById response:', response.data);
       if (response.data && response.data._id) {
         return {
           success: true,
@@ -41,6 +42,7 @@ class ResidentService {
       } else {
         return {
           success: false,
+          data: null,
           error: 'Resident not found',
         };
       }
@@ -48,6 +50,7 @@ class ResidentService {
       console.error('Get resident by ID error:', error);
       return {
         success: false,
+        data: null,
         error: error.response?.data?.message || 'Không thể lấy thông tin người cao tuổi',
       };
     }
@@ -57,7 +60,7 @@ class ResidentService {
   async getResidentsByFamilyMember(familyMemberId) {
     try {
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.BY_FAMILY_MEMBER, { familyMemberId });
-      const response = await apiRequest.get(url);
+      const response = await apiClient.get(url);
       
       if (response.data && Array.isArray(response.data)) {
         return {
@@ -82,7 +85,7 @@ class ResidentService {
   // Create new resident
   async createResident(residentData) {
     try {
-      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.RESIDENT.CREATE, residentData);
+      const response = await apiClient.post(API_CONFIG.ENDPOINTS.RESIDENT.CREATE, residentData);
       
       if (response.data && response.data._id) {
         return {
@@ -109,7 +112,7 @@ class ResidentService {
   async updateResident(id, updateData) {
     try {
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.UPDATE, { id });
-      const response = await apiRequest.patch(url, updateData);
+      const response = await apiClient.patch(url, updateData);
       
       if (response.data && response.data._id) {
         return {
@@ -136,7 +139,7 @@ class ResidentService {
   async deleteResident(id) {
     try {
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.DELETE, { id });
-      const response = await apiRequest.delete(url);
+      const response = await apiClient.delete(url);
       
       if (response.status === 200) {
         return {

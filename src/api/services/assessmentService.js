@@ -102,7 +102,8 @@ const assessmentService = {
    */
   getAssessmentsByResidentId: async (residentId, params = {}) => {
     try {
-      const response = await apiClient.get(`/care-notes/resident/${residentId}`, { params });
+      // Đúng endpoint: /assessments?resident_id=xxx
+      const response = await apiClient.get(`/assessments`, { params: { resident_id: residentId, ...params } });
       return {
         success: true,
         data: response.data,
