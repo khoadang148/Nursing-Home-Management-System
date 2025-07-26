@@ -32,6 +32,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { FlatGrid } from 'react-native-super-grid';
 import PhotoSearchFilters from '../../components/PhotoSearchFilters';
+import residentPhotosService from '../../api/services/residentPhotosService';
+import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
@@ -41,6 +43,22 @@ const { width, height } = Dimensions.get('window');
 const GRID_SPACING = 2;
 const COLUMNS = 4; // Tăng lên 4 cột theo yêu cầu người dùng
 const ITEM_DIMENSION = (width - (GRID_SPACING * (COLUMNS + 1) * 2)) / COLUMNS;
+
+const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
+const getApiBaseUrl = () => {
+  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
+    return CONFIG_API_BASE_URL;
+  }
+  return DEFAULT_API_BASE_URL;
+};
+
+const getImageUri = (filePath) => {
+  if (!filePath) return '';
+  if (filePath.startsWith('http') || filePath.startsWith('https')) return filePath;
+  // Chuyển \ thành /
+  const cleanPath = filePath.replace(/\\/g, '/').replace(/^\/+|^\/+/, '');
+  return `${getApiBaseUrl()}/${cleanPath}`;
+};
 
 // =========================
 // 1. ENHANCED MOCK DATA
@@ -255,6 +273,7 @@ const groupPhotosByDate = (photos) => {
 // 3. MAIN COMPONENT
 // =========================
 const FamilyPhotoGalleryScreen = ({ navigation }) => {
+  const user = useSelector((state) => state.auth.user);
   const [photos, setPhotos] = useState([]);
   const [filteredPhotos, setFilteredPhotos] = useState([]);
   const [sections, setSections] = useState([]);
@@ -274,7 +293,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const filtered = filterAndSearchPhotos();
@@ -285,16 +304,34 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Tạm thời dùng mock data
-      const photos = mockResidentPhotos;
-      setPhotos(photos);
-      setFilteredPhotos(photos);
-      
-      // Group photos by date
-      const groupedSections = groupPhotosByDate(photos);
-      setSections(groupedSections);
+      if (!user?.id) {
+        setPhotos([]);
+        setFilteredPhotos([]);
+        setSections([]);
+        setLoading(false);
+        return;
+      }
+      const res = await residentPhotosService.getAllResidentPhotos({ family_member_id: user.id });
+      if (res.success && Array.isArray(res.data)) {
+        // Format lại file_path cho đúng URL
+        const photos = res.data.map(photo => ({
+          ...photo,
+          file_path: getImageUri(photo.file_path)
+        }));
+        setPhotos(photos);
+        setFilteredPhotos(photos);
+        const groupedSections = groupPhotosByDate(photos);
+        setSections(groupedSections);
+      } else {
+        setPhotos([]);
+        setFilteredPhotos([]);
+        setSections([]);
+      }
     } catch (error) {
       console.error('Error loading photos:', error);
+      setPhotos([]);
+      setFilteredPhotos([]);
+      setSections([]);
     } finally {
       setLoading(false);
     }
@@ -474,7 +511,6 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           style={styles.photo}
           resizeMode="cover"
           fadeDuration={0}
-          cachePolicy="memory-disk"
         />
         
         {/* Time stamp overlay */}
@@ -505,7 +541,6 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
   const renderBottomSheetContent = () => {
     if (!currentPhoto) return null;
-    
     return (
       <BottomSheetScrollView 
         contentContainerStyle={styles.bottomSheetContent}
@@ -514,8 +549,12 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         <View style={styles.photoInfo}>
           <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
           <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Người chụp: </Text>
-            {currentPhoto.uploaded_by || 'Không xác định'}
+            <Text style={styles.label}>Người đăng tải: </Text>
+            {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
+          </Text>
+          <Text style={styles.photoInfoText}>
+            <Text style={styles.label}>Người thân: </Text>
+            {currentPhoto.resident_id?.full_name || 'Không xác định'}
           </Text>
           <Text style={styles.photoInfoText}>
             <Text style={styles.label}>Thời gian: </Text>
@@ -523,11 +562,15 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           </Text>
           <Text style={styles.photoInfoText}>
             <Text style={styles.label}>Địa điểm: </Text>
-            {currentPhoto.location || 'Không xác định'}
+            {currentPhoto.related_activity_id?.location || 'Không xác định'}
           </Text>
           <Text style={styles.photoInfoText}>
             <Text style={styles.label}>Hoạt động: </Text>
-            {currentPhoto.activity_type || 'Không xác định'}
+            {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
+          </Text>
+          <Text style={styles.photoInfoText}>
+            <Text style={styles.label}>Mô tả hoạt động: </Text>
+            {currentPhoto.related_activity_id?.description || 'Không xác định'}
           </Text>
           {currentPhoto.staff_notes && (
             <>

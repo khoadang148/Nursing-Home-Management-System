@@ -191,12 +191,31 @@ const FamilyHomeScreen = ({ navigation }) => {
         const familyMemberId = userData.id || userData._id;
         const res = await visitsService.getVisitsByFamilyMemberId(familyMemberId);
         if (res.success && Array.isArray(res.data)) {
-          // Lọc các lịch có thời gian lớn hơn hiện tại
           const now = new Date();
-          const futureVisits = res.data.filter(v => new Date(v.visit_time) > now);
+          // Convert string date/time to Date object for easier handling
+          const visitsData = res.data.map(v => ({
+            ...v,
+            visit_date: v.visit_date ? new Date(v.visit_date) : undefined,
+          }));
+          // Chỉ lấy các lịch thăm sắp tới (visit_date + visit_time > hiện tại)
+          const upcoming = visitsData.filter(v => {
+            if (!v.visit_date) return false;
+            const [h, m] = (v.visit_time || '00:00').split(':');
+            const visitDateTime = typeof v.visit_date === 'string' ? new Date(v.visit_date) : v.visit_date;
+            visitDateTime.setHours(Number(h), Number(m), 0, 0);
+            return visitDateTime > now;
+          });
           // Sắp xếp tăng dần theo thời gian
-          futureVisits.sort((a, b) => new Date(a.visit_time) - new Date(b.visit_time));
-          setUpcomingVisits(futureVisits);
+          upcoming.sort((a, b) => {
+            const [ha, ma] = (a.visit_time || '00:00').split(':');
+            const [hb, mb] = (b.visit_time || '00:00').split(':');
+            const da = typeof a.visit_date === 'string' ? new Date(a.visit_date) : a.visit_date;
+            const db = typeof b.visit_date === 'string' ? new Date(b.visit_date) : b.visit_date;
+            da.setHours(Number(ha), Number(ma), 0, 0);
+            db.setHours(Number(hb), Number(mb), 0, 0);
+            return da - db;
+          });
+          setUpcomingVisits(upcoming);
         } else {
           setUpcomingVisits([]);
         }
@@ -567,17 +586,14 @@ const FamilyHomeScreen = ({ navigation }) => {
                 <View key={visit._id} style={styles.visitInfo}>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Ngày:</Text>
-                    <Text style={styles.visitValue}>{new Date(visit.visit_time).toLocaleDateString('vi-VN')}</Text>
+                    <Text style={styles.visitValue}>{(() => {
+                      const dateObj = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date;
+                      return dateObj ? dateObj.toLocaleDateString('vi-VN') : 'Không rõ';
+                    })()}</Text>
                 </View>
                 <View style={styles.visitDetail}>
                   <Text style={styles.visitLabel}>Giờ:</Text>
-                    <Text style={styles.visitValue}>{new Date(visit.visit_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
-                </View>
-                <View style={styles.visitDetail}>
-                  <Text style={styles.visitLabel}>Trạng thái:</Text>
-                  <Text style={[styles.visitValue, { color: COLORS.success }]}>
-                      {visit.status === 'Confirmed' ? 'Đã xác nhận' : visit.status}
-                  </Text>
+                  <Text style={styles.visitValue}>{visit.visit_time || 'Không rõ'}</Text>
                 </View>
                   <View style={styles.visitDetail}>
                     <Text style={styles.visitLabel}>Mục đích:</Text>

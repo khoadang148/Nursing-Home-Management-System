@@ -14,12 +14,12 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ServicePackageService } from '../../api/servicePackageService';
+import carePlanService from '../../api/services/carePlanService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
+import { useSelector } from 'react-redux';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
-
-// Import mock data (for now)
-import { carePlans, carePlanAssignments, residents } from '../../api/mockData';
+import apiClient from '../../api/config/axiosConfig';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,6 +27,16 @@ const { width: screenWidth } = Dimensions.get('window');
 const safeFormatDate = (date) => {
   if (!date) return 'Không xác định';
   return formatDate(date);
+};
+
+// Chuyển loại giường sang tiếng Việt
+const bedTypeToVietnamese = (type) => {
+  switch (type) {
+    case 'standard': return 'Tiêu chuẩn';
+    case 'electric': return 'Điện';
+    case 'medical': return 'Y tế';
+    default: return type || '';
+  }
 };
 
 const ServicePackageScreen = ({ navigation }) => {
@@ -44,43 +54,54 @@ const ServicePackageScreen = ({ navigation }) => {
   const [availableResidents, setAvailableResidents] = useState([]);
   const [selectedResident, setSelectedResident] = useState(null);
   const [residentsLoading, setResidentsLoading] = useState(false);
+  const [bedAssignments, setBedAssignments] = useState({}); // { [resident_id]: bedAssignment }
 
+  const user = useSelector((state) => state.auth.user);
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
+
+  // Lấy thông tin bed assignment cho từng resident
+  const fetchBedAssignments = async (packages) => {
+    const newAssignments = { ...bedAssignments };
+    const promises = [];
+    (packages || []).forEach(pkg => {
+      const residentId = pkg.resident_id?._id || pkg.resident_id;
+      if (residentId && !newAssignments[residentId]) {
+        promises.push(
+          apiClient.get('/bed-assignments/by-resident', { params: { resident_id: residentId } })
+            .then(res => {
+              newAssignments[residentId] = Array.isArray(res.data) ? res.data[0] : res.data;
+            })
+            .catch(() => { newAssignments[residentId] = null; })
+        );
+      }
+    });
+    await Promise.all(promises);
+    setBedAssignments(newAssignments);
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      console.log('=== Fetch Data Debug ===');
-      console.log('Available care plans:', carePlans.length);
-      console.log('Available care plan assignments:', carePlanAssignments.length);
-      console.log('Available residents:', residents.length);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Get registered packages (care plan assignments for current user)
-      const userRegisteredPackages = carePlanAssignments.filter(
-        assignment => assignment.family_member_id === 'f1' // Current user
-      );
-      console.log('User registered packages:', userRegisteredPackages.length);
-      console.log('User registered packages data:', userRegisteredPackages);
-      setRegisteredPackages(userRegisteredPackages);
-      
-      // Get available packages (all care plans)
-      const mainPackages = carePlans.filter(plan => plan.category === 'main');
-      const supplementaryPackages = carePlans.filter(plan => plan.category === 'supplementary');
-      
-      console.log('Main packages:', mainPackages.length);
-      console.log('Supplementary packages:', supplementaryPackages.length);
-      
-      setAvailablePackages({
-        main_packages: mainPackages,
-        supplementary_packages: supplementaryPackages
-      });
-      
+      // Lấy gói đã đăng ký
+      const registeredRes = await carePlanAssignmentService.getCarePlanAssignmentsByFamilyMemberId(user?.id);
+      const pkgs = registeredRes.success ? registeredRes.data : [];
+      setRegisteredPackages(pkgs);
+      await fetchBedAssignments(pkgs);
+
+      // Lấy gói có sẵn
+      const availableRes = await carePlanService.getAllCarePlans();
+      if (availableRes.success) {
+        const mainPackages = availableRes.data.filter(pkg => pkg.category === 'main');
+        const supplementaryPackages = availableRes.data.filter(pkg => pkg.category === 'supplementary');
+        setAvailablePackages({
+          main_packages: mainPackages,
+          supplementary_packages: supplementaryPackages
+        });
+      } else {
+        setAvailablePackages({ main_packages: [], supplementary_packages: [] });
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu gói dịch vụ');
@@ -155,10 +176,12 @@ const ServicePackageScreen = ({ navigation }) => {
     }
   };
 
+  // TODO: Cập nhật logic lấy residents phù hợp từ API thật nếu cần
   const handleRegisterPress = async (packageData) => {
     try {
       setResidentsLoading(true);
-      const result = await ServicePackageService.getAvailableResidents(packageData);
+      // Lấy danh sách người thân phù hợp để đăng ký gói dịch vụ
+      const result = await carePlanAssignmentService.getAvailableResidents(packageData);
       
       if (result.success && result.data.length > 0) {
         setAvailableResidents(result.data);
@@ -181,6 +204,7 @@ const ServicePackageScreen = ({ navigation }) => {
     }
   };
 
+  // TODO: Cập nhật logic đăng ký gói dịch vụ qua API thật nếu cần
   const handleRegisterPackage = async (residentId) => {
     if (!selectedPackage || !residentId) return;
 
@@ -194,9 +218,10 @@ const ServicePackageScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               setActionLoading(true);
-              const result = await ServicePackageService.registerServicePackage({
-                package_id: selectedPackage._id,
-                resident_id: residentId,
+              // Thực hiện đăng ký gói dịch vụ thông qua API
+              const result = await carePlanAssignmentService.registerCarePlanAssignment({
+                care_plan_id: selectedPackage._id,
+                family_member_id: residentId,
                 notes: 'Đăng ký từ app mobile'
               });
 
@@ -274,69 +299,84 @@ const ServicePackageScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderRegisteredPackageCard = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.registeredCard,
-        { borderLeftColor: getPackageColor(item.main_care_plan?.plan_type || 'default', 'main') }
-      ]}
-      onPress={() => handlePackagePress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.residentInfo}>
-          <View style={[styles.iconContainer, { backgroundColor: getPackageColor(item.main_care_plan?.plan_type || 'default', 'main') + '20' }]}>
-            <Ionicons 
-              name="person" 
-              size={20} 
-              color={getPackageColor(item.main_care_plan?.plan_type || 'default', 'main')} 
-            />
+  const renderRegisteredPackageCard = ({ item }) => {
+    const residentId = item.resident_id?._id || item.resident_id;
+    const bedAssignment = bedAssignments[residentId];
+    let roomNumber = '--', bedNumber = '--', bedType = '';
+    if (bedAssignment && bedAssignment.bed_id) {
+      bedNumber = bedAssignment.bed_id.bed_number || '--';
+      bedType = bedAssignment.bed_id.bed_type || '';
+      if (bedAssignment.bed_id.room_id) {
+        roomNumber = bedAssignment.bed_id.room_id.room_number || '--';
+      }
+    }
+    // Phân loại gói chính/gói phụ từ care_plan_ids
+    const mainPlan = (item.care_plan_ids || []).find(plan => plan.category === 'main');
+    const supplementaryPlans = (item.care_plan_ids || []).filter(plan => plan.category === 'supplementary');
+    return (
+      <TouchableOpacity
+        style={[
+          styles.registeredCard,
+          { borderLeftColor: getPackageColor(mainPlan?.plan_type || 'default', 'main') }
+        ]}
+        onPress={() => handlePackagePress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.residentInfo}>
+            <View style={[styles.iconContainer, { backgroundColor: getPackageColor(mainPlan?.plan_type || 'default', 'main') + '20' }]}>
+              <Ionicons 
+                name="person" 
+                size={20} 
+                color={getPackageColor(mainPlan?.plan_type || 'default', 'main')} 
+              />
+            </View>
+            <View style={styles.residentDetails}>
+              <Text style={styles.residentName}>{item.resident_id?.full_name || 'Không có tên'}</Text>
+              <Text style={styles.roomInfo}>Phòng {roomNumber} • Giường {bedNumber}{bedType ? ` (${bedTypeToVietnamese(bedType)})` : ''}</Text>
+            </View>
           </View>
-          <View style={styles.residentDetails}>
-            <Text style={styles.residentName}>{item.resident?.full_name || 'Không có tên'}</Text>
-            <Text style={styles.roomInfo}>Phòng {item.resident?.room_number || '--'} • Giường {item.resident?.bed_number || '--'}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#4CAF50' : '#FF9800' }]}>
+            <Text style={styles.statusText}>
+              {item.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+            </Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#4CAF50' : '#FF9800' }]}>
-          <Text style={styles.statusText}>
-            {item.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+
+        <View style={styles.packageInfo}>
+          <View style={styles.mainPackage}>
+            <Text style={styles.packageTitle}>Gói chính</Text>
+            <Text style={styles.packageName}>{mainPlan?.plan_name || 'Không có tên gói'}</Text>
+            <Text style={styles.packagePrice}>{formatCurrency(mainPlan?.monthly_price || 0)}/tháng</Text>
+          </View>
+
+          {supplementaryPlans.length > 0 && (
+            <View style={styles.supplementaryPackages}>
+              <Text style={styles.packageTitle}>Gói bổ sung ({supplementaryPlans.length})</Text>
+              {supplementaryPlans.map((plan, index) => (
+                <View key={plan._id || index} style={styles.supplementaryItem}>
+                  <Text style={styles.supplementaryName}>{plan.plan_name || 'Không có tên'}</Text>
+                  <Text style={styles.supplementaryPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <View style={styles.totalCost}>
+            <Text style={styles.totalLabel}>Tổng chi phí hàng tháng:</Text>
+            <Text style={styles.totalAmount}>{formatCurrency(item.total_monthly_cost || 0)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.dateInfo}>
+            Từ {safeFormatDate(item.start_date)} đến {safeFormatDate(item.end_date)}
           </Text>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
         </View>
-      </View>
-
-      <View style={styles.packageInfo}>
-        <View style={styles.mainPackage}>
-          <Text style={styles.packageTitle}>Gói chính</Text>
-          <Text style={styles.packageName}>{item.main_care_plan?.plan_name || 'Không có tên gói'}</Text>
-          <Text style={styles.packagePrice}>{formatCurrency(item.main_care_plan?.monthly_price || 0)}/tháng</Text>
-        </View>
-
-        {item.supplementary_plans && item.supplementary_plans.length > 0 && (
-          <View style={styles.supplementaryPackages}>
-            <Text style={styles.packageTitle}>Gói bổ sung ({item.supplementary_plans.length})</Text>
-            {item.supplementary_plans.map((plan, index) => (
-              <View key={index} style={styles.supplementaryItem}>
-                <Text style={styles.supplementaryName}>{plan.plan_name || 'Không có tên'}</Text>
-                <Text style={styles.supplementaryPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.totalCost}>
-          <Text style={styles.totalLabel}>Tổng chi phí hàng tháng:</Text>
-          <Text style={styles.totalAmount}>{formatCurrency(item.total_monthly_cost || 0)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.dateInfo}>
-          Từ {safeFormatDate(item.start_date)} đến {safeFormatDate(item.end_date)}
-        </Text>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderAvailablePackageCard = ({ item }) => (
     <TouchableOpacity

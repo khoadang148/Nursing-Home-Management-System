@@ -112,6 +112,28 @@ const carePlanAssignmentService = {
   },
 
   /**
+   * Lấy phân công gói chăm sóc theo family member id
+   * @param {string} familyMemberId - ID thành viên gia đình
+   * @returns {Promise} - Promise với response data
+   */
+  getCarePlanAssignmentsByFamilyMemberId: async (familyMemberId) => {
+    try {
+      const response = await apiClient.get(`/care-plan-assignments/by-family-member/${familyMemberId}`);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy phân công gói chăm sóc theo family member thành công'
+      };
+    } catch (error) {
+      console.log('Get care plan assignments by family member ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy phân công gói chăm sóc theo family member thất bại'
+      };
+    }
+  },
+
+  /**
    * Cập nhật phân công gói chăm sóc
    * @param {string} assignmentId - ID phân công
    * @param {Object} updateData - Dữ liệu cập nhật

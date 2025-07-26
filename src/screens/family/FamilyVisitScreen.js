@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 // Native components
@@ -26,6 +28,7 @@ import { COLORS, FONTS, SIZES } from '../../constants/theme';
 // Import API service
 import apiService from '../../api/apiService';
 import { addNotification } from '../../redux/slices/notificationSlice';
+import visitsService from '../../api/services/visitsService';
 
 // Update mockVisits to match updated MongoDB schema structure (removed resident_id)
 const mockVisits = [
@@ -124,59 +127,79 @@ const FamilyVisitScreen = ({ navigation }) => {
   }, [user]);
   
   // Add API integration functions
-  // Function to fetch visits from API
+  // Function to fetch visits from API (real API)
   const fetchVisits = async () => {
     setLoading(true);
     try {
-      // In a real app, this would be an API call
-      // const response = await apiService.getVisits(user.id);
-      // setVisits(response.data);
-      
-      // For now, use mock data
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
-      setVisits(mockVisits);
-      
-      // Create marked dates for the calendar
-      const marked = {};
-      mockVisits.forEach(visit => {
-        marked[visit.visit_date.toISOString().split('T')[0]] = { 
-          selected: true, 
-          marked: true, 
-          selectedColor: getStatusColor(visit.status),
-        };
-      });
-      setMarkedDates(marked);
+      if (!user?.id) {
+        setVisits([]);
+        setMarkedDates({});
+        setLoading(false);
+        return;
+      }
+      const response = await visitsService.getVisitsByFamilyMemberId(user.id);
+      if (response.success && Array.isArray(response.data)) {
+        // Convert string date/time to Date object for easier handling
+        const now = new Date();
+        const visitsData = response.data.map(v => ({
+          ...v,
+          visit_date: new Date(v.visit_date),
+        }));
+        // Chỉ lấy các lịch thăm sắp tới (visit_date + visit_time > hiện tại)
+        const upcoming = visitsData.filter(v => {
+          // Nếu visit_time là chuỗi '14:00', gộp vào visit_date
+          const [h, m] = (v.visit_time || '00:00').split(':');
+          const visitDateTime = new Date(v.visit_date);
+          visitDateTime.setHours(Number(h), Number(m), 0, 0);
+          return visitDateTime > now;
+        });
+        setVisits(upcoming);
+        // Marked dates cho calendar
+        const marked = {};
+        upcoming.forEach(visit => {
+          const [h, m] = (visit.visit_time || '00:00').split(':');
+          const visitDate = new Date(visit.visit_date);
+          visitDate.setHours(Number(h), Number(m), 0, 0);
+          const key = visitDate.toISOString().split('T')[0];
+          marked[key] = {
+            selected: true,
+            marked: true,
+            selectedColor: getStatusColor(visit.status),
+          };
+        });
+        setMarkedDates(marked);
+      } else {
+        setVisits([]);
+        setMarkedDates({});
+      }
     } catch (error) {
       console.error('Error fetching visits:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu lịch thăm. Vui lòng thử lại sau.');
+      setVisits([]);
+      setMarkedDates({});
     } finally {
       setLoading(false);
     }
   };
   
-  // Function to create a new visit
+  // Function to create a new visit (call API)
   const createVisit = async (visitData) => {
     try {
-      // In a real app, this would be an API call
-      // const response = await apiService.createVisit(visitData);
-      // return response.data;
-      
-      // For now, simulate API response
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-      // Gửi notification khi tạo visit thành công
-      dispatch(addNotification({
-        type: 'info',
-        title: 'Lịch thăm mới',
-        message: `${user?.full_name || 'Một người thân'} vừa đặt lịch thăm vào ngày ${visitData.visit_date} lúc ${visitData.visit_time}.`,
-        timestamp: new Date().toISOString(),
-      }));
-      return {
-        success: true,
-        data: {
-          id: (visits.length + 1).toString(),
-          ...visitData
-        }
-      };
+      const response = await visitsService.createVisit(visitData);
+      if (response.success) {
+        dispatch(addNotification({
+          type: 'info',
+          title: 'Lịch thăm mới',
+          message: `${user?.full_name || 'Một người thân'} vừa đặt lịch thăm vào ngày ${visitData.visit_date} lúc ${visitData.visit_time}.`,
+          timestamp: new Date().toISOString(),
+        }));
+        return {
+          success: true,
+          data: response.data
+        };
+      } else {
+        throw new Error(response.error || 'Không thể tạo lịch thăm. Vui lòng thử lại sau.');
+      }
     } catch (error) {
       console.error('Error creating visit:', error);
       throw new Error('Không thể tạo lịch thăm. Vui lòng thử lại sau.');
@@ -366,8 +389,12 @@ const FamilyVisitScreen = ({ navigation }) => {
       const result = await createVisit(newVisitData);
       
       if (result.success) {
-        // Add new visit to the list
-        const updatedVisits = [...visits, result.data];
+        // Add new visit to the list, parse visit_date về Date object
+        const newVisit = {
+          ...result.data,
+          visit_date: result.data.visit_date ? new Date(result.data.visit_date) : undefined
+        };
+        const updatedVisits = [...visits, newVisit];
         setVisits(updatedVisits);
         
         // Update calendar marked dates
@@ -706,39 +733,72 @@ const FamilyVisitScreen = ({ navigation }) => {
                 return timeA[1] - timeB[1];
               })
               .slice(0, 3)
-              .map((visit) => (
-                <TouchableOpacity
-                  key={visit.id} 
-                  style={styles.upcomingVisitItem}
-                  onPress={() => setSelectedDate(visit.visit_date.toISOString().split('T')[0])}
-                >
-                  <View style={styles.upcomingVisitDate}>
-                    <Text style={styles.upcomingVisitDateDay}>
-                      {new Date(visit.visit_date).getDate()}
-                    </Text>
-                    <Text style={styles.upcomingVisitDateMonth}>
-                      Th{new Date(visit.visit_date).getMonth() + 1}
-                    </Text>
-                  </View>
-                  <View style={styles.upcomingVisitDetails}>
-                    <View style={styles.upcomingVisitHeader}>
-                      <Text style={styles.upcomingVisitTime}>
-                        {formatTime(visit.visit_time)}
+              .map((visit, idx) => (
+                <View key={visit._id || visit.id || idx} style={[styles.upcomingVisitItem, { position: 'relative' }]}> 
+                  {/* Nút xóa ở góc phải trên */}
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={async () => {
+                      Alert.alert(
+                        'Xác nhận',
+                        'Bạn có chắc chắn muốn xóa lịch thăm này?',
+                        [
+                          { text: 'Hủy', style: 'cancel' },
+                          { text: 'Xóa', style: 'destructive', onPress: async () => {
+                            const result = await visitsService.deleteVisit(visit._id || visit.id);
+                            if (result.success) {
+                              Alert.alert('Thành công', 'Đã xóa lịch thăm.');
+                              await loadData();
+                            } else {
+                              Alert.alert('Lỗi', result.error || 'Không thể xóa lịch thăm.');
+                            }
+                          }}
+                        ]
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="delete" size={20} color="#e57373" />
+                  </TouchableOpacity>
+                  {/* Nội dung lịch thăm */}
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
+                    onPress={() => setSelectedDate(
+                      (() => {
+                        if (!visit.visit_date) return '';
+                        const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date;
+                        return d && typeof d.toISOString === 'function' ? d.toISOString().split('T')[0] : '';
+                      })()
+                    )}
+                  >
+                    <View style={styles.upcomingVisitDate}>
+                      <Text style={styles.upcomingVisitDateDay}>
+                        {(() => { const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; return d.getDate(); })()}
                       </Text>
-                      <View style={[styles.customChip, { 
-                        backgroundColor: getStatusColor(visit.status) + '20',
-                        borderColor: getStatusColor(visit.status),
-                      }]}>
-                        <Text style={[styles.chipText, { color: getStatusColor(visit.status) }]}>
-                          Đã xác nhận
-                        </Text>
-                      </View>
+                      <Text style={styles.upcomingVisitDateMonth}>
+                        {(() => { const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; return `Th${d.getMonth() + 1}`; })()}
+                      </Text>
                     </View>
-                    <Text style={styles.upcomingVisitPurpose} numberOfLines={1}>
-                      {visit.purpose}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                    <View style={styles.upcomingVisitDetails}>
+                      <View style={styles.upcomingVisitHeader}>
+                        <Text style={styles.upcomingVisitTime}>
+                          {formatTime(visit.visit_time)}
+                        </Text>
+                        <View style={[styles.customChip, { 
+                          backgroundColor: getStatusColor(visit.status) + '20',
+                          borderColor: getStatusColor(visit.status),
+                        }]}> 
+                          <Text style={[styles.chipText, { color: getStatusColor(visit.status) }]}> 
+                            Đã xác nhận
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.upcomingVisitPurpose} numberOfLines={1}>
+                        {visit.purpose}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
               ))}
             {visits.filter(visit => {
               const visitDate = new Date(visit.visit_date);
@@ -756,182 +816,188 @@ const FamilyVisitScreen = ({ navigation }) => {
       <NativeModal 
         visible={showNewVisitModal} 
         onClose={() => setShowNewVisitModal(false)}
-        style={{paddingBottom: 16}} // Reduce bottom padding of the modal
+        style={{paddingBottom: 16}}
       >
-        <ScrollView 
-          style={styles.modalScrollView}
-          contentContainerStyle={styles.modalContentContainer}
-          showsVerticalScrollIndicator={true}
-          bounces={false}
-          overScrollMode="never" // Prevents over-scrolling on Android
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
-          <Text style={styles.modalTitle}>Đặt Lịch Thăm Mới</Text>
-          <Text style={styles.modalSubtitle}>Vui lòng điền đầy đủ thông tin để đặt lịch thăm</Text>
-          
-          {/* Date Picker */}
-          <Text style={styles.fieldLabel}>Ngày thăm <Text style={styles.required}>*</Text></Text>
-          <TouchableOpacity 
-            style={styles.dropdownButton}
-            onPress={() => setShowDatePicker(true)}
+          <ScrollView 
+            style={styles.modalScrollView}
+            contentContainerStyle={styles.modalContentContainer}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+            overScrollMode="never"
           >
-            <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
-            <Text style={styles.dropdownButtonText}>
-              {visitDate.toLocaleDateString('vi-VN', {
-                weekday: 'long',
-                year: 'numeric', 
-                month: 'long',
-                day: 'numeric',
-              })}
-            </Text>
-          </TouchableOpacity>
-          <Text style={styles.fieldNote}>Chỉ được đặt lịch trước ít nhất 24 giờ. Thời gian thăm: 9:00-11:00 và 14:00-17:00.</Text>
+            <Text style={styles.modalTitle}>Đặt Lịch Thăm Mới</Text>
+            <Text style={styles.modalSubtitle}>Vui lòng điền đầy đủ thông tin để đặt lịch thăm</Text>
           
-          {showDatePicker && (
-            <DateTimePicker
-              value={visitDate}
-              mode="date"
-              display="default"
-              minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)} // 24 hours from now
-              onChange={handleDateChange}
-            />
-          )}
+            {/* Date Picker */}
+            <Text style={styles.fieldLabel}>Ngày thăm <Text style={styles.required}>*</Text></Text>
+            <TouchableOpacity 
+              style={styles.dropdownButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
+              <Text style={styles.dropdownButtonText}>
+                {visitDate.toLocaleDateString('vi-VN', {
+                  weekday: 'long',
+                  year: 'numeric', 
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.fieldNote}>Chỉ được đặt lịch trước ít nhất 24 giờ. Thời gian thăm: 9:00-11:00 và 14:00-17:00.</Text>
           
-          {/* Time Picker */}
-          <Text style={styles.fieldLabel}>Giờ thăm <Text style={styles.required}>*</Text></Text>
-          <TouchableOpacity 
-            style={styles.dropdownButton}
-            onPress={() => {
-              setShowTimeDropdown(!showTimeDropdown);
-              setShowPurposeDropdown(false); // Close other dropdowns
-            }}
-          >
-            <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
-            <Text style={styles.dropdownButtonText}>
-              {visitTime || 'Chọn giờ thăm...'}
-            </Text>
-            <MaterialIcons name={showTimeDropdown ? "expand-less" : "expand-more"} size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          <Text style={styles.fieldNote}>Mỗi lần thăm kéo dài 1 giờ. Vui lòng đến đúng giờ đã chọn.</Text>
+            {showDatePicker && (
+              <DateTimePicker
+                value={visitDate}
+                mode="date"
+                display="default"
+                minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)} // 24 hours from now
+                onChange={handleDateChange}
+              />
+            )}
           
-          {showTimeDropdown && (
-            <View style={styles.dropdown}>
-              <ScrollView style={styles.dropdownScrollView} nestedScrollEnabled={true}>
-                {timeSlots.map((slot) => (
-                  <TouchableOpacity
-                    key={slot}
-                    style={[styles.dropdownItem, visitTime === slot.split(' - ')[0] && styles.dropdownItemSelected]}
-                    onPress={() => {
-                      setVisitTime(slot.split(' - ')[0]);
-                      setShowTimeDropdown(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownItemText, visitTime === slot.split(' - ')[0] && styles.dropdownItemTextSelected]}>
-                      {slot}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+            {/* Time Picker */}
+            <Text style={styles.fieldLabel}>Giờ thăm <Text style={styles.required}>*</Text></Text>
+            <TouchableOpacity 
+              style={styles.dropdownButton}
+              onPress={() => {
+                setShowTimeDropdown(!showTimeDropdown);
+                setShowPurposeDropdown(false); // Close other dropdowns
+              }}
+            >
+              <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
+              <Text style={styles.dropdownButtonText}>
+                {visitTime || 'Chọn giờ thăm...'}
+              </Text>
+              <MaterialIcons name={showTimeDropdown ? "expand-less" : "expand-more"} size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.fieldNote}>Mỗi lần thăm kéo dài 1 giờ. Vui lòng đến đúng giờ đã chọn.</Text>
           
-          {/* Purpose Picker */}
-          <Text style={styles.fieldLabel}>Mục đích thăm <Text style={styles.required}>*</Text></Text>
-          <TouchableOpacity 
-            style={styles.dropdownButton}
-            onPress={() => {
-              setShowPurposeDropdown(!showPurposeDropdown);
-              setShowTimeDropdown(false); // Close other dropdowns
-            }}
-          >
-            <MaterialIcons name="favorite" size={20} color={COLORS.primary} />
-            <Text style={styles.dropdownButtonText}>
-              {visitPurpose || 'Chọn mục đích...'}
-            </Text>
-            <MaterialIcons name={showPurposeDropdown ? "expand-less" : "expand-more"} size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          <Text style={styles.fieldNote}>Chọn đúng mục đích để nhân viên chuẩn bị tốt nhất cho chuyến thăm.</Text>
+            {showTimeDropdown && (
+              <View style={styles.dropdown}>
+                <ScrollView style={styles.dropdownScrollView} nestedScrollEnabled={true}>
+                  {timeSlots.map((slot) => (
+                    <TouchableOpacity
+                      key={slot}
+                      style={[styles.dropdownItem, visitTime === slot.split(' - ')[0] && styles.dropdownItemSelected]}
+                      onPress={() => {
+                        setVisitTime(slot.split(' - ')[0]);
+                        setShowTimeDropdown(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownItemText, visitTime === slot.split(' - ')[0] && styles.dropdownItemTextSelected]}>
+                        {slot}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           
-          {showPurposeDropdown && (
-            <View style={styles.dropdown}>
-              <ScrollView style={styles.dropdownScrollView} nestedScrollEnabled={true}>
-                {visitPurposes.map((purpose) => (
-                  <TouchableOpacity
-                    key={purpose}
-                    style={[styles.dropdownItem, visitPurpose === purpose && styles.dropdownItemSelected]}
-                    onPress={() => {
-                      setVisitPurpose(purpose);
-                      setShowPurposeDropdown(false);
-                      if (purpose !== 'Khác') {
-                        setCustomPurpose('');
-                      }
-                    }}
-                  >
-                    <Text style={[styles.dropdownItemText, visitPurpose === purpose && styles.dropdownItemTextSelected]}>
-                      {purpose}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+            {/* Purpose Picker */}
+            <Text style={styles.fieldLabel}>Mục đích thăm <Text style={styles.required}>*</Text></Text>
+            <TouchableOpacity 
+              style={styles.dropdownButton}
+              onPress={() => {
+                setShowPurposeDropdown(!showPurposeDropdown);
+                setShowTimeDropdown(false); // Close other dropdowns
+              }}
+            >
+              <MaterialIcons name="favorite" size={20} color={COLORS.primary} />
+              <Text style={styles.dropdownButtonText}>
+                {visitPurpose || 'Chọn mục đích...'}
+              </Text>
+              <MaterialIcons name={showPurposeDropdown ? "expand-less" : "expand-more"} size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.fieldNote}>Chọn đúng mục đích để nhân viên chuẩn bị tốt nhất cho chuyến thăm.</Text>
           
-          {/* Custom Purpose Input */}
-          {visitPurpose === 'Khác' && (
+            {showPurposeDropdown && (
+              <View style={styles.dropdown}>
+                <ScrollView style={styles.dropdownScrollView} nestedScrollEnabled={true}>
+                  {visitPurposes.map((purpose) => (
+                    <TouchableOpacity
+                      key={purpose}
+                      style={[styles.dropdownItem, visitPurpose === purpose && styles.dropdownItemSelected]}
+                      onPress={() => {
+                        setVisitPurpose(purpose);
+                        setShowPurposeDropdown(false);
+                        if (purpose !== 'Khác') {
+                          setCustomPurpose('');
+                        }
+                      }}
+                    >
+                      <Text style={[styles.dropdownItemText, visitPurpose === purpose && styles.dropdownItemTextSelected]}>
+                        {purpose}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          
+            {/* Custom Purpose Input */}
+            {visitPurpose === 'Khác' && (
+              <NativeTextInput
+                label="Mục đích thăm cụ thể*"
+                value={customPurpose}
+                onChangeText={setCustomPurpose}
+                placeholder="Nhập mục đích thăm của bạn"
+                style={styles.textInput}
+              />
+            )}
+          
+            {/* Visitor Count */}
             <NativeTextInput
-              label="Mục đích thăm cụ thể*"
-              value={customPurpose}
-              onChangeText={setCustomPurpose}
-              placeholder="Nhập mục đích thăm của bạn"
+              label="Số người đến thăm*"
+              keyboardType="numeric"
+              value={visitorCount}
+              onChangeText={setVisitorCount}
+              placeholder="Ví dụ: 2"
               style={styles.textInput}
             />
-          )}
           
-          {/* Visitor Count */}
-          <NativeTextInput
-            label="Số người đến thăm*"
-            keyboardType="numeric"
-            value={visitorCount}
-            onChangeText={setVisitorCount}
-            placeholder="Ví dụ: 2"
-            style={styles.textInput}
-          />
-          
-          {/* Notes */}
-          <NativeTextInput
-            label="Ghi chú (không bắt buộc)"
-            multiline
-            numberOfLines={3}
-            value={visitNotes}
-            onChangeText={setVisitNotes}
-            placeholder="Thêm các yêu cầu đặc biệt hoặc ghi chú"
-            style={styles.textInput}
-            textAlignVertical="top"
-          />
-          
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <MaterialIcons name="info" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-            <Text style={styles.infoText}>
-              Lưu ý: Vui lòng mang theo giấy tờ tùy thân khi đến thăm. Đặt lịch trước ít nhất 24 giờ. Nếu có thay đổi, hãy liên hệ nhân viên để được hỗ trợ.
-            </Text>
-          </View>
-          
-          {/* Buttons - Improved styling */}
-          <View style={styles.modalButtons}>
-            <NativeButton 
-              title="Hủy bỏ"
-              mode="outlined"
-              onPress={() => setShowNewVisitModal(false)}
-              style={[styles.modalButton, styles.cancelButton]}
+            {/* Notes */}
+            <NativeTextInput
+              label="Ghi chú (không bắt buộc)"
+              multiline
+              numberOfLines={3}
+              value={visitNotes}
+              onChangeText={setVisitNotes}
+              placeholder="Thêm các yêu cầu đặc biệt hoặc ghi chú"
+              style={styles.textInput}
+              textAlignVertical="top"
             />
-            <NativeButton 
-              title="Đặt lịch"
-              mode="contained"
-              onPress={handleSubmitVisit}
-              style={styles.modalButton}
-            />
-          </View>
-        </ScrollView>
+          
+            {/* Info Box */}
+            <View style={styles.infoBox}>
+              <MaterialIcons name="info" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.infoText}>
+                Lưu ý: Vui lòng mang theo giấy tờ tùy thân khi đến thăm. Đặt lịch trước ít nhất 24 giờ. Nếu có thay đổi, hãy liên hệ nhân viên để được hỗ trợ.
+              </Text>
+            </View>
+          
+            {/* Buttons - Improved styling */}
+            <View style={styles.modalButtons}>
+              <NativeButton 
+                title="Hủy bỏ"
+                mode="outlined"
+                onPress={() => setShowNewVisitModal(false)}
+                style={[styles.modalButton, styles.cancelButton]}
+              />
+              <NativeButton 
+                title="Đặt lịch"
+                mode="contained"
+                onPress={handleSubmitVisit}
+                style={styles.modalButton}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </NativeModal>
     </SafeAreaView>
   );
@@ -1307,6 +1373,20 @@ const styles = StyleSheet.create({
   //   color: COLORS.error,
   //   fontWeight: '600',
   // },
+  deleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 2,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 2, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
 });
 
 export default FamilyVisitScreen; 
