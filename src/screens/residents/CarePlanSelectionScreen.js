@@ -12,16 +12,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  getCarePlans, 
-  getRoomTypes, 
-  getResidents, 
-  createCarePlanAssignment,
-  calculateTotalCost 
-} from '../../api/services/carePlanService';
+import carePlanService from '../../api/services/carePlanService';
 import { useSelector } from 'react-redux';
 import { COLORS, FONTS } from '../../constants/theme';
-import { rooms, beds } from '../../api/mockData';
+// Removed mock data import
 import { Picker } from '@react-native-picker/picker';
 import DropDownPicker from 'react-native-dropdown-picker';
 
@@ -53,6 +47,10 @@ const CarePlanSelectionScreen = () => {
   const [roomDropdownValue, setRoomDropdownValue] = useState(null);
   const [bedDropdownOpen, setBedDropdownOpen] = useState(false);
   const [bedDropdownValue, setBedDropdownValue] = useState(null);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [availableBeds, setAvailableBeds] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loadingBeds, setLoadingBeds] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -61,18 +59,40 @@ const CarePlanSelectionScreen = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [carePlansData, roomTypesData, residentsData] = await Promise.all([
-        getCarePlans(),
-        getRoomTypes(),
-        getResidents()
+      
+      console.log('DEBUG - Starting to load data...');
+      
+      const [carePlansData, roomTypesData, unregisteredResidentsData] = await Promise.all([
+        carePlanService.getCarePlans(),
+        carePlanService.getRoomTypes(),
+        carePlanService.getUnregisteredResidents()
       ]);
       
-      setCarePlans(carePlansData);
-      setRoomTypes(roomTypesData);
-      setResidents(residentsData);
+      console.log('DEBUG - Data loaded successfully:');
+      console.log('DEBUG - Care plans:', carePlansData?.length || 0);
+      console.log('DEBUG - Room types:', roomTypesData?.length || 0);
+      console.log('DEBUG - Unregistered residents:', unregisteredResidentsData?.length || 0);
+      
+      setCarePlans(carePlansData || []);
+      setRoomTypes(roomTypesData || []);
+      setResidents(unregisteredResidentsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
+      
+      // Show more specific error message
+      let errorMessage = 'Không thể tải dữ liệu. Vui lòng thử lại.';
+      
+      if (error.response?.status === 400) {
+        errorMessage = 'Lỗi dữ liệu từ server. Vui lòng liên hệ admin.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Bạn không có quyền truy cập dữ liệu này.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Lỗi server. Vui lòng thử lại sau.';
+      }
+      
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -83,6 +103,13 @@ const CarePlanSelectionScreen = () => {
 
   const handleMainPlanSelect = (plan) => {
     setSelectedMainPlan(plan);
+    // Reset room and bed selections when main plan changes
+    setSelectedRoom(null);
+    setSelectedBed(null);
+    setRoomDropdownValue(null);
+    setBedDropdownValue(null);
+    setAvailableRooms([]);
+    setAvailableBeds([]);
   };
 
   const handleSupplementaryPlanToggle = (plan) => {
@@ -97,31 +124,84 @@ const CarePlanSelectionScreen = () => {
   };
 
   // Khi chọn loại phòng
-  const handleRoomTypeSelect = useCallback((roomType) => {
+  const handleRoomTypeSelect = (roomType) => {
     setSelectedRoomType(roomType);
-    setRoomDropdownValue(null);
+    // Reset room and bed selections when room type changes
     setSelectedRoom(null);
-    setBedDropdownValue(null);
     setSelectedBed(null);
-  }, []);
-  // useMemo cho availableRooms và availableBeds
-  const availableRooms = useMemo(() => {
-    return selectedRoomType
-      ? rooms.filter(r => r.status === 'available' && r.room_type === selectedRoomType.room_type)
-      : [];
-  }, [selectedRoomType]);
+    setRoomDropdownValue(null);
+    setBedDropdownValue(null);
+    setAvailableRooms([]);
+    setAvailableBeds([]);
+  };
+  // Load available rooms when room type and resident are selected
+  useEffect(() => {
+    const loadAvailableRooms = async () => {
+      if (selectedRoomType && selectedResident && selectedMainPlan) {
+        try {
+          setLoadingRooms(true);
+          console.log('DEBUG - Loading rooms with filters:', {
+            room_type: selectedRoomType.room_type, 
+            main_care_plan_id: selectedMainPlan._id, // Add main_care_plan_id
+            gender: selectedResident.gender,
+            status: 'available'
+          });
+          
+          const filters = {
+            room_type: selectedRoomType.room_type, 
+            main_care_plan_id: selectedMainPlan._id, // Add main care plan ID
+            gender: selectedResident.gender,
+            status: 'available'
+          };
+          
+          const roomsData = await carePlanService.getRoomsByFilter(filters);
+          console.log('DEBUG - Available rooms found:', roomsData.length);
+          setAvailableRooms(roomsData);
+        } catch (error) {
+          console.error('Error loading available rooms:', error);
+          Alert.alert('Lỗi', 'Không thể tải danh sách phòng. Vui lòng thử lại.');
+          setAvailableRooms([]);
+        } finally {
+          setLoadingRooms(false);
+        }
+      } else {
+        setAvailableRooms([]);
+        setLoadingRooms(false);
+      }
+    };
 
-  const availableBeds = useMemo(() => {
-    return selectedRoom
-      ? beds.filter(b => b.room_id === selectedRoom.id && b.status === 'available')
-      : [];
+    loadAvailableRooms();
+  }, [selectedRoomType, selectedResident, selectedMainPlan]); // Add selectedMainPlan dependency
+
+  // Load available beds when room is selected
+  useEffect(() => {
+    const loadAvailableBeds = async () => {
+      if (selectedRoom) {
+        try {
+          setLoadingBeds(true);
+          const bedsData = await carePlanService.getAvailableBedsByRoom(selectedRoom._id);
+          setAvailableBeds(bedsData);
+        } catch (error) {
+          console.error('Error loading available beds:', error);
+          Alert.alert('Lỗi', 'Không thể tải danh sách giường. Vui lòng thử lại.');
+          setAvailableBeds([]);
+        } finally {
+          setLoadingBeds(false);
+        }
+      } else {
+        setAvailableBeds([]);
+        setLoadingBeds(false);
+      }
+    };
+
+    loadAvailableBeds();
   }, [selectedRoom]);
 
   // useMemo cho dropdown items phòng
   const roomDropdownItems = useMemo(() => {
     return availableRooms.map(room => ({
       label: `Phòng ${room.room_number} - Tầng ${room.floor} - ${room.gender === 'male' ? 'Nam' : 'Nữ'}`,
-      value: room.id
+      value: room._id
     }));
   }, [availableRooms]);
 
@@ -129,7 +209,7 @@ const CarePlanSelectionScreen = () => {
   const handleRoomSelect = useCallback((roomId) => {
     if (roomDropdownValue !== roomId) {
       setRoomDropdownValue(roomId);
-      const room = availableRooms.find(r => r.id === roomId);
+      const room = availableRooms.find(r => r._id === roomId);
       setSelectedRoom(room);
       setSelectedBed(null);
     }
@@ -138,7 +218,7 @@ const CarePlanSelectionScreen = () => {
   const handleBedSelect = useCallback((bedId) => {
     if (bedDropdownValue !== bedId) {
       setBedDropdownValue(bedId);
-      const bed = availableBeds.find(b => b.id === bedId);
+      const bed = availableBeds.find(b => b._id === bedId);
       setSelectedBed(bed);
     }
   }, [bedDropdownValue, availableBeds]);
@@ -171,27 +251,73 @@ const CarePlanSelectionScreen = () => {
 
     try {
       const selectedPlans = [selectedMainPlan, ...selectedSupplementaryPlans];
-      const costCalculation = calculateTotalCost(selectedPlans, selectedRoomType.room_type, roomTypes);
+      const costCalculation = carePlanService.calculateTotalCost(selectedPlans, selectedRoomType, roomTypes);
 
-      const assignmentData = {
-        staff_id: currentUser._id,
+      console.log('DEBUG - Creating care plan assignment with data:', {
         care_plan_ids: selectedPlans.map(plan => plan._id),
         resident_id: selectedResident._id,
-        family_member_id: selectedResident.family_member_id,
-        registration_date: new Date(),
-        consultation_notes: consultationNotes,
         selected_room_type: selectedRoomType.room_type,
-        family_preferences: familyPreferences,
+        assigned_room_id: selectedRoom._id,
+        assigned_bed_id: selectedBed._id,
         total_monthly_cost: costCalculation.totalCost,
         room_monthly_cost: costCalculation.roomCost,
         care_plans_monthly_cost: costCalculation.carePlansCost,
-        status: 'consulting',
-        payment_status: 'pending',
-        room_id: selectedRoom.id,
-        bed_id: selectedBed.id
+        start_date: new Date().toISOString(),
+        status: 'active'
+      });
+
+      // Create care plan assignment - Fixed to match DTO
+      const assignmentData = {
+        care_plan_ids: selectedPlans.map(plan => plan._id),
+        resident_id: selectedResident._id,
+        consultation_notes: consultationNotes,
+        selected_room_type: selectedRoomType.room_type,
+        assigned_room_id: selectedRoom._id,
+        assigned_bed_id: selectedBed._id,
+        family_preferences: {
+          preferred_room_gender: familyPreferences.preferredRoomGender || undefined,
+          preferred_floor: familyPreferences.preferredFloor ? parseInt(familyPreferences.preferredFloor) : undefined,
+          special_requests: familyPreferences.specialRequests || undefined
+        },
+        total_monthly_cost: costCalculation.totalCost,
+        room_monthly_cost: costCalculation.roomCost,
+        care_plans_monthly_cost: costCalculation.carePlansCost,
+        start_date: new Date().toISOString(), // Use ISO string format
+        status: 'active'
       };
 
-      await createCarePlanAssignment(assignmentData);
+      // Clean up undefined values
+      const cleanAssignmentData = Object.fromEntries(
+        Object.entries(assignmentData).filter(([_, value]) => value !== undefined)
+      );
+
+      // Clean up family_preferences if all values are undefined
+      if (cleanAssignmentData.family_preferences) {
+        const cleanFamilyPrefs = Object.fromEntries(
+          Object.entries(cleanAssignmentData.family_preferences).filter(([_, value]) => value !== undefined)
+        );
+        if (Object.keys(cleanFamilyPrefs).length === 0) {
+          delete cleanAssignmentData.family_preferences;
+        } else {
+          cleanAssignmentData.family_preferences = cleanFamilyPrefs;
+        }
+      }
+
+      console.log('DEBUG - Clean assignment data:', cleanAssignmentData);
+
+      const carePlanAssignment = await carePlanService.createCarePlanAssignment(cleanAssignmentData);
+      console.log('DEBUG - Care plan assignment created:', carePlanAssignment);
+
+      // Create bed assignment - Fixed to match DTO
+      const bedAssignmentData = {
+        resident_id: selectedResident._id,
+        bed_id: selectedBed._id,
+        assigned_by: currentUser._id
+      };
+
+      console.log('DEBUG - Creating bed assignment with data:', bedAssignmentData);
+      const bedAssignment = await carePlanService.createBedAssignment(bedAssignmentData);
+      console.log('DEBUG - Bed assignment created:', bedAssignment);
       
       Alert.alert(
         'Thành công', 
@@ -205,6 +331,7 @@ const CarePlanSelectionScreen = () => {
       );
     } catch (error) {
       console.error('Error creating assignment:', error);
+      console.error('Error response:', error.response?.data);
       Alert.alert('Lỗi', 'Không thể đăng ký gói dịch vụ. Vui lòng thử lại.');
     }
   };
@@ -216,11 +343,22 @@ const CarePlanSelectionScreen = () => {
     }).format(price);
   };
 
-  const totalCost = calculateTotalCost(
-    [selectedMainPlan, ...selectedSupplementaryPlans], 
-    selectedRoomType?.room_type, 
-    roomTypes
-  );
+  const totalCost = useMemo(() => {
+    try {
+      return carePlanService.calculateTotalCost(
+        [selectedMainPlan, ...selectedSupplementaryPlans].filter(Boolean), 
+        selectedRoomType, 
+        roomTypes
+      );
+    } catch (error) {
+      console.error('Error calculating total cost:', error);
+      return {
+        carePlansCost: 0,
+        roomCost: 0,
+        totalCost: 0
+      };
+    }
+  }, [selectedMainPlan, selectedSupplementaryPlans, selectedRoomType, roomTypes]);
 
   // useEffect cập nhật items cho dropdown phòng
   // useEffect(() => {
@@ -269,23 +407,34 @@ const CarePlanSelectionScreen = () => {
         {/* Chọn người cao tuổi */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Chọn Người Cao Tuổi</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {residents.filter(Boolean).map((resident) => (
-              <TouchableOpacity
-                key={resident._id}
-                style={[
-                  styles.residentCard,
-                  selectedResident?._id === resident._id && styles.selectedCard
-                ]}
-                onPress={() => setSelectedResident(resident)}
-              >
-                <Text style={styles.residentName}>{resident?.full_name || 'Không có tên'}</Text>
-                <Text style={styles.residentInfo}>
-                  {resident?.gender === 'male' ? 'Nam' : 'Nữ'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <Text style={styles.sectionSubtitle}>Chọn người chưa được đăng ký gói dịch vụ</Text>
+          {residents.filter(Boolean).length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Không có người cao tuổi nào chưa đăng ký gói dịch vụ</Text>
+              <Text style={styles.emptySubtext}>Tất cả người cao tuổi đã được đăng ký gói dịch vụ</Text>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {residents.filter(Boolean).map((resident) => (
+                <TouchableOpacity
+                  key={resident._id}
+                  style={[
+                    styles.residentCard,
+                    selectedResident?._id === resident._id && styles.selectedCard
+                  ]}
+                  onPress={() => setSelectedResident(resident)}
+                >
+                  <Text style={styles.residentName}>{resident?.full_name || 'Không có tên'}</Text>
+                  <Text style={styles.residentInfo}>
+                    {resident?.gender === 'male' ? 'Nam' : 'Nữ'}
+                  </Text>
+                  <Text style={styles.residentInfo}>
+                    {resident?.date_of_birth ? new Date(resident.date_of_birth).toLocaleDateString('vi-VN') : 'N/A'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* Chọn gói dịch vụ chính */}
@@ -293,7 +442,6 @@ const CarePlanSelectionScreen = () => {
           <Text style={styles.sectionTitle}>2. Gói Dịch Vụ Chính (Bắt buộc)</Text>
           <Text style={styles.sectionSubtitle}>Chọn 1 gói dịch vụ chính</Text>
           {mainCarePlans.filter(Boolean).map((plan) => {
-            console.log('DEBUG mainCarePlans plan:', plan);
             return (
               <TouchableOpacity
                 key={plan._id}
@@ -309,7 +457,6 @@ const CarePlanSelectionScreen = () => {
                 </View>
                 <Text style={styles.planDescription}>{plan?.description || 'Không có mô tả'}</Text>
                 <View style={styles.planDetails}>
-                  {console.log('DEBUG plan.services_included:', plan?.services_included)}
                   <Text style={styles.planDetail}>Tỷ lệ nhân viên: {plan?.staff_ratio || 'Chưa có'}</Text>
                   <Text style={styles.planDetail}>
                     {`Dịch vụ bao gồm: ${plan?.services_included?.length || 0} dịch vụ`}
@@ -326,7 +473,6 @@ const CarePlanSelectionScreen = () => {
           <Text style={styles.sectionSubtitle}>Có thể chọn nhiều gói</Text>
           {supplementaryCarePlans.filter(Boolean).map((plan) => {
             const isSelected = selectedSupplementaryPlans.find(p => p?._id === plan?._id);
-            console.log('DEBUG supplementaryCarePlans plan:', plan);
             return (
               <TouchableOpacity
                 key={plan._id}
@@ -383,9 +529,17 @@ const CarePlanSelectionScreen = () => {
         {/* Chọn phòng cụ thể */}
         {selectedRoomType && (
           <View style={styles.section}>
-            {console.log('DEBUG selectedRoomType:', selectedRoomType)}
             <Text style={styles.sectionTitle}>5. Chọn Phòng</Text>
-            {availableRooms.length === 0 ? (
+            {!selectedMainPlan ? (
+              <Text style={{ color: COLORS.warning, fontStyle: 'italic' }}>
+                Vui lòng chọn gói dịch vụ chính trước để hiển thị danh sách phòng phù hợp.
+              </Text>
+            ) : loadingRooms ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách phòng...</Text>
+              </View>
+            ) : availableRooms.length === 0 ? (
               <Text style={{ color: COLORS.error }}>Không có phòng phù hợp còn trống.</Text>
             ) : (
               <DropDownPicker
@@ -416,19 +570,22 @@ const CarePlanSelectionScreen = () => {
         {/* Chọn giường cụ thể */}
         {selectedRoom && (
           <View style={styles.section}>
-            {console.log('DEBUG selectedRoom:', selectedRoom)}
             <Text style={styles.sectionTitle}>6. Chọn Giường</Text>
-            {availableBeds.length === 0 ? (
+            {loadingBeds ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách giường...</Text>
+              </View>
+            ) : availableBeds.length === 0 ? (
               <Text style={{ color: COLORS.error }}>Không còn giường trống trong phòng này.</Text>
             ) : (
               availableBeds.map(bed => {
-                console.log('DEBUG bed:', bed);
                 return (
                   <TouchableOpacity
-                    key={bed.id}
+                    key={bed._id}
                     style={[
                       styles.roomCard,
-                      selectedBed?.id === bed.id && styles.selectedCard
+                      selectedBed?._id === bed._id && styles.selectedCard
                     ]}
                     onPress={() => setSelectedBed(bed)}
                   >
@@ -445,7 +602,6 @@ const CarePlanSelectionScreen = () => {
           <Text style={styles.sectionTitle}>7. Tổng Chi Phí</Text>
           <View style={styles.costCard}>
             <View style={styles.costRow}>
-              {console.log('DEBUG selectedMainPlan:', selectedMainPlan)}
               <Text style={styles.costLabel}>Gói dịch vụ chính:</Text>
               <Text style={styles.costValue}>
                 {selectedMainPlan ? formatPrice(selectedMainPlan?.monthly_price || 0) : 'Chưa chọn'}
@@ -458,21 +614,18 @@ const CarePlanSelectionScreen = () => {
               </View>
             ))}
             <View style={styles.costRow}>
-              {console.log('DEBUG selectedRoomType:', selectedRoomType)}
               <Text style={styles.costLabel}>Chi phí phòng:</Text>
               <Text style={styles.costValue}>
                 {selectedRoomType ? formatPrice(selectedRoomType?.monthly_price || 0) : 'Chưa chọn'}
               </Text>
             </View>
             <View style={styles.costRow}>
-              {console.log('DEBUG selectedBed:', selectedBed)}
               <Text style={styles.costLabel}>Chi phí giường:</Text>
               <Text style={styles.costValue}>
                 {selectedBed ? formatPrice(selectedBed?.monthly_price || 0) : 'Chưa chọn'}
               </Text>
             </View>
             <View style={[styles.costRow, styles.totalRow]}>
-              {console.log('DEBUG totalCost:', totalCost)}
               <Text style={styles.totalLabel}>Tổng cộng:</Text>
               <Text style={styles.totalValue}>{formatPrice(totalCost?.totalCost || 0)}</Text>
             </View>
@@ -512,6 +665,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: COLORS.text,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginBottom: 5,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   header: {
     flexDirection: 'row',

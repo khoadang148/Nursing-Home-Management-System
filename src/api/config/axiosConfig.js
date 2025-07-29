@@ -76,7 +76,8 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Nếu lỗi 401 và chưa thử refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Không xử lý refresh token cho logout request
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/logout')) {
       originalRequest._retry = true;
 
       try {
@@ -96,12 +97,17 @@ apiClient.interceptors.response.use(
           // Thử lại request ban đầu với token mới
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return apiClient(originalRequest);
+        } else {
+          // Không có refresh token, clear all tokens và return error
+          console.log('No refresh token found, clearing all tokens');
+          await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
         }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
         // Xóa token cũ và redirect về login
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
-        // Có thể dispatch action để logout user
+        // Không dispatch logout action ở đây vì có thể gây infinite loop
+        // Thay vào đó, return error để component xử lý
       }
     }
 

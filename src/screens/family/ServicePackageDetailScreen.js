@@ -33,6 +33,52 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [packageInfo, setPackageInfo] = useState(packageData);
 
+  // Process package data for registered packages
+  useEffect(() => {
+    console.log('=== ServicePackageDetailScreen Debug ===');
+    console.log('packageData:', packageData);
+    console.log('packageType:', packageType);
+    
+    if (packageData && packageType === 'registered') {
+      // Process care plan data for registered packages
+      const mainCarePlan = packageData.care_plan_ids?.find(plan => plan.category === 'main');
+      const supplementaryPlans = packageData.care_plan_ids?.filter(plan => plan.category === 'supplementary') || [];
+      
+      console.log('mainCarePlan:', mainCarePlan);
+      console.log('supplementaryPlans:', supplementaryPlans);
+      
+      // Calculate total monthly cost
+      const totalMonthlyCost = (mainCarePlan?.monthly_price || 0) + 
+        supplementaryPlans.reduce((total, plan) => total + (plan.monthly_price || 0), 0);
+      
+      // If no main care plan, use the first supplementary plan as primary
+      const primaryPlan = mainCarePlan || supplementaryPlans[0];
+      const remainingSupplementaryPlans = mainCarePlan ? supplementaryPlans : supplementaryPlans.slice(1);
+      
+      const processedData = {
+        ...packageData,
+        // Extract main care plan (first main category plan, or first supplementary if no main)
+        main_care_plan: primaryPlan,
+        // Extract remaining supplementary plans
+        supplementary_plans: remainingSupplementaryPlans,
+        // Calculate total monthly cost
+        total_monthly_cost: totalMonthlyCost,
+        // Use resident info from populated data
+        resident: packageData.resident_id ? {
+          full_name: packageData.resident_id.full_name,
+          date_of_birth: packageData.resident_id.date_of_birth,
+          room_number: packageData.assigned_room_id?.room_number,
+          bed_number: packageData.assigned_bed_id?.bed_number,
+        } : null,
+      };
+      
+      console.log('processedData:', processedData);
+      setPackageInfo(processedData);
+    } else {
+      setPackageInfo(packageData);
+    }
+  }, [packageData, packageType]);
+
   const formatCurrency = (amount) => {
     if (!amount) return '0 ₫';
     return new Intl.NumberFormat('vi-VN', {
@@ -216,7 +262,9 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
         {/* Main Care Plan Details */}
         {packageInfo?.main_care_plan && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📦 Gói chăm sóc chính</Text>
+            <Text style={styles.sectionTitle}>
+              {packageInfo.main_care_plan.category === 'main' ? '📦 Gói chăm sóc chính' : '📦 Gói dịch vụ chính'}
+            </Text>
             <View style={styles.carePlanCard}>
               <View style={styles.carePlanHeader}>
                 <Text style={styles.carePlanName}>{packageInfo.main_care_plan.plan_name}</Text>
@@ -268,6 +316,38 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
           </View>
         )}
 
+        {/* Services Included for registered packages */}
+        {packageInfo?.resident && packageInfo?.main_care_plan?.services_included && packageInfo.main_care_plan.services_included.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>✅ Dịch vụ bao gồm</Text>
+            <View style={styles.servicesCard}>
+              {packageInfo.main_care_plan.services_included.map((service, index) => (
+                <View key={index} style={styles.serviceItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.serviceText}>{service}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Services Included for registered packages without main care plan */}
+        {packageInfo?.resident && !packageInfo?.main_care_plan?.services_included && packageInfo?.care_plan_ids && packageInfo.care_plan_ids.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>✅ Dịch vụ bao gồm</Text>
+            <View style={styles.servicesCard}>
+              {packageInfo.care_plan_ids.map((plan, planIndex) => (
+                plan.services_included && plan.services_included.map((service, serviceIndex) => (
+                  <View key={`${planIndex}-${serviceIndex}`} style={styles.serviceItem}>
+                    <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                    <Text style={styles.serviceText}>{service}</Text>
+                  </View>
+                ))
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Supplementary Plans */}
         {packageInfo?.supplementary_plans && packageInfo.supplementary_plans.length > 0 && (
           <View style={styles.section}>
@@ -309,14 +389,16 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
         {!packageInfo?.resident && (
           <>
             {/* Staff Ratio */}
-            {packageInfo?.staff_ratio && (
+            {(packageInfo?.staff_ratio || packageInfo?.category || packageInfo?.duration_type) && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>ℹ️ Thông tin chi tiết</Text>
                 <View style={styles.detailsCard}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>👥 Tỷ lệ nhân viên:</Text>
-                    <Text style={styles.detailValue}>{packageInfo.staff_ratio}</Text>
-                  </View>
+                  {packageInfo?.staff_ratio && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>👥 Tỷ lệ nhân viên:</Text>
+                      <Text style={styles.detailValue}>{packageInfo.staff_ratio}</Text>
+                    </View>
+                  )}
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>📋 Loại gói:</Text>
                     <Text style={styles.detailValue}>
@@ -393,11 +475,11 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
               </View>
             )}
             
-            {packageInfo?.start_date && (
+            {(packageInfo?.start_date || packageInfo?.registration_date) && (
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Thời gian áp dụng:</Text>
                 <Text style={styles.paymentValue}>
-                  {formatDate(packageInfo.start_date)} - {formatDate(packageInfo.end_date)}
+                  {formatDate(packageInfo.start_date || packageInfo.registration_date)} - {formatDate(packageInfo.end_date)}
                 </Text>
               </View>
             )}

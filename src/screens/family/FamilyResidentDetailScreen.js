@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -21,6 +22,8 @@ import {
 } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import { useSelector, useDispatch } from 'react-redux';
+import { cacheResidentDetails, clearResidentDetailsCache } from '../../redux/slices/residentSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -34,7 +37,10 @@ import carePlanService from '../../api/services/carePlanService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 const FamilyResidentDetailScreen = ({ route, navigation }) => {
+  const dispatch = useDispatch();
   const { residentId, initialTab } = route.params;
+  const residentDetailsCache = useSelector((state) => state.residents.residentDetailsCache);
+  
   console.log('[FamilyResidentDetailScreen] render, residentId:', residentId);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,8 +56,24 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     console.log('[FamilyResidentDetailScreen] useEffect residentId:', residentId);
-    loadResidentData();
-  }, [residentId]);
+    if (residentId) {
+      // Check cache first
+      const cachedData = residentDetailsCache[residentId];
+      if (cachedData) {
+        console.log('[FamilyResidentDetailScreen] Using cached data for resident:', residentId);
+        setResidentData(cachedData.residentData);
+        setBedInfo(cachedData.bedInfo);
+        setCarePlanAssignment(cachedData.carePlanAssignment);
+        setVitalSigns(cachedData.vitalSigns || []);
+        setAssessments(cachedData.assessments || []);
+        setActivities(cachedData.activities || []);
+        setMedicationAdministrations(cachedData.medicationAdministrations || []);
+        setLoading(false);
+      } else {
+        loadResidentData();
+      }
+    }
+  }, [residentId, residentDetailsCache]);
 
   useEffect(() => {
     // Set active tab based on initialTab parameter
@@ -59,6 +81,16 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  // Check for data updates when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Only reload if there's no data and no cache
+      if (residentId && !residentData && !residentDetailsCache[residentId]) {
+        loadResidentData();
+      }
+    }, [residentId, residentData, residentDetailsCache])
+  );
 
   // ======= REPLACE loadResidentData WITH REAL API CALLS =======
   const loadResidentData = async () => {
@@ -77,9 +109,15 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       }
       // 1a. Lấy thông tin phòng giường
       try {
-        const bedRes = await bedAssignmentService.getResidentBedInfo(residentId);
-        setBedInfo(bedRes.success && bedRes.data ? bedRes.data : null);
+        const bedRes = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
+        if (bedRes.success && Array.isArray(bedRes.data) && bedRes.data.length > 0) {
+          // Lấy bed assignment đầu tiên (mới nhất)
+          setBedInfo(bedRes.data[0]);
+        } else {
+          setBedInfo(null);
+        }
       } catch (e) {
+        console.log('Error loading bed info:', e.message);
         setBedInfo(null);
       }
       // 1b. Lấy gói chăm sóc assignment
@@ -108,9 +146,11 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
       // 4. Lấy activities
       try {
-        const actRes = await activityParticipationService.getParticipationsByResident(residentId);
+        const actRes = await activityParticipationService.getParticipationsByResidentId(residentId);
+        console.log('[FamilyResidentDetailScreen] Activity participations result:', actRes);
         setActivities(actRes.success && actRes.data ? actRes.data : []);
       } catch (e) {
+        console.log('Error loading activities:', e.message);
         setActivities([]);
       }
 
@@ -127,10 +167,36 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       setResidentData(null);
     }
     setLoading(false);
+    
+    // Cache the loaded data
+    if (residentData) {
+      dispatch(cacheResidentDetails({
+        residentId,
+        details: {
+          residentData,
+          bedInfo,
+          carePlanAssignment,
+          vitalSigns,
+          assessments,
+          activities,
+          medicationAdministrations
+        }
+      }));
+    }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
+    // Clear cache for this resident
+    dispatch(clearResidentDetailsCache(residentId));
+    // Reset all data to force reload
+    setResidentData(null);
+    setBedInfo(null);
+    setCarePlanAssignment(null);
+    setVitalSigns([]);
+    setAssessments([]);
+    setActivities([]);
+    setMedicationAdministrations([]);
     await loadResidentData();
     setRefreshing(false);
   };
@@ -246,7 +312,17 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Phòng - Giường:</Text>
             <Text style={styles.infoValue}>
-              {bedInfo?.roomNumber && bedInfo?.bedNumber ? `${bedInfo.roomNumber} - ${bedInfo.bedNumber}` : 'Chưa có'}
+              {(() => {
+                if (!bedInfo) return 'Chưa có';
+                
+                const bed = bedInfo.bed_id;
+                if (!bed) return 'Chưa có';
+                
+                const room = bed.room_id;
+                if (!room) return 'Chưa có';
+                
+                return `Phòng ${room.room_number} - Giường ${bed.bed_number}`;
+              })()}
             </Text>
           </View>
         </Card.Content>
@@ -419,8 +495,12 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
               <Text style={styles.sectionSubtitle}>Ghi chú:</Text>
               <Text style={styles.assessmentText}>{assessment.notes}</Text>
               
-              <Text style={styles.sectionSubtitle}>Khuyến nghị:</Text>
-              <Text style={styles.assessmentText}>{assessment.recommendations}</Text>
+              {assessment.recommendations && (
+                <>
+                  <Text style={styles.sectionSubtitle}>Khuyến nghị:</Text>
+                  <Text style={styles.assessmentText}>{assessment.recommendations}</Text>
+                </>
+              )}
             </Card.Content>
           </Card>
         ))
@@ -642,7 +722,17 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
           <View style={styles.headerText}>
             <Text style={styles.headerName}>{residentData.full_name}</Text>
             <Text style={styles.headerSubtext}>
-              Phòng {residentData.room?.room_number} • {calculateAge(residentData.date_of_birth)} tuổi
+              {(() => {
+                if (!bedInfo) return `${calculateAge(residentData.date_of_birth)} tuổi`;
+                
+                const bed = bedInfo.bed_id;
+                if (!bed) return `${calculateAge(residentData.date_of_birth)} tuổi`;
+                
+                const room = bed.room_id;
+                if (!room) return `${calculateAge(residentData.date_of_birth)} tuổi`;
+                
+                return `Phòng ${room.room_number} - Giường ${bed.bed_number} • ${calculateAge(residentData.date_of_birth)} tuổi`;
+              })()}
             </Text>
           </View>
         </View>

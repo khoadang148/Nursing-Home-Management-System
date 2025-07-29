@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -37,8 +38,20 @@ const BillingScreen = ({ navigation }) => {
 
 
   useEffect(() => {
-    fetchBills();
-  }, [filters, searchQuery]);
+    if (user?.id && bills.length === 0) {
+      fetchBills();
+    }
+  }, [user, bills.length, filters, searchQuery]);
+
+  // Check for data updates when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Only reload if there's no data
+      if (user?.id && bills.length === 0) {
+        fetchBills();
+      }
+    }, [user?.id, bills.length])
+  );
 
   // Lấy thông tin bed assignment cho tất cả resident_id trong bills
   useEffect(() => {

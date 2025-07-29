@@ -155,11 +155,16 @@ const ServicePackageScreen = ({ navigation }) => {
   const handlePackagePress = (packageData) => {
     console.log('=== Package Press Debug ===');
     console.log('Package pressed:', packageData);
-    console.log('Package type:', packageData.resident ? 'registered' : 'available');
+    
+    // Determine package type based on data structure
+    const isRegistered = packageData.resident_id || packageData.family_member_id;
+    const packageType = isRegistered ? 'registered' : 'available';
+    
+    console.log('Package type:', packageType);
     console.log('Package name:', packageData.plan_name || packageData.main_care_plan?.plan_name);
     console.log('Navigation params:', {
       packageData: packageData,
-      packageType: packageData.resident ? 'registered' : 'available'
+      packageType: packageType
     });
     console.log('Navigating to ServicePackageDetail screen...');
     
@@ -167,7 +172,7 @@ const ServicePackageScreen = ({ navigation }) => {
       // Navigate to dedicated detail screen
       navigation.navigate('ServicePackageDetail', {
         packageData: packageData,
-        packageType: packageData.resident ? 'registered' : 'available'
+        packageType: packageType
       });
       console.log('Navigation successful!');
     } catch (error) {

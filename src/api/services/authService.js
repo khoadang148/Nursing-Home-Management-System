@@ -119,21 +119,26 @@ class AuthService {
     try {
       const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
       
-      // Xóa token khỏi AsyncStorage
-      await AsyncStorage.removeItem('accessToken');
-      
       return {
         success: true,
         message: response.data.message || 'Đăng xuất thành công',
       };
     } catch (error) {
       console.error('Logout error:', error);
-      // Vẫn xóa token ngay cả khi API call thất bại
-      await AsyncStorage.removeItem('accessToken');
       
+      // Xử lý lỗi 401 (token expired/invalid) - coi như logout thành công
+      if (error.response?.status === 401) {
+        console.log('Token expired during logout, treating as successful logout');
+        return {
+          success: true,
+          message: 'Đã đăng xuất',
+        };
+      }
+      
+      // Xử lý các lỗi khác
       return {
-        success: true,
-        message: 'Đã đăng xuất',
+        success: false,
+        error: error.response?.data?.message || 'Đăng xuất thất bại',
       };
     }
   }
@@ -197,8 +202,8 @@ class AuthService {
   async changePassword(currentPassword, newPassword) {
     try {
       const response = await apiRequest.patch(API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD, {
-        currentPassword,
-        newPassword,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
         confirmPassword: newPassword, // Backend yêu cầu confirmPassword
       });
 

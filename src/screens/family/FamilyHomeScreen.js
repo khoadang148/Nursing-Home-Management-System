@@ -14,26 +14,26 @@ import { Card, Title, Paragraph, ActivityIndicator, useTheme, Chip } from 'react
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Import constants
-import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
-// Fallback nếu API_BASE_URL bị undefined
-const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
-const getApiBaseUrl = () => {
-  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
-    return CONFIG_API_BASE_URL;
-  }
-  console.warn('[FamilyHomeScreen] API_BASE_URL is undefined, fallback to default:', DEFAULT_API_BASE_URL);
-  return DEFAULT_API_BASE_URL;
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  const uri = getImageUri(avatar, 'avatar');
+  return uri || DEFAULT_AVATAR;
 };
 
 // Import Redux actions
 import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
+import { updateProfile } from '../../redux/slices/authSlice';
 
 // Import services
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import visitsService from '../../api/services/visitsService';
+import authService from '../../api/services/authService';
 
 const FamilyHomeScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -109,19 +109,27 @@ const FamilyHomeScreen = ({ navigation }) => {
 
   const userData = getUserData();
   
-  const getAvatarUri = (avatar) => {
-    if (!avatar) return 'https://randomuser.me/api/portraits/men/20.jpg';
-    if (avatar.startsWith('http') || avatar.startsWith('https')) return avatar;
-    // Chuyển toàn bộ \\ hoặc \ thành /
-    const cleanPath = avatar.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
-    const baseUrl = getApiBaseUrl();
-    const uri = `${baseUrl}/${cleanPath}`;
-    console.log('[FamilyHomeScreen] API_BASE_URL:', baseUrl, 'avatar:', avatar, 'cleanPath:', cleanPath, 'uri:', uri);
-    return uri;
-  };
-
   useEffect(() => {
     loadData();
+  }, [user]);
+
+  // Fetch profile after login to get complete user data including avatar
+  useEffect(() => {
+    const fetchProfileIfNeeded = async () => {
+      if (user && user.id && !user.avatar) {
+        try {
+          const profileRes = await authService.getProfile();
+          if (profileRes.success && profileRes.data) {
+            // Update user data in Redux
+            dispatch(updateProfile(profileRes.data));
+          }
+        } catch (error) {
+          console.log('Error fetching profile:', error);
+        }
+      }
+    };
+    
+    fetchProfileIfNeeded();
   }, [user]);
   
   // Sắp xếp residents theo admission_date tăng dần
@@ -169,11 +177,15 @@ const FamilyHomeScreen = ({ navigation }) => {
   const loadResidentBedInfo = async (residentId) => {
     try {
       setBedInfoLoading(true);
-      const result = await bedAssignmentService.getResidentBedInfo(residentId);
-      if (result.success) {
-        setResidentBedInfo(result.data);
+      const result = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
+      console.log('Bed assignment result:', JSON.stringify(result, null, 2));
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        // Lấy bed assignment đầu tiên (mới nhất)
+        const bedAssignment = result.data[0];
+        console.log('Selected bed assignment:', JSON.stringify(bedAssignment, null, 2));
+        setResidentBedInfo(bedAssignment);
       } else {
-        console.log('Error loading bed info:', result.error);
+        console.log('No bed assignment found for resident:', residentId);
         setResidentBedInfo(null);
       }
     } catch (error) {
@@ -433,7 +445,7 @@ const FamilyHomeScreen = ({ navigation }) => {
                 <View style={styles.selectedResidentInfo}>
                   <View style={styles.residentCardContent}>
               <Image 
-                      source={{ uri: selectedResident.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
+                      source={{ uri: selectedResident.avatar || DEFAULT_AVATAR }}
                 style={styles.residentPhoto}
               />
               <View style={styles.residentInfo}>
@@ -449,7 +461,17 @@ const FamilyHomeScreen = ({ navigation }) => {
                       </View>
                         ) : (
                           <Text style={styles.residentDetails}>
-                            Phòng {residentBedInfo ? residentBedInfo.fullRoomInfo : (selectedResident.roomNumber || 'Chưa phân công')}
+                            {(() => {
+                              if (!residentBedInfo) return 'Chưa phân công phòng';
+                              
+                              const bed = residentBedInfo.bed_id;
+                              if (!bed) return 'Chưa phân công phòng';
+                              
+                              const room = bed.room_id;
+                              if (!room) return 'Chưa phân công phòng';
+                              
+                              return `Phòng ${room.room_number} - Giường ${bed.bed_number}`;
+                            })()}
                           </Text>
                         )}
                       </View>

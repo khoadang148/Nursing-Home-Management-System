@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   View, 
   Text, 
@@ -19,13 +20,24 @@ import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import Redux actions
-import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
+import { fetchResidentsByFamilyMember, setCurrentResident, triggerResidentDataReload } from '../../redux/slices/residentSlice';
+import { updateProfile } from '../../redux/slices/authSlice';
 
 // Import services
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
 import carePlanService from '../../api/services/carePlanService';
+import authService from '../../api/services/authService';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  const uri = getImageUri(avatar, 'avatar');
+  return uri || DEFAULT_AVATAR;
+};
 
 const { width } = Dimensions.get('window');
 
@@ -112,6 +124,42 @@ const FamilyResidentScreen = ({ navigation }) => {
     loadData();
   }, [user]);
 
+  // Load resident details when familyResidents changes - chỉ load 1 lần
+  useEffect(() => {
+    if (familyResidents.length > 0 && residentsWithDetails.length === 0) {
+      loadResidentDetails();
+    }
+  }, [familyResidents]);
+
+  // Check for data updates when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only reload if there's no data or if Redux indicates data has been updated
+      if (familyResidents.length === 0) {
+        loadData();
+      }
+    }, [familyResidents.length])
+  );
+
+  // Fetch profile after login to get complete user data including avatar
+  useEffect(() => {
+    const fetchProfileIfNeeded = async () => {
+      if (user && user.id && !user.avatar) {
+        try {
+          const profileRes = await authService.getProfile();
+          if (profileRes.success && profileRes.data) {
+            // Update user data in Redux
+            dispatch(updateProfile(profileRes.data));
+          }
+        } catch (error) {
+          console.log('Error fetching profile:', error);
+        }
+      }
+    };
+    
+    fetchProfileIfNeeded();
+  }, [user]);
+
   useEffect(() => {
     filterResidents();
   }, [searchQuery, residentsWithDetails]);
@@ -137,15 +185,31 @@ const FamilyResidentScreen = ({ navigation }) => {
       const residentsWithFullDetails = await Promise.all(
         familyResidents.map(async (resident) => {
           // Lấy thông tin phòng và giường
-          const bedInfoResult = await bedAssignmentService.getResidentBedInfo(resident._id);
-          const bedInfo = bedInfoResult.success ? bedInfoResult.data : null;
+          let bedInfo = null;
+          try {
+            const bedInfoResult = await bedAssignmentService.getBedAssignmentByResidentId(resident._id);
+            console.log(`[FamilyResidentScreen] Bed info result for resident ${resident._id}:`, bedInfoResult);
+            if (bedInfoResult.success && Array.isArray(bedInfoResult.data) && bedInfoResult.data.length > 0) {
+              // Lấy bed assignment đầu tiên (mới nhất)
+              bedInfo = bedInfoResult.data[0];
+              console.log(`[FamilyResidentScreen] Selected bed info for resident ${resident._id}:`, bedInfo);
+            }
+          } catch (error) {
+            console.log('Error loading bed info for resident:', resident._id, error.message);
+            bedInfo = null;
+          }
           // Lấy chỉ số sinh hiệu gần nhất
-          const vitalSignsResult = await vitalSignsService.getVitalSignsByResidentId(resident._id);
           let latestVital = null;
-          if (vitalSignsResult.success && Array.isArray(vitalSignsResult.data) && vitalSignsResult.data.length > 0) {
-            latestVital = vitalSignsResult.data.reduce((latest, curr) => {
-              return (!latest || new Date(curr.date_time) > new Date(latest.date_time)) ? curr : latest;
-            }, null);
+          try {
+            const vitalSignsResult = await vitalSignsService.getVitalSignsByResidentId(resident._id);
+            if (vitalSignsResult.success && Array.isArray(vitalSignsResult.data) && vitalSignsResult.data.length > 0) {
+              latestVital = vitalSignsResult.data.reduce((latest, curr) => {
+                return (!latest || new Date(curr.date_time) > new Date(latest.date_time)) ? curr : latest;
+              }, null);
+            }
+          } catch (error) {
+            console.log('Error loading vital signs for resident:', resident._id, error.message);
+            latestVital = null;
           }
           // Lấy gói dịch vụ
           let carePlanName = 'Chưa có';
@@ -158,7 +222,11 @@ const FamilyResidentScreen = ({ navigation }) => {
                 carePlanCost = formatCurrency(carePlanRes.data.care_plan_ids[0].monthly_price) + '/tháng';
               }
             }
-          } catch (e) {}
+          } catch (error) {
+            console.log('Error loading care plan for resident:', resident._id, error.message);
+            carePlanName = 'Chưa có';
+            carePlanCost = '';
+          }
           return {
             ...resident,
             bedInfo,
@@ -184,11 +252,15 @@ const FamilyResidentScreen = ({ navigation }) => {
       };
     });
     setRecentUpdates(updatedRecentUpdates);
-    await loadResidentDetails();
+    // loadResidentDetails will be called by useEffect when familyResidents changes
   };
   
   const onRefresh = async () => {
     setRefreshing(true);
+    // Trigger Redux reload
+    dispatch(triggerResidentDataReload());
+    // Reset residentsWithDetails để force reload
+    setResidentsWithDetails([]);
     await loadData();
     setRefreshing(false);
   };
@@ -295,7 +367,7 @@ const FamilyResidentScreen = ({ navigation }) => {
     >
       <View style={styles.cardHeader}>
         <Image 
-          source={{ uri: resident.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
+                        source={{ uri: getAvatarUri(resident.avatar) }}
           style={styles.residentPhoto}
         />
         <View style={styles.residentInfo}>
@@ -303,7 +375,17 @@ const FamilyResidentScreen = ({ navigation }) => {
           <View style={styles.infoRow}>
             <MaterialIcons name="room" size={14} color={COLORS.primary} />
             <Text style={styles.infoText}>
-                Phòng {resident.bedInfo?.fullRoomInfo || 'Chưa phân phòng'}
+                {(() => {
+                  if (!resident.bedInfo) return 'Chưa phân phòng';
+                  
+                  const bed = resident.bedInfo.bed_id;
+                  if (!bed) return 'Chưa phân phòng';
+                  
+                  const room = bed.room_id;
+                  if (!room) return 'Chưa phân phòng';
+                  
+                  return `Phòng ${room.room_number} - Giường ${bed.bed_number}`;
+                })()}
             </Text>
           </View>
           <View style={styles.infoRow}>

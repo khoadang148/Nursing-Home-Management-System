@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,20 @@ import {
 } from 'react-native';
 import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
-import { residents, activities } from '../../api/mockData';
+import residentService from '../../api/services/residentService';
+import activityService from '../../api/services/activityService';
+import activityParticipationService from '../../api/services/activityParticipationService';
+import { getApiBaseUrl, getImageUri, APP_CONFIG } from '../../config/appConfig';
 
-const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  return getImageUri(avatar, 'avatar');
+};
 
 // Mock data - In a real app, this would come from an API
 const mockDashboardData = {
@@ -87,19 +96,53 @@ const upcomingShifts = [
 ];
 
 const DashboardScreen = ({ navigation }) => {
-  const user = useSelector((state) => state.auth.user);
+  const [residentCount, setResidentCount] = useState(0);
+  const [activityCount, setActivityCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  // Lấy số lượng thực tế từ mockData
-  const residentCount = residents.length;
-  const activityCount = activities.length;
-  const [dashboardData, setDashboardData] = useState(mockDashboardData);
+  const user = useSelector((state) => state.auth.user);
+
+  const fetchDashboardData = async () => {
+    try {
+      setRefreshing(true);
+      
+      // Fetch residents count
+      const residentsResponse = await residentService.getAllResidents();
+      if (residentsResponse.success) {
+        setResidentCount(residentsResponse.data.length);
+      }
+
+      // Fetch activity participations count for current staff
+      if (user?.id) {
+        const activityResponse = await activityParticipationService.getUniqueActivitiesByStaffId(user.id);
+        if (activityResponse.success) {
+          setActivityCount(activityResponse.data.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Chỉ reload lần đầu khi component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Reload khi user thay đổi (đăng nhập/đăng xuất)
+  useEffect(() => {
+    if (user?.id) {
+      fetchDashboardData();
+    }
+  }, [user?.id]);
 
   // Lấy thông tin user, fallback nếu chưa đăng nhập
   const getUserData = () => {
     if (user && user.full_name) return user;
     return {
       full_name: 'Nguyễn Văn A',
-      avatar: DEFAULT_AVATAR,
+      avatar: user?.avatar || user?.profile_picture || DEFAULT_AVATAR,
     };
   };
   const userData = getUserData();
@@ -114,9 +157,9 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => {
+    fetchDashboardData().finally(() => {
       setRefreshing(false);
-    }, 1000);
+    });
   }, []);
 
   return (
@@ -131,8 +174,8 @@ const DashboardScreen = ({ navigation }) => {
           style={styles.profileButton}
         >
           <Avatar.Image
-            size={50}
-            source={{ uri: userData.avatar || DEFAULT_AVATAR }}
+            size={40}
+            source={{ uri: user?.avatar || user?.profile_picture ? getAvatarUri(user?.avatar || user?.profile_picture) : DEFAULT_AVATAR }}
           />
         </TouchableOpacity>
       </View>
@@ -142,7 +185,12 @@ const DashboardScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
         }
       >
         {/* Summary Cards */}
@@ -220,7 +268,7 @@ const DashboardScreen = ({ navigation }) => {
             )}
           />
           <Card.Content>
-            {dashboardData.alerts.map((alert) => (
+            {mockDashboardData.alerts.map((alert) => (
               <TouchableOpacity
                 key={alert.id}
                 style={styles.alertItem}

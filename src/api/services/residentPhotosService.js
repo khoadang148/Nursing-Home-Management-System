@@ -100,7 +100,7 @@ const residentPhotosService = {
    */
   getResidentPhotosByResidentId: async (residentId, params = {}) => {
     try {
-      const response = await apiClient.get(`/resident-photos/resident/${residentId}`, { params });
+      const response = await apiClient.get(`/resident-photos/by-resident/${residentId}`, { params });
       return {
         success: true,
         data: response.data,

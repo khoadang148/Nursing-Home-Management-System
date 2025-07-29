@@ -1,46 +1,111 @@
 import apiClient from '../config/axiosConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Activity Participation Service - Quản lý tham gia hoạt động
  */
 const activityParticipationService = {
   /**
-   * Đăng ký tham gia hoạt động
-   * @param {Object} participationData - Dữ liệu tham gia
-   * @param {string} participationData.activity_id - ID hoạt động
-   * @param {string} participationData.resident_id - ID cư dân
-   * @param {string} participationData.status - Trạng thái tham gia
-   * @param {string} participationData.notes - Ghi chú
-   * @param {string} participationData.registered_by - ID người đăng ký
+   * Lấy tất cả activity participations theo resident ID
+   * @param {string} residentId - ID của resident
    * @returns {Promise} - Promise với response data
    */
-  registerParticipation: async (participationData) => {
+  getParticipationsByResidentId: async (residentId) => {
     try {
-      const response = await apiClient.post('/activity-participations', participationData);
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No access token found, skipping API call');
+        return {
+          success: false,
+          error: 'User not authenticated',
+        };
+      }
+
+      const response = await apiClient.get(`/activity-participations/by-resident?resident_id=${residentId}`);
       return {
         success: true,
         data: response.data,
-        message: 'Đăng ký tham gia hoạt động thành công'
+        message: 'Lấy danh sách tham gia hoạt động theo resident thành công'
       };
     } catch (error) {
-      console.log('Register participation error:', error);
+      console.log('Get participations by resident ID error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Đăng ký tham gia hoạt động thất bại'
+        error: error.response?.data || error.message || 'Lấy danh sách tham gia hoạt động theo resident thất bại'
       };
     }
   },
 
   /**
-   * Lấy tất cả tham gia hoạt động
+   * Lấy tất cả activity participations theo staff ID
+   * @param {string} staffId - ID của staff
+   * @returns {Promise} - Promise với response data
+   */
+  getParticipationsByStaffId: async (staffId) => {
+    try {
+      const response = await apiClient.get(`/activity-participations/by-staff/${staffId}`);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách tham gia hoạt động theo staff thành công'
+      };
+    } catch (error) {
+      console.log('Get participations by staff ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách tham gia hoạt động theo staff thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy danh sách hoạt động duy nhất theo staff ID (không trùng lặp activity_id)
+   * @param {string} staffId - ID của staff
+   * @returns {Promise} - Promise với response data
+   */
+  getUniqueActivitiesByStaffId: async (staffId) => {
+    try {
+      const response = await apiClient.get(`/activity-participations/by-staff/${staffId}`);
+      if (response.data) {
+        // Lọc ra các hoạt động duy nhất
+        const uniqueActivities = new Map();
+        response.data.forEach(participation => {
+          if (participation.activity_id && participation.activity_id._id) {
+            const activityId = participation.activity_id._id;
+            if (!uniqueActivities.has(activityId)) {
+              uniqueActivities.set(activityId, participation);
+            }
+          }
+        });
+        
+        const uniqueActivitiesList = Array.from(uniqueActivities.values());
+        return {
+          success: true,
+          data: uniqueActivitiesList,
+          message: 'Lấy danh sách hoạt động duy nhất theo staff thành công'
+        };
+      }
+      return {
+        success: true,
+        data: [],
+        message: 'Không có hoạt động nào'
+      };
+    } catch (error) {
+      console.log('Get unique activities by staff ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách hoạt động duy nhất theo staff thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy tất cả hoạt động tham gia
    * @param {Object} params - Query parameters (optional)
-   * @param {string} params.activity_id - Lọc theo ID hoạt động
    * @param {string} params.resident_id - Lọc theo ID cư dân
-   * @param {string} params.status - Lọc theo trạng thái
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @param {number} params.limit - Giới hạn số lượng
-   * @param {number} params.page - Trang
+   * @param {string} params.activity_id - Lọc theo ID hoạt động
+   * @param {string} params.attendance_status - Lọc theo trạng thái tham gia
    * @returns {Promise} - Promise với response data
    */
   getAllParticipations: async (params = {}) => {
@@ -49,20 +114,20 @@ const activityParticipationService = {
       return {
         success: true,
         data: response.data,
-        message: 'Lấy danh sách tham gia hoạt động thành công'
+        message: 'Lấy danh sách hoạt động tham gia thành công'
       };
     } catch (error) {
-      console.log('Get all participations error:', error);
+      console.log('Get all activity participations error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy danh sách tham gia hoạt động thất bại'
+        error: error.response?.data || error.message || 'Lấy danh sách hoạt động tham gia thất bại'
       };
     }
   },
 
   /**
-   * Lấy tham gia hoạt động theo ID
-   * @param {string} participationId - ID tham gia
+   * Lấy hoạt động tham gia theo ID
+   * @param {string} participationId - ID tham gia hoạt động
    * @returns {Promise} - Promise với response data
    */
   getParticipationById: async (participationId) => {
@@ -71,84 +136,42 @@ const activityParticipationService = {
       return {
         success: true,
         data: response.data,
-        message: 'Lấy thông tin tham gia hoạt động thành công'
+        message: 'Lấy thông tin hoạt động tham gia thành công'
       };
     } catch (error) {
-      console.log('Get participation by ID error:', error);
+      console.log('Get activity participation by ID error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy thông tin tham gia hoạt động thất bại'
+        error: error.response?.data || error.message || 'Lấy thông tin hoạt động tham gia thất bại'
       };
     }
   },
 
   /**
-   * Lấy tham gia hoạt động theo hoạt động
-   * @param {string} activityId - ID hoạt động
-   * @param {Object} params - Tham số lọc
-   * @param {string} params.status - Trạng thái tham gia
+   * Tạo hoạt động tham gia mới
+   * @param {Object} participationData - Dữ liệu tham gia hoạt động
    * @returns {Promise} - Promise với response data
    */
-  getParticipationsByActivityId: async (activityId, params = {}) => {
+  createParticipation: async (participationData) => {
     try {
-      const response = await apiClient.get(`/activity-participations/activity/${activityId}`, { params });
+      const response = await apiClient.post('/activity-participations', participationData);
       return {
         success: true,
         data: response.data,
-        message: 'Lấy tham gia hoạt động theo hoạt động thành công'
+        message: 'Tạo hoạt động tham gia thành công'
       };
     } catch (error) {
-      console.log('Get participations by activity ID error:', error);
+      console.log('Create activity participation error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Lấy tham gia hoạt động theo hoạt động thất bại'
+        error: error.response?.data || error.message || 'Tạo hoạt động tham gia thất bại'
       };
     }
   },
 
   /**
-   * Lấy tham gia hoạt động theo cư dân
-   * @param {string} residentId - ID cư dân
-   * @param {Object} params - Tham số lọc
-   * @param {string} params.status - Trạng thái tham gia
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @returns {Promise} - Promise với response data
-   */
-  getParticipationsByResidentId: async (residentId, params = {}) => {
-    try {
-      const response = await apiClient.get(`/activity-participations/resident/${residentId}`, { params });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Lấy tham gia hoạt động theo cư dân thành công'
-      };
-    } catch (error) {
-      console.log('Get participations by resident ID error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Lấy tham gia hoạt động theo cư dân thất bại'
-      };
-    }
-  },
-
-  /**
-   * Lấy danh sách tham gia hoạt động theo resident (API thật)
-   * @param {string} residentId
-   * @returns {Promise}
-   */
-  getParticipationsByResident: async (residentId) => {
-    try {
-      const response = await apiClient.get('/activity-participations/by-resident', { params: { resident_id: residentId } });
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message };
-    }
-  },
-
-  /**
-   * Cập nhật tham gia hoạt động
-   * @param {string} participationId - ID tham gia
+   * Cập nhật hoạt động tham gia
+   * @param {string} participationId - ID tham gia hoạt động
    * @param {Object} updateData - Dữ liệu cập nhật
    * @returns {Promise} - Promise với response data
    */
@@ -158,20 +181,20 @@ const activityParticipationService = {
       return {
         success: true,
         data: response.data,
-        message: 'Cập nhật tham gia hoạt động thành công'
+        message: 'Cập nhật hoạt động tham gia thành công'
       };
     } catch (error) {
-      console.log('Update participation error:', error);
+      console.log('Update activity participation error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Cập nhật tham gia hoạt động thất bại'
+        error: error.response?.data || error.message || 'Cập nhật hoạt động tham gia thất bại'
       };
     }
   },
 
   /**
-   * Xóa tham gia hoạt động
-   * @param {string} participationId - ID tham gia
+   * Xóa hoạt động tham gia
+   * @param {string} participationId - ID tham gia hoạt động
    * @returns {Promise} - Promise với response data
    */
   deleteParticipation: async (participationId) => {
@@ -180,158 +203,13 @@ const activityParticipationService = {
       return {
         success: true,
         data: response.data,
-        message: 'Xóa tham gia hoạt động thành công'
+        message: 'Xóa hoạt động tham gia thành công'
       };
     } catch (error) {
-      console.log('Delete participation error:', error);
+      console.log('Delete activity participation error:', error);
       return {
         success: false,
-        error: error.response?.data || error.message || 'Xóa tham gia hoạt động thất bại'
-      };
-    }
-  },
-
-  /**
-   * Xác nhận tham gia
-   * @param {string} participationId - ID tham gia
-   * @param {Object} confirmData - Dữ liệu xác nhận
-   * @returns {Promise} - Promise với response data
-   */
-  confirmParticipation: async (participationId, confirmData = {}) => {
-    try {
-      const response = await apiClient.patch(`/activity-participations/${participationId}/confirm`, confirmData);
-      return {
-        success: true,
-        data: response.data,
-        message: 'Xác nhận tham gia thành công'
-      };
-    } catch (error) {
-      console.log('Confirm participation error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Xác nhận tham gia thất bại'
-      };
-    }
-  },
-
-  /**
-   * Hủy tham gia
-   * @param {string} participationId - ID tham gia
-   * @param {Object} cancelData - Dữ liệu hủy
-   * @returns {Promise} - Promise với response data
-   */
-  cancelParticipation: async (participationId, cancelData = {}) => {
-    try {
-      const response = await apiClient.patch(`/activity-participations/${participationId}/cancel`, cancelData);
-      return {
-        success: true,
-        data: response.data,
-        message: 'Hủy tham gia thành công'
-      };
-    } catch (error) {
-      console.log('Cancel participation error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Hủy tham gia thất bại'
-      };
-    }
-  },
-
-  /**
-   * Điểm danh tham gia
-   * @param {string} participationId - ID tham gia
-   * @param {Object} attendanceData - Dữ liệu điểm danh
-   * @returns {Promise} - Promise với response data
-   */
-  markAttendance: async (participationId, attendanceData = {}) => {
-    try {
-      const response = await apiClient.patch(`/activity-participations/${participationId}/attendance`, attendanceData);
-      return {
-        success: true,
-        data: response.data,
-        message: 'Điểm danh thành công'
-      };
-    } catch (error) {
-      console.log('Mark attendance error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Điểm danh thất bại'
-      };
-    }
-  },
-
-  /**
-   * Lấy danh sách tham gia theo hoạt động
-   * @param {string} activityId - ID hoạt động
-   * @param {Object} params - Tham số lọc
-   * @param {string} params.status - Trạng thái tham gia
-   * @returns {Promise} - Promise với response data
-   */
-  getActivityParticipants: async (activityId, params = {}) => {
-    try {
-      const response = await apiClient.get(`/activity-participations/activity/${activityId}/participants`, { params });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Lấy danh sách tham gia theo hoạt động thành công'
-      };
-    } catch (error) {
-      console.log('Get activity participants error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Lấy danh sách tham gia theo hoạt động thất bại'
-      };
-    }
-  },
-
-  /**
-   * Lấy thống kê tham gia hoạt động
-   * @param {Object} params - Tham số thống kê
-   * @param {string} params.activity_id - ID hoạt động
-   * @param {string} params.resident_id - ID cư dân
-   * @param {string} params.start_date - Ngày bắt đầu
-   * @param {string} params.end_date - Ngày kết thúc
-   * @returns {Promise} - Promise với response data
-   */
-  getParticipationStatistics: async (params = {}) => {
-    try {
-      const response = await apiClient.get('/activity-participations/statistics', { params });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Lấy thống kê tham gia hoạt động thành công'
-      };
-    } catch (error) {
-      console.log('Get participation statistics error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Lấy thống kê tham gia hoạt động thất bại'
-      };
-    }
-  },
-
-  /**
-   * Tìm kiếm tham gia hoạt động
-   * @param {Object} searchParams - Tham số tìm kiếm
-   * @param {string} searchParams.query - Từ khóa tìm kiếm
-   * @param {string} searchParams.activity_id - ID hoạt động
-   * @param {string} searchParams.resident_id - ID cư dân
-   * @param {string} searchParams.status - Trạng thái tham gia
-   * @returns {Promise} - Promise với response data
-   */
-  searchParticipations: async (searchParams = {}) => {
-    try {
-      const response = await apiClient.get('/activity-participations/search', { params: searchParams });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Tìm kiếm tham gia hoạt động thành công'
-      };
-    } catch (error) {
-      console.log('Search participations error:', error);
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Tìm kiếm tham gia hoạt động thất bại'
+        error: error.response?.data || error.message || 'Xóa hoạt động tham gia thất bại'
       };
     }
   }

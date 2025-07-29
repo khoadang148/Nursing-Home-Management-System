@@ -20,77 +20,89 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchActivityDetails, deleteActivity } from '../../redux/slices/activitySlice';
+import { useSelector } from 'react-redux';
+import activityService from '../../api/services/activityService';
+import activityParticipationService from '../../api/services/activityParticipationService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 import * as ImagePicker from 'expo-image-picker';
 
 import dateUtils from '../../utils/dateUtils';
 
-// Mock participants data
-const MOCK_PARTICIPANTS = [
-  { 
-    id: '1', 
-    name: 'Nguyễn Văn Nam', 
-    room: 'Phòng 101-A', 
-    status: 'pending',
-    notes: '',
-    attended: false,
-    photos: []
-  },
-  { 
-    id: '2', 
-    name: 'Trần Thị Lan', 
-    room: 'Phòng 102-A', 
-    status: 'pending',
-    notes: '',
-    attended: false,
-    photos: []
-  },
-];
-
 const ActivityDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const dispatch = useDispatch();
   const { activityId } = route.params;
   
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState(null);
+  const [participants, setParticipants] = useState([]);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [participants, setParticipants] = useState(MOCK_PARTICIPANTS);
   const [attendanceMode, setAttendanceMode] = useState(false);
   const [activityPhotos, setActivityPhotos] = useState([]);
+  const [bedAssignments, setBedAssignments] = useState({});
   
-  useEffect(() => {
-    setLoading(true);
-    dispatch(fetchActivityDetails(activityId))
-      .unwrap()
-      .then(data => {
-        if (!data) {
-          throw new Error('Không tìm thấy dữ liệu hoạt động');
-        }
-        setActivity(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching activity details:', error);
-        Alert.alert(
-          'Lỗi',
-          'Không thể tải thông tin hoạt động. Vui lòng thử lại sau.',
-          [
-            { text: 'OK', onPress: () => navigation.goBack() }
-          ]
-        );
-        setLoading(false);
+  // Load activity details and participants
+  const loadActivityDetails = async () => {
+    try {
+      setLoading(true);
+      
+      // Load activity details
+      const activityResponse = await activityService.getActivityById(activityId);
+      if (activityResponse.success) {
+        setActivity(activityResponse.data);
+      } else {
+        throw new Error('Không thể tải thông tin hoạt động');
+      }
+      
+      // Load participants for this activity
+      const participantsResponse = await activityParticipationService.getAllParticipations({
+        activity_id: activityId
       });
-  }, [dispatch, activityId]);
+      if (participantsResponse.success) {
+        const participantsData = participantsResponse.data || [];
+        setParticipants(participantsData);
+        
+        // Load bed assignments for each participant
+        const bedAssignmentsData = {};
+        for (const participant of participantsData) {
+          if (participant.resident_id?._id) {
+            try {
+              const bedAssignmentResponse = await bedAssignmentService.getBedAssignmentByResidentId(participant.resident_id._id);
+              if (bedAssignmentResponse.success && bedAssignmentResponse.data.length > 0) {
+                bedAssignmentsData[participant.resident_id._id] = bedAssignmentResponse.data[0];
+              }
+            } catch (error) {
+              console.log('Error loading bed assignment for resident:', participant.resident_id._id, error);
+            }
+          }
+        }
+        setBedAssignments(bedAssignmentsData);
+      }
+      
+    } catch (error) {
+      console.error('Error loading activity details:', error);
+      Alert.alert(
+        'Lỗi',
+        'Không thể tải thông tin hoạt động. Vui lòng thử lại sau.',
+        [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadActivityDetails();
+  }, [activityId]);
 
   const handleAttendanceToggle = (participantId) => {
     console.log('Toggling attendance for participant:', participantId);
     setParticipants(prev => 
       prev.map(participant => 
-        participant.id === participantId 
-          ? { ...participant, attended: !participant.attended }
+        participant._id === participantId 
+          ? { ...participant, attendance_status: participant.attendance_status === 'attended' ? 'absent' : 'attended' }
           : participant
       )
     );
@@ -99,21 +111,39 @@ const ActivityDetailsScreen = () => {
   const handleNotesChange = (participantId, notes) => {
     setParticipants(prev => 
       prev.map(participant => 
-        participant.id === participantId 
-          ? { ...participant, notes }
+        participant._id === participantId 
+          ? { ...participant, performance_notes: notes }
           : participant
       )
     );
   };
 
-  const handleSaveAttendance = () => {
-    const attendedCount = participants.filter(p => p.attended).length;
-    Alert.alert(
-      'Thành công',
-      `Đã điểm danh ${attendedCount}/${participants.length} người tham gia!`,
-      [{ text: 'OK' }]
-    );
-    setAttendanceMode(false);
+  const handleSaveAttendance = async () => {
+    try {
+      // Update attendance status for all participants
+      const updatePromises = participants.map(participant => 
+        activityParticipationService.updateParticipation(participant._id, {
+          attendance_status: participant.attendance_status,
+          performance_notes: participant.performance_notes
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      const attendedCount = participants.filter(p => p.attendance_status === 'attended').length;
+      Alert.alert(
+        'Thành công',
+        `Đã cập nhật điểm danh ${attendedCount}/${participants.length} người tham gia!`,
+        [{ text: 'OK' }]
+      );
+      setAttendanceMode(false);
+      
+      // Reload data
+      loadActivityDetails();
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+      Alert.alert('Lỗi', 'Không thể lưu điểm danh. Vui lòng thử lại.');
+    }
   };
 
   const requestCameraPermission = async () => {
@@ -180,7 +210,7 @@ const ActivityDetailsScreen = () => {
 
   const handleAddPhotoForParticipant = async (participantId) => {
     Alert.alert(
-      'Thêm ảnh cho ' + participants.find(p => p.id === participantId)?.name,
+      'Thêm ảnh cho ' + participants.find(p => p._id === participantId)?.name,
       'Chọn cách thêm ảnh',
       [
         { text: 'Chụp ảnh', onPress: async () => {
@@ -188,7 +218,7 @@ const ActivityDetailsScreen = () => {
           if (photoUri) {
             setParticipants(prev => 
               prev.map(participant => 
-                participant.id === participantId 
+                participant._id === participantId 
                   ? { ...participant, photos: [...participant.photos, photoUri] }
                   : participant
               )
@@ -200,7 +230,7 @@ const ActivityDetailsScreen = () => {
           if (photoUri) {
             setParticipants(prev => 
               prev.map(participant => 
-                participant.id === participantId 
+                participant._id === participantId 
                   ? { ...participant, photos: [...participant.photos, photoUri] }
                   : participant
               )
@@ -237,7 +267,7 @@ const ActivityDetailsScreen = () => {
   const removePhoto = (participantId, photoIndex) => {
     setParticipants(prev => 
       prev.map(participant => 
-        participant.id === participantId 
+        participant._id === participantId 
           ? { 
               ...participant, 
               photos: participant.photos.filter((_, index) => index !== photoIndex) 
@@ -324,7 +354,7 @@ const ActivityDetailsScreen = () => {
         { text: 'Hủy', style: 'cancel' },
         { text: 'Xóa', style: 'destructive', onPress: async () => {
             try {
-              await dispatch(deleteActivity(activityId)).unwrap();
+              await activityService.deleteActivity(activityId);
               Alert.alert('Thành công', 'Đã xóa hoạt động');
               navigation.goBack();
             } catch (error) {
@@ -360,15 +390,51 @@ const ActivityDetailsScreen = () => {
     );
   }
   
-  const activityIconColor = getActivityIconColor(activity.type);
-  const attendedCount = participants.filter(p => p.attended).length;
+  const activityIconColor = getActivityIconColor(activity.activity_type);
+  const attendedCount = participants.filter(p => p.attendance_status === 'attended').length;
+  
+  const getAttendanceStatusColor = (status) => {
+    switch (status) {
+      case 'attended': return COLORS.success;
+      case 'absent': return COLORS.error;
+      case 'pending': return COLORS.warning;
+      default: return COLORS.textSecondary;
+    }
+  };
+  
+  const getRoomBedInfo = (residentId) => {
+    const bedAssignment = bedAssignments[residentId];
+    if (!bedAssignment) return 'Chưa có thông tin phòng';
+    
+    const bedInfo = bedAssignment.bed_id;
+    const roomInfo = bedAssignment.room_id;
+    
+    if (bedInfo && roomInfo) {
+      return `Phòng ${roomInfo.room_number} - Giường ${bedInfo.bed_number}`;
+    } else if (roomInfo) {
+      return `Phòng ${roomInfo.room_number}`;
+    } else if (bedInfo) {
+      return `Giường ${bedInfo.bed_number}`;
+    }
+    
+    return 'Chưa có thông tin phòng';
+  };
+  
+  const getAttendanceStatusText = (status) => {
+    switch (status) {
+      case 'attended': return '✓ Đã tham gia';
+      case 'absent': return '✗ Vắng mặt';
+      case 'pending': return '⏳ Chờ xác nhận';
+      default: return '❓ Không xác định';
+    }
+  };
   
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={activityIconColor} barStyle="light-content" />
       <Appbar.Header style={{ backgroundColor: activityIconColor }}>
         <Appbar.BackAction onPress={() => navigation.goBack()} iconColor="#fff" />
-        <Appbar.Content title={activity.name} titleStyle={[FONTS.h2, { color: '#fff' }]} />
+        <Appbar.Content title={activity.activity_name} titleStyle={[FONTS.h2, { color: '#fff' }]} />
         
         <Menu
           visible={menuVisible}
@@ -396,11 +462,11 @@ const ActivityDetailsScreen = () => {
           <Card style={styles.headerCard}>
             <Card.Content style={styles.headerCardContent}>
               <View style={[styles.activityIconContainer, { backgroundColor: activityIconColor }]}>
-                {getActivityIcon(activity.type)}
+                {getActivityIcon(activity.activity_type)}
               </View>
               
               <View style={styles.headerInfo}>
-                <Text style={FONTS.h3}>{activity.name}</Text>
+                <Text style={FONTS.h3}>{activity.activity_name}</Text>
                 <View style={styles.dateTimeContainer}>
                   <View style={styles.infoRow}>
                     <MaterialIcons name="event" size={18} color={COLORS.textSecondary} />
@@ -417,7 +483,7 @@ const ActivityDetailsScreen = () => {
                   style={[styles.typeChip, { backgroundColor: `${activityIconColor}20` }]}
                   textStyle={{ color: activityIconColor }}
                 >
-                  {getActivityTypeInVietnamese(activity.type)}
+                  {getActivityTypeInVietnamese(activity.activity_type)}
                 </Chip>
               </View>
             </Card.Content>
@@ -438,12 +504,12 @@ const ActivityDetailsScreen = () => {
               />
               <List.Item
                 title="Thời lượng"
-                description={activity.durationMinutes ? `${activity.durationMinutes} phút` : 'Chưa có thông tin'}
+                description={activity.duration ? `${activity.duration} phút` : 'Chưa có thông tin'}
                 left={props => <List.Icon {...props} icon="clock-outline" color={COLORS.primary} />}
               />
               <List.Item
                 title="Sức chứa"
-                description={activity.participants ? `${activity.participants} người tham gia` : 'Chưa có thông tin'}
+                description={activity.capacity ? `${activity.capacity} người tham gia` : 'Chưa có thông tin'}
                 left={props => <List.Icon {...props} icon="account-group" color={COLORS.primary} />}
               />
               <List.Item
@@ -497,64 +563,51 @@ const ActivityDetailsScreen = () => {
               </View>
 
               {participants.map((participant) => (
-                <View key={participant.id} style={styles.participantCard}>
+                <View key={participant._id} style={styles.participantCard}>
                   <View style={styles.participantInfo}>
                     <Avatar.Text 
                       size={40} 
-                      label={participant.name.split(' ').slice(-2).map(n => n[0]).join('')}
+                      label={participant.resident_id?.full_name?.split(' ').slice(-2).map(n => n[0]).join('') || '??'}
                       style={{ backgroundColor: COLORS.primary }}
                     />
                     <View style={styles.participantDetails}>
-                      <Text style={styles.participantName}>{participant.name}</Text>
-                      <Text style={styles.participantRoom}>{participant.room}</Text>
-                      {participant.attended && (
-                        <Text style={styles.attendedStatus}>✓ Đã điểm danh</Text>
-                      )}
+                      <Text style={styles.participantName}>
+                        {participant.resident_id?.full_name || 'Không xác định'}
+                      </Text>
+                      <Text style={styles.participantRoom}>
+                        {getRoomBedInfo(participant.resident_id?._id)}
+                      </Text>
+                      <Text style={[styles.attendanceStatus, { color: getAttendanceStatusColor(participant.attendance_status) }]}>
+                        {getAttendanceStatusText(participant.attendance_status)}
+                      </Text>
                     </View>
                     {attendanceMode && (
                       <View style={styles.participantActions}>
                         <TouchableOpacity 
                           style={styles.checkboxButton}
-                          onPress={() => handleAttendanceToggle(participant.id)}
+                          onPress={() => handleAttendanceToggle(participant._id)}
                         >
                           <MaterialIcons 
-                            name={participant.attended ? "check-box" : "check-box-outline-blank"} 
+                            name={participant.attendance_status === 'attended' ? "check-box" : "check-box-outline-blank"} 
                             size={20} 
-                            color={participant.attended ? COLORS.primary : COLORS.textSecondary} 
+                            color={participant.attendance_status === 'attended' ? COLORS.primary : COLORS.textSecondary} 
                           />
                         </TouchableOpacity>
                         <IconButton
                           icon="camera"
                           size={20}
-                          onPress={() => handleAddPhotoForParticipant(participant.id)}
+                          onPress={() => handleAddPhotoForParticipant(participant._id)}
                           style={styles.photoButton}
                         />
                       </View>
                     )}
                   </View>
                   
-                  {/* Participant Photos */}
-                  {participant.photos.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantPhotoScrollView}>
-                      {participant.photos.map((photo, index) => (
-                        <View key={index} style={styles.participantPhotoContainer}>
-                          <Image source={{ uri: photo }} style={styles.participantPhoto} />
-                          <IconButton
-                            icon="close"
-                            size={14}
-                            style={styles.removeParticipantPhotoButton}
-                            onPress={() => removePhoto(participant.id, index)}
-                          />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  )}
-                  
                   {attendanceMode && (
                     <TextInput
                       label="Ghi chú hoạt động"
-                      value={participant.notes}
-                      onChangeText={(text) => handleNotesChange(participant.id, text)}
+                      value={participant.performance_notes || ''}
+                      onChangeText={(text) => handleNotesChange(participant._id, text)}
                       multiline
                       numberOfLines={2}
                       style={styles.notesInput}

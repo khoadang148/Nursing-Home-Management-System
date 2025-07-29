@@ -17,8 +17,10 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSelector } from 'react-redux';
 
-// Mock data imports
-import { residents } from '../../api/mockData';
+// Import services
+import residentService from '../../api/services/residentService';
+import assessmentService from '../../api/services/assessmentService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 const ASSESSMENT_TYPES = [
   'Đánh giá tình trạng sức khỏe tổng quát',
@@ -37,6 +39,7 @@ const CURRENT_STAFF = { id: 'staff2', name: 'Phạm Thị Doctor' };
 const AddAssessmentScreen = ({ route, navigation }) => {
   const { residentId } = route.params;
   const [resident, setResident] = useState(null);
+  const [bedInfo, setBedInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -46,6 +49,7 @@ const AddAssessmentScreen = ({ route, navigation }) => {
   const [notes, setNotes] = useState('');
   const [recommendations, setRecommendations] = useState('');
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   // Ngày đánh giá luôn là ngày hiện tại
   const date = new Date();
@@ -55,14 +59,32 @@ const AddAssessmentScreen = ({ route, navigation }) => {
   const conductedBy = user ? { id: user._id || user.id, name: user.full_name || user.name } : CURRENT_STAFF;
 
   useEffect(() => {
-    const fetchResident = async () => {
-      setTimeout(() => {
-        const foundResident = residents.find(r => r._id === residentId);
-        setResident(foundResident);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch resident data
+        const residentResponse = await residentService.getResidentById(residentId);
+        if (residentResponse.success) {
+          setResident(residentResponse.data);
+        } else {
+          Alert.alert('Lỗi', 'Không thể tải thông tin cư dân');
+        }
+
+        // Fetch bed assignment info
+        const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
+        if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
+          setBedInfo(bedResponse.data[0]); // Lấy bed assignment đầu tiên (mới nhất)
+        }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Alert.alert('Lỗi', 'Không thể tải thông tin cư dân');
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     };
-    fetchResident();
+    fetchData();
   }, [residentId]);
 
   const validate = () => {
@@ -70,24 +92,46 @@ const AddAssessmentScreen = ({ route, navigation }) => {
     if (!assessmentType.trim()) newErrors.assessmentType = 'Vui lòng chọn loại đánh giá';
     if (assessmentType === 'Khác' && !otherAssessmentType.trim()) newErrors.otherAssessmentType = 'Vui lòng nhập loại đánh giá khác';
     if (!notes.trim()) newErrors.notes = 'Vui lòng nhập ghi chú';
-    if (!recommendations.trim()) newErrors.recommendations = 'Vui lòng nhập khuyến nghị';
+    // Khuyến nghị không bắt buộc - đã xóa validation
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    // In a real app, this would be an API call
-    Alert.alert(
-      'Thành công',
-      'Đánh giá đã được lưu thành công',
-      [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack()
-        }
-      ]
-    );
+    
+    try {
+      setSubmitting(true);
+      const assessmentData = {
+        assessment_type: assessmentType === 'Khác' ? otherAssessmentType : assessmentType,
+        notes: notes,
+        recommendations: recommendations.trim() || undefined, // Chỉ gửi khi có giá trị
+        resident_id: residentId,
+        conducted_by: user._id || user.id
+      };
+
+      const response = await assessmentService.createAssessment(assessmentData);
+      
+      if (response.success) {
+        Alert.alert(
+          'Thành công',
+          'Đánh giá đã được lưu thành công',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Lỗi', response.error || 'Không thể lưu đánh giá');
+      }
+    } catch (error) {
+      console.error('Error creating assessment:', error);
+      Alert.alert('Lỗi', 'Không thể lưu đánh giá. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading || !resident) {
@@ -113,8 +157,13 @@ const AddAssessmentScreen = ({ route, navigation }) => {
           <Surface style={styles.residentInfo}>
             <Text style={styles.residentName}>{resident.full_name}</Text>
             <Text style={styles.residentRoom}>
-              Phòng {resident.room_number}
-              {resident.bed_number && ` - Giường ${resident.bed_number}`}
+              {bedInfo?.bed_id?.room_id?.room_number ? 
+                `Phòng ${bedInfo.bed_id.room_id.room_number}` : 
+                'Chưa phân công phòng'
+              }
+              {bedInfo?.bed_id?.bed_number && 
+                ` - Giường ${bedInfo.bed_id.bed_number}`
+              }
             </Text>
           </Surface>
 
@@ -210,7 +259,7 @@ const AddAssessmentScreen = ({ route, navigation }) => {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Khuyến nghị</Text>
+            <Text style={styles.sectionTitle}>Khuyến nghị (Tùy chọn)</Text>
             <TextInput
               mode="outlined"
               label="Khuyến nghị"
@@ -230,8 +279,10 @@ const AddAssessmentScreen = ({ route, navigation }) => {
               onPress={handleSubmit}
               style={styles.submitButton}
               labelStyle={styles.submitButtonText}
+              loading={submitting}
+              disabled={submitting}
             >
-              Lưu đánh giá
+              {submitting ? 'Đang lưu...' : 'Lưu đánh giá'}
             </Button>
           </View>
         </ScrollView>

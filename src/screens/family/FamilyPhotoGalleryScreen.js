@@ -13,8 +13,10 @@ import {
   TextInput,
   SectionList,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   Card, 
   Title, 
@@ -29,35 +31,24 @@ import {
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 import ImageViewing from 'react-native-image-viewing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { FlatGrid } from 'react-native-super-grid';
+import BottomSheet from '@gorhom/bottom-sheet';
+
 import PhotoSearchFilters from '../../components/PhotoSearchFilters';
 import residentPhotosService from '../../api/services/residentPhotosService';
-import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
 // Import constants
-import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 
 // Get screen dimensions
 const { width, height } = Dimensions.get('window');
-const GRID_SPACING = 2;
-const COLUMNS = 4; // Tăng lên 4 cột theo yêu cầu người dùng
+const COLUMNS = 2;
+const GRID_SPACING = 8;
 const ITEM_DIMENSION = (width - (GRID_SPACING * (COLUMNS + 1) * 2)) / COLUMNS;
 
-const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
-const getApiBaseUrl = () => {
-  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
-    return CONFIG_API_BASE_URL;
-  }
-  return DEFAULT_API_BASE_URL;
-};
-
-const getImageUri = (filePath) => {
-  if (!filePath) return '';
-  if (filePath.startsWith('http') || filePath.startsWith('https')) return filePath;
-  // Chuyển \ thành /
-  const cleanPath = filePath.replace(/\\/g, '/').replace(/^\/+|^\/+/, '');
-  return `${getApiBaseUrl()}/${cleanPath}`;
+// Helper để format image
+const getImageUriHelper = (imagePath) => {
+  return getImageUri(imagePath, 'image');
 };
 
 // =========================
@@ -286,14 +277,27 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const [currentPhoto, setCurrentPhoto] = useState(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState({});
+  const [showPhotoDetail, setShowPhotoDetail] = useState(false);
   
   // Bottom Sheet
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['25%', '50%', '75%'], []);
   
   useEffect(() => {
-    loadData();
-  }, [user]);
+    if (user?.id && photos.length === 0) {
+      loadData();
+    }
+  }, [user, photos.length]);
+
+  // Check for data updates when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Only reload if there's no data
+      if (user?.id && photos.length === 0) {
+        loadData();
+      }
+    }, [user?.id, photos.length])
+  );
 
   useEffect(() => {
     const filtered = filterAndSearchPhotos();
@@ -316,7 +320,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         // Format lại file_path cho đúng URL
         const photos = res.data.map(photo => ({
           ...photo,
-          file_path: getImageUri(photo.file_path)
+          file_path: getImageUriHelper(photo.file_path)
         }));
         setPhotos(photos);
         setFilteredPhotos(photos);
@@ -449,12 +453,13 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   };
 
   const handleInfoButtonPress = () => {
-    if (currentPhoto && bottomSheetRef.current) {
-      // Đóng image viewer trước khi mở bottom sheet
+    if (currentPhoto) {
+      console.log('Info button pressed from image viewer for photo:', currentPhoto._id);
+      // Đóng image viewer trước khi mở modal
       setIsImageViewVisible(false);
-      // Mở bottom sheet sau một chút để tránh conflict
+      // Mở modal sau một chút để tránh conflict
       setTimeout(() => {
-      bottomSheetRef.current.expand();
+        setShowPhotoDetail(true);
       }, 300);
     }
   };
@@ -470,24 +475,9 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderPhotoGrid = ({ section }) => {
-    return (
-      <View style={styles.sectionContainer}>
-        <FlatGrid
-          itemDimension={ITEM_DIMENSION}
-          spacing={GRID_SPACING}
-          data={section.data}
-          renderItem={({ item, index }) => renderPhotoItem(item, index, section.data)}
-          keyExtractor={item => `photo-${section.title}-${item._id}`}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
-          style={styles.gridView}
-          maxItemsPerRow={COLUMNS}
-          listKey={`section-${section.title}`}
-        />
-      </View>
-    );
-  };
+
+
+
 
   const renderPhotoItem = (item, index, sectionData) => {
     const handlePress = () => {
@@ -496,8 +486,9 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
     const handleInfoPress = (e) => {
       e.stopPropagation();
+      console.log('Info button pressed for photo:', item._id);
       setCurrentPhoto(item);
-      bottomSheetRef.current?.expand();
+      setShowPhotoDetail(true);
     };
 
     return (
@@ -539,61 +530,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     );
   };
 
-  const renderBottomSheetContent = () => {
-    if (!currentPhoto) return null;
-    return (
-      <BottomSheetScrollView 
-        contentContainerStyle={styles.bottomSheetContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.photoInfo}>
-          <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Người đăng tải: </Text>
-            {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
-          </Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Người thân: </Text>
-            {currentPhoto.resident_id?.full_name || 'Không xác định'}
-          </Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Thời gian: </Text>
-            {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
-          </Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Địa điểm: </Text>
-            {currentPhoto.related_activity_id?.location || 'Không xác định'}
-          </Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Hoạt động: </Text>
-            {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
-          </Text>
-          <Text style={styles.photoInfoText}>
-            <Text style={styles.label}>Mô tả hoạt động: </Text>
-            {currentPhoto.related_activity_id?.description || 'Không xác định'}
-          </Text>
-          {currentPhoto.staff_notes && (
-            <>
-              <Text style={[styles.label, styles.notesLabel]}>Ghi chú:</Text>
-              <Text style={styles.notesText}>{currentPhoto.staff_notes}</Text>
-            </>
-          )}
-          {currentPhoto.tags && currentPhoto.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              <Text style={[styles.label, styles.tagsLabel]}>Thẻ gắn:</Text>
-              <View style={styles.tagsWrapper}>
-              {currentPhoto.tags.map((tag, index) => (
-                  <View key={index} style={[styles.tag, styles.tagColorful]}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                  </View>
-              ))}
-              </View>
-            </View>
-          )}
-        </View>
-      </BottomSheetScrollView>
-    );
-  };
+
   
   if (loading) {
     return (
@@ -653,12 +590,14 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           sections={sections}
           keyExtractor={(item, index) => `section-item-${item._id}-${index}`}
           renderSectionHeader={renderSectionHeader}
-          renderItem={renderPhotoGrid}
+          renderItem={({ item, index, section }) => renderPhotoItem(item, index, section.data)}
           stickySectionHeadersEnabled={true}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           showsVerticalScrollIndicator={false}
+          numColumns={COLUMNS}
+          columnWrapperStyle={styles.row}
         />
 
         {/* Image Viewer */}
@@ -703,9 +642,138 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           index={-1}
           backgroundStyle={{ backgroundColor: '#fff' }}
           handleIndicatorStyle={{ backgroundColor: '#ccc' }}
+          onAnimate={(fromIndex, toIndex) => {
+            console.log('Bottom sheet animation:', fromIndex, 'to', toIndex);
+          }}
         >
-          {renderBottomSheetContent()}
+          <ScrollView 
+            style={styles.bottomSheetContent}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            {currentPhoto && (
+              <View style={styles.photoInfo}>
+                <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Người đăng tải: </Text>
+                  {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
+                </Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Người thân: </Text>
+                  {currentPhoto.resident_id?.full_name || 'Không xác định'}
+                </Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Thời gian: </Text>
+                  {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
+                </Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Địa điểm: </Text>
+                  {currentPhoto.related_activity_id?.location || 'Không xác định'}
+                </Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Hoạt động: </Text>
+                  {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
+                </Text>
+                <Text style={styles.photoInfoText}>
+                  <Text style={styles.label}>Mô tả hoạt động: </Text>
+                  {currentPhoto.related_activity_id?.description || 'Không xác định'}
+                </Text>
+                {currentPhoto.staff_notes && (
+                  <>
+                    <Text style={[styles.label, styles.notesLabel]}>Ghi chú:</Text>
+                    <Text style={styles.notesText}>{currentPhoto.staff_notes}</Text>
+                  </>
+                )}
+                {currentPhoto.tags && currentPhoto.tags.length > 0 && (
+                  <View style={styles.tagsContainer}>
+                    <Text style={[styles.label, styles.tagsLabel]}>Thẻ gắn:</Text>
+                    <View style={styles.tagsWrapper}>
+                    {currentPhoto.tags.map((tag, index) => (
+                        <View key={index} style={[styles.tag, styles.tagColorful]}>
+                          <Text style={styles.tagText}>{tag}</Text>
+                        </View>
+                    ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
         </BottomSheet>
+
+        {/* Photo Detail Modal */}
+        <Modal
+          visible={showPhotoDetail}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowPhotoDetail(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowPhotoDetail(false)}
+              >
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Chi tiết ảnh</Text>
+              <View style={{ width: 24 }} />
+            </View>
+            
+            <ScrollView 
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {currentPhoto && (
+                <View style={styles.photoInfo}>
+                  <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Người đăng tải: </Text>
+                    {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
+                  </Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Người thân: </Text>
+                    {currentPhoto.resident_id?.full_name || 'Không xác định'}
+                  </Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Thời gian: </Text>
+                    {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
+                  </Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Địa điểm: </Text>
+                    {currentPhoto.related_activity_id?.location || 'Không xác định'}
+                  </Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Hoạt động: </Text>
+                    {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
+                  </Text>
+                  <Text style={styles.photoInfoText}>
+                    <Text style={styles.label}>Mô tả hoạt động: </Text>
+                    {currentPhoto.related_activity_id?.description || 'Không xác định'}
+                  </Text>
+                  {currentPhoto.staff_notes && (
+                    <>
+                      <Text style={[styles.label, styles.notesLabel]}>Ghi chú:</Text>
+                      <Text style={styles.notesText}>{currentPhoto.staff_notes}</Text>
+                    </>
+                  )}
+                  {currentPhoto.tags && currentPhoto.tags.length > 0 && (
+                    <View style={styles.tagsContainer}>
+                      <Text style={[styles.label, styles.tagsLabel]}>Thẻ gắn:</Text>
+                      <View style={styles.tagsWrapper}>
+                      {currentPhoto.tags.map((tag, index) => (
+                          <View key={index} style={[styles.tag, styles.tagColorful]}>
+                            <Text style={styles.tagText}>{tag}</Text>
+                          </View>
+                      ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
 
         {/* Advanced Search Filters */}
         <PhotoSearchFilters
@@ -822,8 +890,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  gridView: {
-    flex: 1,
+  gridContainer: {
+    paddingBottom: 8,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: GRID_SPACING,
+    paddingHorizontal: 0,
+    gap: GRID_SPACING,
   },
 
   // Photo Items
@@ -834,6 +908,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',
     position: 'relative',
+    marginBottom: GRID_SPACING,
   },
   photo: {
     width: '100%',
@@ -916,9 +991,11 @@ const styles = StyleSheet.create({
   bottomSheetContent: {
     padding: 20,
     backgroundColor: '#fff',
+    maxHeight: height * 0.7, // Giới hạn chiều cao
   },
   photoInfo: {
     gap: 12,
+    paddingBottom: 20, // Thêm padding bottom để scroll
   },
   photoInfoTitle: {
     ...FONTS.h3,
@@ -979,6 +1056,33 @@ const styles = StyleSheet.create({
     ...FONTS.body4,
     color: '#fff',
     fontWeight: '600',
+  },
+  
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
   },
 });
 

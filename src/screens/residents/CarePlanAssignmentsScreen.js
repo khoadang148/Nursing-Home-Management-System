@@ -10,108 +10,12 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// Mock data tương tự như trong DB sample
-const MOCK_ASSIGNMENTS = [
-  {
-    _id: '1',
-    staff_id: 'nurse1',
-    care_plan_ids: ['intensive_care', 'nutrition_support'],
-    resident: {
-      _id: 'resident1',
-      full_name: 'Nguyễn Văn Nam',
-      gender: 'male',
-      care_level: 'intermediate',
-      date_of_birth: '1950-05-15'
-    },
-    family_member_id: 'family1',
-    registration_date: '2024-01-05',
-    consultation_notes: 'Bệnh nhân cần chăm sóc tăng cường do tiểu đường và huyết áp cao. Gia đình mong muốn phòng có ít người để dễ thăm nom.',
-    selected_room_type: '2_bed',
-    assigned_room: {
-      _id: 'room101',
-      room_number: '101',
-      room_type: '2_bed'
-    },
-    assigned_bed: {
-      _id: 'bed101A',
-      bed_number: '101-A'
-    },
-    main_care_plan: {
-      _id: 'intensive_care',
-      plan_name: 'Gói Chăm Sóc Tích Cực',
-      plan_type: 'cham_soc_tich_cuc'
-    },
-    supplementary_plans: [
-      {
-        _id: 'nutrition_support',
-        plan_name: 'Dịch Vụ Hỗ Trợ Dinh Dưỡng',
-        plan_type: 'ho_tro_dinh_duong'
-      }
-    ],
-    total_monthly_cost: 17000000,
-    room_monthly_cost: 6500000,
-    care_plans_monthly_cost: 10500000,
-    start_date: '2024-01-10',
-    end_date: '2024-04-10',
-    status: 'active',
-    payment_status: 'paid',
-    notes: 'Đã hoàn tất thanh toán. Bệnh nhân đã ổn định trong gói chăm sóc.',
-    created_at: '2024-01-05',
-    updated_at: '2024-01-10'
-  },
-  {
-    _id: '2',
-    staff_id: 'doctor1',
-    care_plan_ids: ['dementia_care', 'wound_care'],
-    resident: {
-      _id: 'resident2',
-      full_name: 'Trần Thị Lan',
-      gender: 'female',
-      care_level: 'intensive',
-      date_of_birth: '1948-12-03'
-    },
-    family_member_id: 'family2',
-    registration_date: '2024-02-10',
-    consultation_notes: 'Bệnh nhân mắc sa sút trí tuệ giai đoạn vừa, cần chăm sóc đặc biệt.',
-    selected_room_type: '2_bed',
-    assigned_room: {
-      _id: 'room102',
-      room_number: '102',
-      room_type: '2_bed'
-    },
-    assigned_bed: {
-      _id: 'bed102A',
-      bed_number: '102-A'
-    },
-    main_care_plan: {
-      _id: 'dementia_care',
-      plan_name: 'Gói Chăm Sóc Sa Sút Trí Tuệ',
-      plan_type: 'cham_soc_sa_sut_tri_tue'
-    },
-    supplementary_plans: [
-      {
-        _id: 'wound_care',
-        plan_name: 'Chăm Sóc Vết Thương',
-        plan_type: 'cham_soc_vet_thuong'
-      }
-    ],
-    total_monthly_cost: 23000000,
-    room_monthly_cost: 8000000,
-    care_plans_monthly_cost: 15000000,
-    start_date: '2024-02-15',
-    end_date: '2024-05-15',
-    status: 'active',
-    payment_status: 'pending',
-    notes: 'Gói chăm sóc đặc biệt cho sa sút trí tuệ, theo dõi chặt chẽ vết thương.',
-    created_at: '2024-02-10',
-    updated_at: '2024-02-15'
-  }
-];
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 const CarePlanAssignmentsScreen = () => {
   const navigation = useNavigation();
@@ -126,14 +30,40 @@ const CarePlanAssignmentsScreen = () => {
   const loadAssignments = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setAssignments(MOCK_ASSIGNMENTS);
-        setLoading(false);
-      }, 1000);
+      // Lấy danh sách care plan assignments từ API
+      const assignmentsResponse = await carePlanAssignmentService.getAllCarePlanAssignments();
+      
+      if (assignmentsResponse.success && assignmentsResponse.data) {
+        // Lấy thông tin bed assignments cho từng resident
+        const assignmentsWithBedInfo = await Promise.all(
+          assignmentsResponse.data.map(async (assignment) => {
+            try {
+              const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(assignment.resident_id._id);
+              if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
+                const bedAssignment = bedResponse.data[0]; // Lấy assignment đầu tiên (active)
+                return {
+                  ...assignment,
+                  bed_info: bedAssignment
+                };
+              }
+              return assignment;
+            } catch (error) {
+              console.error('Error fetching bed info for resident:', assignment.resident_id._id, error);
+              return assignment;
+            }
+          })
+        );
+        
+        setAssignments(assignmentsWithBedInfo);
+      } else {
+        console.error('Failed to fetch assignments:', assignmentsResponse.error);
+        setAssignments([]);
+      }
     } catch (error) {
       console.error('Error loading assignments:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách đăng ký gói dịch vụ.');
+      setAssignments([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -228,13 +158,13 @@ const CarePlanAssignmentsScreen = () => {
   const handleAssignmentPress = (assignment) => {
     Alert.alert(
       'Chi tiết đăng ký',
-      `Cư dân: ${assignment.resident?.full_name || 'N/A'}\n` +
-      `Gói chính: ${assignment.main_care_plan?.plan_name || 'N/A'}\n` +
-      `Phòng: ${assignment.assigned_room?.room_number || 'N/A'}\n` +
-      `Giường: ${assignment.assigned_bed?.bed_number || 'N/A'}\n` +
-      `Tổng chi phí: ${formatPrice(assignment.total_monthly_cost)}\n` +
+      `Cư dân: ${assignment.resident_id?.full_name || 'N/A'}\n` +
+      `Gói chính: ${assignment.care_plan_ids?.[0]?.plan_name || 'N/A'}\n` +
+      `Phòng: ${assignment.bed_info?.bed_id?.room_id?.room_number || 'N/A'}\n` +
+      `Giường: ${assignment.bed_info?.bed_id?.bed_number || 'N/A'}\n` +
+      `Tổng chi phí: ${formatPrice(assignment.total_monthly_cost || 0)}\n` +
       `Trạng thái: ${getStatusText(assignment.status)}\n` +
-      `Thanh toán: ${getPaymentStatusText(assignment.payment_status)}`
+      `Thanh toán: ${getPaymentStatusText(assignment.payment_status || 'pending')}`
     );
   };
 
@@ -290,9 +220,9 @@ const CarePlanAssignmentsScreen = () => {
               {/* Header với thông tin cư dân */}
               <View style={styles.assignmentHeader}>
                 <View style={styles.residentInfo}>
-                  <Text style={styles.residentName}>{assignment.resident?.full_name}</Text>
+                  <Text style={styles.residentName}>{assignment.resident_id?.full_name || 'Không có tên'}</Text>
                   <Text style={styles.residentDetails}>
-                    {`${assignment.resident?.gender === 'male' ? 'Nam' : 'Nữ'} • ${getCareLevel(assignment.resident?.care_level)}`}
+                    {`${assignment.resident_id?.gender === 'male' ? 'Nam' : 'Nữ'} • ${getCareLevel(assignment.resident_id?.care_level)}`}
                   </Text>
                 </View>
                 <View style={styles.statusContainer}>
@@ -311,15 +241,15 @@ const CarePlanAssignmentsScreen = () => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Gói chính:</Text>
                   <Text style={styles.detailValue}>
-                    {assignment.main_care_plan?.plan_name}
+                    {assignment.care_plan_ids?.[0]?.plan_name || 'Chưa có'}
                   </Text>
                 </View>
 
-                {assignment.supplementary_plans && assignment.supplementary_plans.length > 0 && (
+                {assignment.care_plan_ids && assignment.care_plan_ids.length > 1 && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Gói phụ:</Text>
                     <Text style={styles.detailValue}>
-                      {assignment.supplementary_plans.map(plan => plan.plan_name).join(', ')}
+                      {assignment.care_plan_ids.slice(1).map(plan => plan.plan_name).join(', ')}
                     </Text>
                   </View>
                 )}
@@ -327,35 +257,35 @@ const CarePlanAssignmentsScreen = () => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Loại phòng:</Text>
                   <Text style={styles.detailValue}>
-                    {getRoomTypeText(assignment.selected_room_type)}
+                    {getRoomTypeText(assignment.selected_room_type || 'Chưa chọn')}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Phòng:</Text>
                   <Text style={styles.detailValue}>
-                    {assignment.assigned_room?.room_number || 'Chưa phân'}
+                    {assignment.bed_info?.bed_id?.room_id?.room_number || 'Chưa phân'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Giường:</Text>
                   <Text style={styles.detailValue}>
-                    {assignment.assigned_bed?.bed_number || 'Chưa phân'}
+                    {assignment.bed_info?.bed_id?.bed_number || 'Chưa phân'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Ngày đăng ký:</Text>
                   <Text style={styles.detailValue}>
-                    {formatDate(assignment.registration_date)}
+                    {formatDate(assignment.registration_date || assignment.created_at)}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Tổng chi phí:</Text>
                   <Text style={styles.costValue}>
-                    {formatPrice(assignment.total_monthly_cost)}
+                    {formatPrice(assignment.total_monthly_cost || 0)}
                   </Text>
                 </View>
 
@@ -363,16 +293,16 @@ const CarePlanAssignmentsScreen = () => {
                   <Text style={styles.detailLabel}>Thanh toán:</Text>
                   <View style={[
                     styles.paymentBadge,
-                    { backgroundColor: getPaymentStatusColor(assignment.payment_status) }
+                    { backgroundColor: getPaymentStatusColor(assignment.payment_status || 'pending') }
                   ]}>
                     <Text style={styles.paymentText}>
-                      {getPaymentStatusText(assignment.payment_status)}
+                      {getPaymentStatusText(assignment.payment_status || 'pending')}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {assignment.consultation_notes && (
+              {assignment.consultation_notes && assignment.consultation_notes.trim() && (
                 <View style={styles.notesContainer}>
                   <Text style={styles.notesLabel}>Ghi chú tư vấn:</Text>
                   <Text style={styles.notesText} numberOfLines={2}>

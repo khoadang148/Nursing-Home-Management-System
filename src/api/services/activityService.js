@@ -17,7 +17,7 @@ const activityService = {
    */
   getAllActivities: async (params = {}) => {
     try {
-      const response = await apiClient.get('/activity', { params });
+      const response = await apiClient.get('/activities', { params });
       return {
         success: true,
         data: response.data,
@@ -39,7 +39,7 @@ const activityService = {
    */
   getActivityById: async (activityId) => {
     try {
-      const response = await apiClient.get(`/activity/${activityId}`);
+      const response = await apiClient.get(`/activities/${activityId}`);
       return {
         success: true,
         data: response.data,
@@ -71,7 +71,7 @@ const activityService = {
    */
   createActivity: async (activityData) => {
     try {
-      const response = await apiClient.post('/activity', activityData);
+      const response = await apiClient.post('/activities', activityData);
       return {
         success: true,
         data: response.data,
@@ -94,7 +94,7 @@ const activityService = {
    */
   updateActivity: async (activityId, updateData) => {
     try {
-      const response = await apiClient.patch(`/activity/${activityId}`, updateData);
+      const response = await apiClient.patch(`/activities/${activityId}`, updateData);
       return {
         success: true,
         data: response.data,
@@ -116,7 +116,7 @@ const activityService = {
    */
   deleteActivity: async (activityId) => {
     try {
-      const response = await apiClient.delete(`/activity/${activityId}`);
+      const response = await apiClient.delete(`/activities/${activityId}`);
       return {
         success: true,
         data: response.data,

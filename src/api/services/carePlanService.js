@@ -1,371 +1,212 @@
-import apiClient from '../config/axiosConfig';
-import { apiService } from '../apiService';
-import { delay } from '../../utils/helpers';
-import { carePlans, roomTypes, residents, carePlanAssignments } from '../mockData';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiBaseUrl } from '../../config/appConfig';
 
-/**
- * Care Plan Service - Quản lý gói chăm sóc
- */
-const carePlanService = {
-  // ==================== API ENDPOINTS (REAL API) ====================
-  
-  createCarePlan: async (carePlanData) => {
-    try {
-      const response = await apiClient.post('/care-plans', carePlanData);
-      return { success: true, data: response.data, message: 'Tạo gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Tạo gói chăm sóc thất bại' };
-    }
-  },
-  
-  getAllCarePlans: async (params = {}) => {
-    try {
-      const response = await apiClient.get('/care-plans', { params });
-      return { success: true, data: response.data, message: 'Lấy danh sách gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Lấy danh sách gói chăm sóc thất bại' };
-    }
-  },
-  
-  getCarePlanById: async (carePlanId) => {
-    try {
-      const response = await apiClient.get(`/care-plans/${carePlanId}`);
-      return { success: true, data: response.data, message: 'Lấy thông tin gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Lấy thông tin gói chăm sóc thất bại' };
-    }
-  },
-  
-  updateCarePlan: async (carePlanId, updateData) => {
-    try {
-      const response = await apiClient.patch(`/care-plans/${carePlanId}`, updateData);
-      return { success: true, data: response.data, message: 'Cập nhật gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Cập nhật gói chăm sóc thất bại' };
-    }
-  },
-  
-  deleteCarePlan: async (carePlanId) => {
-    try {
-      const response = await apiClient.delete(`/care-plans/${carePlanId}`);
-      return { success: true, data: response.data, message: 'Xóa gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Xóa gói chăm sóc thất bại' };
-    }
-  },
-  
-  searchCarePlans: async (searchParams = {}) => {
-    try {
-      const response = await apiClient.get('/care-plans/search', { params: searchParams });
-      return { success: true, data: response.data, message: 'Tìm kiếm gói chăm sóc thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Tìm kiếm gói chăm sóc thất bại' };
-    }
-  },
-  
-  getActiveCarePlans: async (params = {}) => {
-    try {
-      const response = await apiClient.get('/care-plans/active', { params });
-      return { success: true, data: response.data, message: 'Lấy gói chăm sóc đang hoạt động thành công' };
-    } catch (error) {
-      return { success: false, error: error.response?.data || error.message || 'Lấy gói chăm sóc đang hoạt động thất bại' };
-    }
-  },
+class CarePlanService {
+  constructor() {
+    this.api = axios.create({
+      baseURL: getApiBaseUrl(),
+      timeout: 10000,
+    });
 
-  /**
-   * Lấy gói chăm sóc assignment theo residentId (API thật)
-   * @param {string} residentId
-   * @returns {Promise<Object>} Assignment đầu tiên (nếu có)
-   */
-  getCarePlanAssignmentByResidentId: async (residentId) => {
-    try {
-      const response = await apiClient.get(`/care-plan-assignments/by-resident/${residentId}`);
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        return { success: true, data: response.data[0] };
+    // Add request interceptor to include auth token
+    this.api.interceptors.request.use(
+      async (config) => {
+        const token = await AsyncStorage.getItem('accessToken');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
       }
-      return { success: false, data: null, error: 'Không có gói chăm sóc' };
-    } catch (error) {
-      return { success: false, data: null, error: error.response?.data || error.message || 'Không thể lấy gói chăm sóc' };
-    }
-  },
+    );
+  }
 
-  // ==================== MOCK DATA FUNCTIONS (DEVELOPMENT) ====================
-
-  /**
-   * Lấy danh sách tất cả gói dịch vụ chăm sóc (Mock Data)
-   * @returns {Promise<Array>} Danh sách gói dịch vụ
-   */
-  getCarePlans: async () => {
+  // Get all care plans
+  async getCarePlans() {
     try {
-      await delay(300); // Simulate API delay
-      // Sử dụng mock data cho development
-      return carePlans;
-      
-      // Uncomment khi có API thật
-      // const response = await apiService.get('/care-plans');
-      // return response.data;
+      const response = await this.api.get('/care-plans');
+      return response.data;
     } catch (error) {
       console.error('Error fetching care plans:', error);
       throw error;
     }
-  },
+  }
 
-  /**
-   * Lấy gói dịch vụ theo loại (main hoặc supplementary) (Mock Data)
-   * @param {string} category - Loại gói dịch vụ ('main' hoặc 'supplementary')
-   * @returns {Promise<Array>} Danh sách gói dịch vụ theo loại
-   */
-  getCarePlansByCategory: async (category) => {
+  // Get room types
+  async getRoomTypes() {
     try {
-      await delay(300);
-      const response = await apiService.get(`/care-plans?category=${category}`);
+      const response = await this.api.get('/room-types');
       return response.data;
-    } catch (error) {
-      console.error('Error fetching care plans by category:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Lấy danh sách phòng có sẵn (Mock Data)
-   * @returns {Promise<Array>} Danh sách phòng có sẵn
-   */
-  getAvailableRooms: async () => {
-    try {
-      await delay(300);
-      const response = await apiService.get('/rooms?status=available');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching available rooms:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Lấy danh sách giường có sẵn (Mock Data)
-   * @returns {Promise<Array>} Danh sách giường có sẵn
-   */
-  getAvailableBeds: async () => {
-    try {
-      await delay(300);
-      const response = await apiService.get('/beds?status=available');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching available beds:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Lấy thông tin loại phòng và giá (Mock Data)
-   * @returns {Promise<Array>} Danh sách loại phòng
-   */
-  getRoomTypes: async () => {
-    try {
-      await delay(300);
-      // Sử dụng mock data cho development
-      return roomTypes;
-      
-      // Uncomment khi có API thật
-      // const response = await apiService.get('/room-types');
-      // return response.data;
     } catch (error) {
       console.error('Error fetching room types:', error);
       throw error;
     }
-  },
+  }
 
-  /**
-   * Lấy danh sách cư dân (residents) (Mock Data)
-   * @returns {Promise<Array>} Danh sách cư dân
-   */
-  getResidents: async () => {
+  // Get all residents
+  async getResidents() {
     try {
-      await delay(300);
-      // Sử dụng mock data cho development
-      return residents;
-      
-      // Uncomment khi có API thật
-      // const response = await apiService.get('/residents');
-      // return response.data;
+      const response = await this.api.get('/residents');
+      return response.data;
     } catch (error) {
       console.error('Error fetching residents:', error);
       throw error;
     }
-  },
+  }
 
-  /**
-   * Tạo đăng ký gói dịch vụ mới (Mock Data)
-   * @param {Object} assignmentData - Dữ liệu đăng ký gói dịch vụ
-   * @returns {Promise<Object>} Thông tin đăng ký mới
-   */
-  createCarePlanAssignment: async (assignmentData) => {
+  // Get care plan assignments to check which residents are already registered
+  async getCarePlanAssignments() {
     try {
-      await delay(500);
-      // Sử dụng mock data cho development
-      const newAssignment = {
-        _id: `assignment_${Date.now()}`,
-        ...assignmentData,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      
-      // Trong thực tế, đây sẽ được lưu vào database
-      console.log('Created care plan assignment:', newAssignment);
-      return newAssignment;
-      
-      // Uncomment khi có API thật
-      // const response = await apiService.post('/care-plan-assignments', assignmentData);
-      // return response.data;
-    } catch (error) {
-      console.error('Error creating care plan assignment:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Cập nhật đăng ký gói dịch vụ (Mock Data)
-   * @param {string} assignmentId - ID đăng ký
-   * @param {Object} updateData - Dữ liệu cập nhật
-   * @returns {Promise<Object>} Thông tin đăng ký đã cập nhật
-   */
-  updateCarePlanAssignment: async (assignmentId, updateData) => {
-    try {
-      await delay(300);
-      const response = await apiService.put(`/care-plan-assignments/${assignmentId}`, updateData);
+      const response = await this.api.get('/care-plan-assignments');
       return response.data;
-    } catch (error) {
-      console.error('Error updating care plan assignment:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Lấy danh sách đăng ký gói dịch vụ (Mock Data)
-   * @returns {Promise<Array>} Danh sách đăng ký gói dịch vụ
-   */
-  getCarePlanAssignments: async () => {
-    try {
-      await delay(300);
-      // Sử dụng mock data cho development
-      return carePlanAssignments;
-      
-      // Uncomment khi có API thật
-      // const response = await apiService.get('/care-plan-assignments');
-      // return response.data;
     } catch (error) {
       console.error('Error fetching care plan assignments:', error);
       throw error;
     }
-  },
+  }
 
-  /**
-   * Lấy chi tiết đăng ký gói dịch vụ (Mock Data)
-   * @param {string} assignmentId - ID đăng ký
-   * @returns {Promise<Object>} Chi tiết đăng ký gói dịch vụ
-   */
-  getCarePlanAssignmentById: async (assignmentId) => {
+  // Get unregistered residents (those without care plan assignments)
+  async getUnregisteredResidents() {
     try {
-      await delay(200);
-      const response = await apiService.get(`/care-plan-assignments/${assignmentId}`);
+      // Temporarily disable new API endpoint due to 400 error
+      // Use legacy method directly since it's working correctly
+      console.log('Using legacy method for unregistered residents...');
+      return await this.getUnregisteredResidentsLegacy();
+      
+      // TODO: Fix backend API endpoint and uncomment below
+      /*
+      // Use the new backend API endpoint
+      const response = await this.api.get('/care-plan-assignments/unregistered-residents');
       return response.data;
+      */
     } catch (error) {
-      console.error('Error fetching care plan assignment:', error);
+      console.error('Error fetching unregistered residents:', error);
       throw error;
     }
-  },
+  }
 
-  /**
-   * Tính toán giá tiền dựa trên gói dịch vụ và loại phòng
-   * @param {Array} selectedCarePlans - Danh sách gói dịch vụ đã chọn
-   * @param {string} selectedRoomType - Loại phòng đã chọn
-   * @param {Array} roomTypes - Danh sách loại phòng
-   * @returns {Object} Thông tin chi phí
-   */
-  calculateTotalCost: (selectedCarePlans, selectedRoomType, roomTypes) => {
-    let carePlansCost = 0;
-    let roomCost = 0;
+  // Legacy method - kept for backward compatibility
+  async getUnregisteredResidentsLegacy() {
+    try {
+      const [residents, assignments] = await Promise.all([
+        this.getResidents(),
+        this.getCarePlanAssignments()
+      ]);
 
-    // Tính tổng chi phí gói dịch vụ
-    if (selectedCarePlans && selectedCarePlans.length > 0) {
-      carePlansCost = selectedCarePlans.filter(Boolean).reduce((total, plan) => {
-        return total + (plan?.monthly_price || 0);
-      }, 0);
-    }
-
-    // Tính chi phí phòng
-    if (selectedRoomType && roomTypes) {
-      const roomType = roomTypes.filter(Boolean).find(rt => rt.room_type === selectedRoomType);
-      if (roomType) {
-        roomCost = roomType?.monthly_price || 0;
+      console.log('DEBUG - All residents:', residents.length);
+      console.log('DEBUG - All assignments:', assignments.length);
+      
+      // Debug: Check first assignment structure
+      if (assignments.length > 0) {
+        console.log('DEBUG - First assignment resident_id type:', typeof assignments[0].resident_id);
+        console.log('DEBUG - First assignment resident_id:', assignments[0].resident_id);
+        console.log('DEBUG - First assignment resident_id keys:', Object.keys(assignments[0].resident_id || {}));
       }
+
+      // Get list of resident IDs that already have care plan assignments
+      // Handle both populated and unpopulated resident_id
+      const registeredResidentIds = assignments.map(assignment => {
+        // If resident_id is populated (object), use _id
+        if (assignment.resident_id && typeof assignment.resident_id === 'object' && assignment.resident_id._id) {
+          return assignment.resident_id._id.toString();
+        }
+        // If resident_id is just the ObjectId string
+        return assignment.resident_id?.toString();
+      }).filter(Boolean); // Remove any undefined values
+
+      console.log('DEBUG - Registered resident IDs:', registeredResidentIds);
+
+      // Filter out residents who already have care plan assignments
+      // Convert resident._id to string for comparison
+      const unregisteredResidents = residents.filter(resident => {
+        const residentIdString = resident._id?.toString();
+        const isRegistered = registeredResidentIds.includes(residentIdString);
+        
+        console.log(`DEBUG - Resident ${resident.full_name} (${residentIdString}): ${isRegistered ? 'REGISTERED' : 'UNREGISTERED'}`);
+        
+        return !isRegistered;
+      });
+
+      console.log('DEBUG - Unregistered residents:', unregisteredResidents.length);
+      console.log('DEBUG - Unregistered residents names:', unregisteredResidents.map(r => r.full_name));
+
+      return unregisteredResidents;
+    } catch (error) {
+      console.error('Error fetching unregistered residents:', error);
+      throw error;
     }
+  }
+
+  // Get rooms by filter
+  async getRoomsByFilter(filters) {
+    try {
+      console.log('DEBUG - Calling rooms/filter with params:', filters);
+      const response = await this.api.get('/rooms/filter', { params: filters });
+      console.log('DEBUG - Rooms filter response:', response.data.length, 'rooms found');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching rooms by filter:', error);
+      throw error;
+    }
+  }
+
+  // Get available beds by room
+  async getAvailableBedsByRoom(roomId) {
+    try {
+      const response = await this.api.get(`/beds/available/by-room/${roomId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching available beds by room:', error);
+      throw error;
+    }
+  }
+
+  // Create care plan assignment
+  async createCarePlanAssignment(assignmentData) {
+    try {
+      console.log('DEBUG - Calling POST /care-plan-assignments with data:', assignmentData);
+      const response = await this.api.post('/care-plan-assignments', assignmentData);
+      console.log('DEBUG - Care plan assignment created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating care plan assignment:', error);
+      console.error('Error response data:', error.response?.data);
+      throw error;
+    }
+  }
+
+  // Create bed assignment
+  async createBedAssignment(bedAssignmentData) {
+    try {
+      console.log('DEBUG - Calling POST /bed-assignments with data:', bedAssignmentData);
+      const response = await this.api.post('/bed-assignments', bedAssignmentData);
+      console.log('DEBUG - Bed assignment created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating bed assignment:', error);
+      console.error('Error response data:', error.response?.data);
+      throw error;
+    }
+  }
+
+  // Calculate total cost
+  calculateTotalCost(selectedPlans, roomType, roomTypes) {
+    const carePlansCost = selectedPlans.reduce((total, plan) => {
+      return total + (plan?.monthly_price || 0);
+    }, 0);
+
+    const roomCost = roomType ? roomType.monthly_price || 0 : 0;
+    const totalCost = carePlansCost + roomCost;
 
     return {
       carePlansCost,
       roomCost,
-      totalCost: carePlansCost + roomCost
+      totalCost
     };
-  },
-
-  // ==================== LEGACY SUPPORT ====================
-
-  /**
-   * LEGACY SUPPORT: Export individual functions for backward compatibility
-   */
-  getCarePlansLegacy: async () => {
-    return await carePlanService.getCarePlans();
-  },
-
-  getCarePlansByCategoryLegacy: async (category) => {
-    return await carePlanService.getCarePlansByCategory(category);
-  },
-
-  getAvailableRoomsLegacy: async () => {
-    return await carePlanService.getAvailableRooms();
-  },
-
-  getAvailableBedsLegacy: async () => {
-    return await carePlanService.getAvailableBeds();
-  },
-
-  getRoomTypesLegacy: async () => {
-    return await carePlanService.getRoomTypes();
-  },
-
-  getResidentsLegacy: async () => {
-    return await carePlanService.getResidents();
-  },
-
-  createCarePlanAssignmentLegacy: async (assignmentData) => {
-    return await carePlanService.createCarePlanAssignment(assignmentData);
-  },
-
-  updateCarePlanAssignmentLegacy: async (assignmentId, updateData) => {
-    return await carePlanService.updateCarePlanAssignment(assignmentId, updateData);
-  },
-
-  getCarePlanAssignmentsLegacy: async () => {
-    return await carePlanService.getCarePlanAssignments();
-  },
-
-  getCarePlanAssignmentByIdLegacy: async (assignmentId) => {
-    return await carePlanService.getCarePlanAssignmentById(assignmentId);
-  },
-
-  calculateTotalCostLegacy: (selectedCarePlans, selectedRoomType, roomTypes) => {
-    return carePlanService.calculateTotalCost(selectedCarePlans, selectedRoomType, roomTypes);
   }
-};
+}
 
-// API endpoints - sẽ được sử dụng khi có API thực tế
-const API_ENDPOINTS = {
-  CARE_PLANS: '/care-plans',
-  ROOM_TYPES: '/room-types',
-  RESIDENTS: '/residents',
-  ROOMS: '/rooms',
-  BEDS: '/beds',
-  CARE_PLAN_ASSIGNMENTS: '/care-plan-assignments',
-};
-
-export default carePlanService; 
+export default new CarePlanService(); 

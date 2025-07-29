@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import authService from '../../api/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import authService from '../../api/services/authService';
+import { clearAllResidents } from './residentSlice';
 
 // Check if user is already logged in
 export const checkAuthState = createAsyncThunk(
@@ -46,15 +47,28 @@ export const register = createAsyncThunk(
 // Logout user
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
+      // Call logout API first (while token is still available)
       const response = await authService.logout();
-      if (!response.success) {
-        return rejectWithValue(response.error || 'Đăng xuất thất bại');
-      }
+      
+      // Clear tokens and state after successful API call
+      dispatch(clearTokens());
+      dispatch(clearAllState());
+      dispatch(clearAllResidents());
+      
+      // Always return success for logout (even if API fails with 401)
       return response;
     } catch (error) {
-      return rejectWithValue(error.message || 'Đăng xuất thất bại');
+      console.log('Logout API call failed, clearing state anyway:', error.message);
+      // If API call fails, still clear tokens and state for security
+      dispatch(clearTokens());
+      dispatch(clearAllState());
+      dispatch(clearAllResidents());
+      return {
+        success: true,
+        message: 'Đã đăng xuất',
+      };
     }
   }
 );
@@ -117,6 +131,19 @@ const authSlice = createSlice({
       state.error = null;
       state.message = null;
     },
+    clearTokens: (state) => {
+      // Clear tokens from AsyncStorage
+      AsyncStorage.multiRemove(['accessToken', 'refreshToken']).catch(console.error);
+    },
+    clearAllState: (state) => {
+      // Clear all auth state
+      state.user = null;
+      state.accessToken = null;
+      state.isAuthenticated = false;
+      state.isLoading = false;
+      state.error = null;
+      state.message = null;
+    },
     updateProfile: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
@@ -166,6 +193,14 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.error = null;
         state.message = 'Đăng nhập thành công!';
+        
+        // Trigger profile fetch to get complete user data including avatar
+        if (action.payload.user && !action.payload.user.avatar) {
+          // Schedule profile fetch after login
+          setTimeout(() => {
+            // This will be handled by the component's useEffect
+          }, 100);
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -298,6 +333,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { resetAuthError, resetAuthMessage, clearAuthState, updateProfile } = authSlice.actions;
+export const { resetAuthError, resetAuthMessage, clearAuthState, updateProfile, clearTokens, clearAllState } = authSlice.actions;
 
 export default authSlice.reducer; 

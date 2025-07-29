@@ -26,23 +26,22 @@ import {
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import userService from '../../api/services/userService';
-import { API_BASE_URL as CONFIG_API_BASE_URL } from '../../api/config/apiConfig';
+import authService from '../../api/services/authService';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
-// Fallback nếu API_BASE_URL bị undefined
-const DEFAULT_API_BASE_URL = 'http://192.168.2.5:8000';
-const getApiBaseUrl = () => {
-  if (typeof CONFIG_API_BASE_URL === 'string' && CONFIG_API_BASE_URL.startsWith('http')) {
-    return CONFIG_API_BASE_URL;
-  }
-  console.warn('[FamilyProfileScreen] API_BASE_URL is undefined, fallback to default:', DEFAULT_API_BASE_URL);
-  return DEFAULT_API_BASE_URL;
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  const uri = getImageUri(avatar, 'avatar');
+  return uri || DEFAULT_AVATAR;
 };
 
 // Import constants
-import { COLORS, FONTS } from '../../constants/theme';
+import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import actions
-import { logout } from '../../redux/slices/authSlice';
+import { logout, updateProfile } from '../../redux/slices/authSlice';
 
 // Import notification system
 import { useNotification } from '../../components/NotificationSystem';
@@ -66,6 +65,25 @@ const FamilyProfileScreen = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+  
+  // Fetch profile after login to get complete user data including avatar
+  useEffect(() => {
+    const fetchProfileIfNeeded = async () => {
+      if (user && user.id && !user.avatar) {
+        try {
+          const profileRes = await authService.getProfile();
+          if (profileRes.success && profileRes.data) {
+            // Update user data in Redux
+            dispatch(updateProfile(profileRes.data));
+          }
+        } catch (error) {
+          console.log('Error fetching profile:', error);
+        }
+      }
+    };
+    
+    fetchProfileIfNeeded();
+  }, [user]);
   
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState({
@@ -215,17 +233,6 @@ const FamilyProfileScreen = ({ navigation }) => {
       setLoading(false);
       showError('Có lỗi khi đổi avatar!');
     }
-  };
-
-  const getAvatarUri = (avatar) => {
-    if (!avatar) return 'https://randomuser.me/api/portraits/men/20.jpg';
-    if (avatar.startsWith('http') || avatar.startsWith('https')) return avatar;
-    // Chuyển toàn bộ \\ hoặc \ thành /
-    const cleanPath = avatar.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
-    const baseUrl = getApiBaseUrl();
-    const uri = `${baseUrl}/${cleanPath}`;
-    console.log('[FamilyProfileScreen] API_BASE_URL:', baseUrl, 'avatar:', avatar, 'cleanPath:', cleanPath, 'uri:', uri);
-    return uri;
   };
 
   // Get resident names for relationship display

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -28,8 +28,66 @@ import * as ImagePicker from 'expo-image-picker';
 
 // Import constants
 import { COLORS, FONTS } from '../../constants/theme';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import dateUtils, { formatDateFromBackend } from '../../utils/dateUtils';
+import authService from '../../api/services/authService';
 
-const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  return getImageUri(avatar, 'avatar');
+};
+
+// Helper để format ngày thành dd/mm/yyyy
+const formatDateToDDMMYYYY = (dateValue) => {
+  if (!dateValue) return 'Chưa cập nhật';
+  
+  try {
+    let date;
+    
+    // Nếu là string, thử parse
+    if (typeof dateValue === 'string') {
+      // Xử lý các format string khác nhau
+      if (dateValue.includes('T') || dateValue.includes('Z')) {
+        // ISO date string
+        date = new Date(dateValue);
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+        // yyyy-mm-dd format
+        const [year, month, day] = dateValue.split('-');
+        return `${day}/${month}/${year}`;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)) {
+        // Đã là dd/mm/yyyy
+        return dateValue;
+      } else if (/^\d{2}-\d{2}-\d{4}$/.test(dateValue)) {
+        // dd-mm-yyyy format
+        return dateValue.replace(/-/g, '/');
+      } else {
+        // Thử parse với Date constructor
+        date = new Date(dateValue);
+      }
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === 'number') {
+      date = new Date(dateValue);
+    } else {
+      return 'Chưa cập nhật';
+    }
+    
+    // Kiểm tra date hợp lệ
+    if (date && !isNaN(date.getTime())) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+    
+    return 'Chưa cập nhật';
+  } catch (error) {
+    console.error('Error formatting date:', error, 'Input:', dateValue);
+    return 'Chưa cập nhật';
+  }
+};
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -37,33 +95,48 @@ const ProfileScreen = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [loading, setLoading] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  // Fallback nếu thiếu thông tin user
-  const getUserData = () => {
-    if (user && user.full_name) return user;
-    return {
-      full_name: 'Nguyễn Văn A',
-      role: 'staff',
-      email: 'staff@example.com',
-      phone: '0123456789',
-      join_date: '2022-01-01',
-      avatar: DEFAULT_AVATAR,
-      position: 'Điều dưỡng',
-      qualification: 'Cử nhân Điều dưỡng',
-      notes: 'Nhân viên có kinh nghiệm chăm sóc người cao tuổi'
-    };
-  };
-  const userData = getUserData();
+  // Sử dụng thông tin user thật từ Redux
+  const userData = user || {};
 
-  // Hiển thị ngày vào làm dạng string đẹp
-  const joinDateString = useMemo(() => {
-    if (!userData.join_date) return 'Chưa cập nhật';
-    // Nếu là dạng yyyy-mm-dd thì chuyển sang dd/mm/yyyy
-    if (/^\d{4}-\d{2}-\d{2}/.test(userData.join_date)) {
-      const [y, m, d] = userData.join_date.split('-');
-      return `${d}/${m}/${y}`;
+  // Load profile từ API khi component mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getProfile();
+      
+      if (response.success) {
+        // Debug log để xem dữ liệu join_date
+        console.log('Profile data from API:', response.data);
+        console.log('Join date raw value:', response.data.join_date);
+        console.log('Join date type:', typeof response.data.join_date);
+        
+        // Cập nhật user data vào Redux store
+        dispatch(updateProfile(response.data));
+      } else {
+        console.log('Failed to load profile:', response.error);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
     }
-    return userData.join_date;
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  };
+
+  // Hiển thị ngày vào làm dạng string đẹp với format dd/mm/yyyy
+  const joinDateString = useMemo(() => {
+    return formatDateFromBackend(userData.join_date);
   }, [userData.join_date]);
 
   // Hiển thị role dễ hiểu hơn
@@ -72,7 +145,7 @@ const ProfileScreen = () => {
       case 'staff': return 'Nhân Viên';
       case 'admin': return 'Quản Trị Viên';
       case 'family': return 'Gia Đình';
-      default: return role;
+      default: return role || 'Chưa xác định';
     }
   };
 
@@ -171,8 +244,8 @@ const ProfileScreen = () => {
         contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
-            onRefresh={() => setLoading(true)}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             colors={[COLORS.primary]}
           />
         }
@@ -181,7 +254,7 @@ const ProfileScreen = () => {
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <Avatar.Image
-              source={{ uri: userData.avatar || DEFAULT_AVATAR }}
+              source={{ uri: getAvatarUri(userData.avatar || userData.profile_picture) }}
               size={100}
               style={styles.avatar}
             />
@@ -194,9 +267,15 @@ const ProfileScreen = () => {
           </View>
           
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{userData.full_name || 'Chưa có tên'}</Text>
-            <Text style={styles.profileRole}>{getDisplayRole(userData.role) || 'Chưa có vai trò'}</Text>
-            <Text style={styles.profilePosition}>{userData.position || 'Chưa cập nhật'}</Text>
+            <Text style={styles.profileName}>
+              {userData.full_name || userData.name || userData.username || 'Chưa có tên'}
+            </Text>
+            <Text style={styles.profileRole}>
+              {getDisplayRole(userData.role)}
+            </Text>
+            <Text style={styles.profilePosition}>
+              {userData.position || userData.job_title || userData.department || 'Chưa cập nhật'}
+            </Text>
           </View>
         </View>
         
@@ -208,7 +287,9 @@ const ProfileScreen = () => {
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{userData.email || 'Chưa có email'}</Text>
+                <Text style={styles.infoValue}>
+                  {userData.email || userData.email_address || 'Chưa có email'}
+                </Text>
               </View>
             </View>
             
@@ -217,7 +298,9 @@ const ProfileScreen = () => {
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Số điện thoại</Text>
-                <Text style={styles.infoValue}>{userData.phone || 'Chưa có số điện thoại'}</Text>
+                <Text style={styles.infoValue}>
+                  {userData.phone || userData.phone_number || userData.mobile || 'Chưa có số điện thoại'}
+                </Text>
               </View>
             </View>
             
@@ -235,17 +318,21 @@ const ProfileScreen = () => {
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Bằng cấp</Text>
-                <Text style={styles.infoValue}>{userData.qualification || 'Chưa cập nhật'}</Text>
+                <Text style={styles.infoValue}>
+                  {userData.qualification || userData.education || userData.degree || 'Chưa cập nhật'}
+                </Text>
               </View>
             </View>
             
-            {userData.notes && (
+            {(userData.notes || userData.description || userData.bio) && (
               <>
                 <Divider style={styles.divider} />
                 <View style={styles.infoRow}>
                   <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Ghi chú</Text>
-                    <Text style={styles.infoValue}>{userData.notes}</Text>
+                    <Text style={styles.infoValue}>
+                      {userData.notes || userData.description || userData.bio}
+                    </Text>
                   </View>
                 </View>
               </>

@@ -17,61 +17,136 @@ import {
   IconButton,
   FAB, 
   Searchbar,
-  SegmentedButtons
+  SegmentedButtons,
+  ActivityIndicator
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchActivities } from '../../redux/slices/activitySlice';
+import { useSelector } from 'react-redux';
+import activityParticipationService from '../../api/services/activityParticipationService';
 
 const ActivityListScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const dispatch = useDispatch();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState('upcoming');
+  const user = useSelector((state) => state.auth.user);
+  
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('today'); // Thay đổi từ 'upcoming' thành 'today'
   
-  const { activities, loading } = useSelector((state) => state.activities);
-  
-  useEffect(() => {
-    dispatch(fetchActivities());
-  }, [dispatch]);
-  
-  const onRefresh = () => {
-    setRefreshing(true);
-    dispatch(fetchActivities()).finally(() => setRefreshing(false));
+  // Load activities from API
+  const loadActivities = async () => {
+    try {
+      setLoading(true);
+      if (user?.id) {
+        const response = await activityParticipationService.getUniqueActivitiesByStaffId(user.id);
+        if (response.success) {
+          console.log('✅ Unique activities loaded:', response.data.length, 'activities');
+          console.log('✅ First unique activity sample:', response.data[0]);
+          setActivities(response.data || []);
+        } else {
+          console.error('Failed to load activities:', response.error);
+          setActivities([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const filteredActivities = activities
-    .filter(activity => {
-      // Filter by search query
-      if (searchQuery) {
-        return activity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               activity.description.toLowerCase().includes(searchQuery.toLowerCase());
-      }
-      return true;
-    })
-    .filter(activity => {
-      const today = new Date();
-      const activityDate = new Date(activity.scheduledTime);
+  useEffect(() => {
+    loadActivities();
+  }, [user?.id]);
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadActivities();
+    setRefreshing(false);
+  };
+  
+  // Categorize activities by date
+  const categorizeActivities = (activities) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const categorized = {
+      today: [],
+      upcoming: [],
+      past: []
+    };
+    
+    activities.forEach(activity => {
+      // Sử dụng date từ API response, không phải activity_id.date
+      if (!activity.date) return;
       
-      // Apply date filter
-      switch (filter) {
-        case 'today':
-          return activityDate.setHours(0, 0, 0, 0) === today.setHours(0, 0, 0, 0);
-        case 'upcoming':
-          return activityDate >= today;
-        case 'past':
-          return activityDate < today;
-        default:
-          return true;
+      const activityDate = new Date(activity.date);
+      activityDate.setHours(0, 0, 0, 0);
+      
+      if (activityDate.getTime() === today.getTime()) {
+        categorized.today.push(activity);
+      } else if (activityDate > today) {
+        categorized.upcoming.push(activity);
+      } else {
+        categorized.past.push(activity);
       }
     });
+    
+    return categorized;
+  };
+  
+  const categorizedActivities = categorizeActivities(activities);
+  
+  // Debug log
+  console.log('📊 Categorized activities:', {
+    today: categorizedActivities.today.length,
+    upcoming: categorizedActivities.upcoming.length,
+    past: categorizedActivities.past.length,
+    total: activities.length
+  });
+  
+  // Filter activities based on selected filter
+  const getFilteredActivities = () => {
+    let filtered = [];
+    
+    switch (filter) {
+      case 'today':
+        filtered = categorizedActivities.today;
+        break;
+      case 'upcoming':
+        filtered = categorizedActivities.upcoming;
+        break;
+      case 'past':
+        filtered = categorizedActivities.past;
+        break;
+      default:
+        filtered = activities;
+    }
+    
+    console.log('🔍 Filtered activities for', filter, ':', filtered.length);
+    
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter(activity => {
+        const activityName = activity.activity_id?.activity_name || '';
+        const location = activity.activity_id?.location || '';
+        return activityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               location.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+    }
+    
+    return filtered;
+  };
+  
+  const filteredActivities = getFilteredActivities();
   
   const getActivityIcon = (type) => {
-    switch (type.toLowerCase()) {
+    switch (type?.toLowerCase()) {
       case 'physical':
         return <MaterialIcons name="fitness-center" size={24} color={COLORS.primary} />;
       case 'social':
@@ -88,20 +163,36 @@ const ActivityListScreen = () => {
   };
   
   const renderActivityItem = ({ item }) => {
-    const activityDate = new Date(item.scheduledTime);
+    console.log('🎯 Rendering activity item:', {
+      id: item._id,
+      date: item.date,
+      activity_id: item.activity_id,
+      attendance_status: item.attendance_status
+    });
+    
+    const activity = item.activity_id;
+    
+    // Sử dụng date từ item (API response), không phải activity.date
+    const activityDate = new Date(item.date);
     const formattedTime = activityDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const formattedDate = activityDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 
+    // Fallback nếu không có activity_id hoặc activity_name
+    const activityName = activity?.activity_name || 'Hoạt động không xác định';
+    const activityDescription = activity?.description || 'Không có mô tả';
+    const activityLocation = activity?.location || 'Chưa có địa điểm';
+    const activityType = activity?.activity_type || 'general';
+
     return (
-      <TouchableOpacity onPress={() => navigation.navigate('ChiTietHoatDong', { activityId: item.id })}>
+      <TouchableOpacity onPress={() => navigation.navigate('ChiTietHoatDong', { activityId: activity?._id || item._id })}>
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.activityHeader}>
               <View style={styles.activityTypeIcon}>
-                {getActivityIcon(item.type)}
+                {getActivityIcon(activityType)}
               </View>
               <View style={styles.activityInfo}>
-                <Text style={FONTS.h4}>{item.name}</Text>
+                <Text style={FONTS.h4}>{activityName}</Text>
                 <Text style={[FONTS.body3, { color: COLORS.textSecondary }]}>
                   {formattedDate} • {formattedTime}
                 </Text>
@@ -114,7 +205,7 @@ const ActivityListScreen = () => {
             </View>
             
             <Text style={[FONTS.body2, { marginTop: 8 }]} numberOfLines={2}>
-              {item.description}
+              {activityDescription}
             </Text>
             
             <View style={styles.tagsContainer}>
@@ -122,13 +213,13 @@ const ActivityListScreen = () => {
                 icon="map-marker" 
                 mode="outlined" 
                 style={styles.chip}>
-                {item.location}
+                {activityLocation}
               </Chip>
               <Chip 
-                icon="account-group" 
+                icon="clock" 
                 mode="outlined" 
                 style={styles.chip}>
-                {item.participants} người tham gia
+                {activity.duration || 'Không xác định'} phút
               </Chip>
             </View>
           </Card.Content>
@@ -143,6 +234,15 @@ const ActivityListScreen = () => {
     { value: 'upcoming', label: 'Sắp tới', icon: 'calendar-clock' },
     { value: 'past', label: 'Đã qua', icon: 'calendar-check' },
   ];
+  
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: 16, color: COLORS.textSecondary }}>Đang tải hoạt động...</Text>
+      </SafeAreaView>
+    );
+  }
   
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -195,7 +295,7 @@ const ActivityListScreen = () => {
       <FlatList
         data={filteredActivities}
         renderItem={renderActivityItem}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item._id || item.id}
         contentContainerStyle={styles.listContainerNew}
         refreshing={refreshing}
         onRefresh={onRefresh}
@@ -204,6 +304,15 @@ const ActivityListScreen = () => {
             <MaterialCommunityIcons name="calendar-blank" size={64} color={COLORS.disabled} />
             <Text style={styles.emptyTextNew}>Không tìm thấy hoạt động nào</Text>
             <Text style={styles.emptySubTextNew}>Thử thay đổi bộ lọc hoặc tạo hoạt động mới</Text>
+            {/* Debug info */}
+            <Text style={[styles.emptySubTextNew, { marginTop: 20, fontSize: 12 }]}>
+              Tổng {activities.length} hoạt động duy nhất, Bộ lọc: {filter === 'today' ? 'Hôm nay' : filter === 'upcoming' ? 'Sắp tới' : 'Đã qua'}
+            </Text>
+            <Text style={[styles.emptySubTextNew, { fontSize: 12 }]}>
+              Hôm nay: {categorizedActivities.today.length}, 
+              Sắp tới: {categorizedActivities.upcoming.length}, 
+              Đã qua: {categorizedActivities.past.length}
+            </Text>
           </View>
         }
       />

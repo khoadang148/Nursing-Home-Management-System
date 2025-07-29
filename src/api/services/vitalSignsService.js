@@ -1,5 +1,6 @@
 import apiClient from '../config/axiosConfig';
 import { delay } from '../../utils/helpers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Vital Signs Service - Quản lý chỉ số sinh hiệu
@@ -36,6 +37,16 @@ const vitalSignsService = {
    */
   getVitalSignsByResidentId: async (residentId) => {
     try {
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No access token found, skipping API call');
+        return {
+          success: false,
+          error: 'User not authenticated',
+        };
+      }
+
       const response = await apiClient.get(`/vital-signs/resident/${residentId}`);
       return {
         success: true,

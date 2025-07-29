@@ -29,10 +29,13 @@ import VisitsManagementScreen from '../screens/visits/VisitsManagementScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 
 // Import Bed screens
-import BedListScreen from '../screens/beds/BedListScreen';
+import BedListScreen from '../screens/bed-assignments/BedAssignmentListScreen';
 import AddBedScreen from '../screens/beds/AddBedScreen';
 import BedDetailScreen from '../screens/beds/BedDetailScreen';
 import EditBedScreen from '../screens/beds/EditBedScreen';
+
+// Import Bill screens
+import CreateBillScreen from '../screens/bills/CreateBillScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -154,6 +157,9 @@ const StaffMainStack = () => (
     <Stack.Screen name="ThemGiuong" component={AddBedScreen} />
     <Stack.Screen name="ChiTietGiuong" component={BedDetailScreen} />
     <Stack.Screen name="ChinhSuaGiuong" component={EditBedScreen} />
+
+    {/* Bill Management Screens */}
+    <Stack.Screen name="TaoHoaDon" component={CreateBillScreen} />
   </Stack.Navigator>
 );
 

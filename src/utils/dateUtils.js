@@ -205,4 +205,47 @@ export const dateUtils = {
   }
 };
 
+// Helper để format ngày từ backend (đã có timezone +7)
+export const formatDateFromBackend = (dateString) => {
+  if (!dateString) return '--';
+  
+  try {
+    // Backend đã lưu với timezone +7, nên parse trực tiếp
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN');
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error);
+    return '--';
+  }
+};
+
+// Helper để format ngày giờ từ backend
+export const formatDateTimeFromBackend = (dateString) => {
+  if (!dateString) return '--';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN');
+  } catch (error) {
+    console.error('Error parsing datetime:', dateString, error);
+    return '--';
+  }
+};
+
+// Helper để format ngày giờ ngắn gọn từ backend
+export const formatTimeFromBackend = (dateString) => {
+  if (!dateString) return '--';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  } catch (error) {
+    console.error('Error parsing time:', dateString, error);
+    return '--';
+  }
+};
+
 export default dateUtils; 

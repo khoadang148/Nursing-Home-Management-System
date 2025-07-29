@@ -6,8 +6,14 @@ import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { logout } from '../../redux/slices/authSlice';
 import { COLORS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
-const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/1.jpg';
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  return getImageUri(avatar, 'avatar');
+};
 
 const StaffMenuScreen = () => {
   const navigation = useNavigation();
@@ -15,24 +21,18 @@ const StaffMenuScreen = () => {
   const insets = useSafeAreaInsets();
   const user = useSelector((state) => state.auth.user);
 
-  // Fallback nếu thiếu thông tin user
-  const getUserData = () => {
-    if (user && user.full_name) {
-      // Chuyển đổi role từ "staff" thành "Nhân Viên"
-      const displayRole = user.role === 'staff' ? 'Nhân Viên' : user.role;
-      return {
-        ...user,
-        role: displayRole
-      };
+  // Sử dụng thông tin user thật từ Redux
+  const userData = user || {};
+
+  // Hiển thị role dễ hiểu hơn
+  const getDisplayRole = (role) => {
+    switch (role) {
+      case 'staff': return 'Nhân Viên';
+      case 'admin': return 'Quản Trị Viên';
+      case 'family': return 'Gia Đình';
+      default: return role;
     }
-    return {
-      full_name: 'Nguyễn Văn A',
-      role: 'Y Tá',
-      email: 'staff@example.com',
-      avatar: DEFAULT_AVATAR,
-    };
   };
-  const userData = getUserData();
 
   const handleLogout = () => {
     Alert.alert(
@@ -62,6 +62,12 @@ const StaffMenuScreen = () => {
       title: 'Gói dịch vụ đã đăng ký',
       icon: <MaterialIcons name="list-alt" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('GoiDichVuDaDangKy'),
+    },
+    {
+      id: 'create-bill',
+      title: 'Tạo hóa đơn',
+      icon: <MaterialIcons name="receipt" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('TaoHoaDon'),
     },
     {
       id: 'family-contact',
@@ -111,14 +117,14 @@ const StaffMenuScreen = () => {
         <TouchableOpacity style={styles.profileHeader} onPress={handleProfilePress}>
           <View style={styles.profileImageContainer}>
             <Image
-              source={{ uri: userData.avatar || DEFAULT_AVATAR }}
+              source={{ uri: getAvatarUri(userData.avatar || userData.profile_picture) }}
               style={styles.profileImage}
             />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{userData.full_name || 'Chưa có tên'}</Text>
+            <Text style={styles.userName}>{userData.full_name || userData.name || 'Chưa có tên'}</Text>
             <Text style={styles.userEmail}>{userData.email || 'Chưa có email'}</Text>
-            <Text style={styles.userRole}>{userData.role || 'Chưa có vai trò'}</Text>
+            <Text style={styles.userRole}>{getDisplayRole(userData.role) || 'Chưa có vai trò'}</Text>
           </View>
           <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
         </TouchableOpacity>

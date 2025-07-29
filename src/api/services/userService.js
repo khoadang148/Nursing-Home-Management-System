@@ -1,38 +1,36 @@
-import apiClient from '../config/axiosConfig';
+import { apiRequest } from '../config/axiosConfig';
 
-const userService = {
-  /**
-   * Cập nhật avatar cho user
-   * @param {string} userId
-   * @param {string} imageUri - Đường dẫn ảnh local
-   * @returns {Promise}
-   */
-  updateAvatar: async (userId, imageUri) => {
+export const userService = {
+  // Lấy danh sách users theo role
+  getUsersByRole: async (role) => {
     try {
-      const formData = new FormData();
-      // Lấy tên file từ uri
-      const fileName = imageUri.split('/').pop();
-      const fileType = fileName.split('.').pop();
-      formData.append('avatar', {
-        uri: imageUri,
-        name: fileName,
-        type: `image/${fileType}`,
-      });
-      const response = await apiClient.patch(`/users/${userId}/avatar`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return {
-        success: true,
-        data: response.data,
-        message: 'Cập nhật avatar thành công',
-      };
+      const response = await apiRequest.get(`/users/by-role?role=${role}`);
+      return response.data;
     } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data || error.message || 'Cập nhật avatar thất bại',
-      };
+      console.error('Error fetching users by role:', error);
+      throw error;
+    }
+  },
+
+  // Tạo user mới
+  createUser: async (userData) => {
+    try {
+      const response = await apiRequest.post('/users', userData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin user theo ID
+  getUserById: async (userId) => {
+    try {
+      const response = await apiRequest.get(`/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user by ID:', error);
+      throw error;
     }
   },
 };

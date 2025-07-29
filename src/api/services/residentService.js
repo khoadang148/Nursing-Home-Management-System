@@ -1,10 +1,21 @@
 import apiClient from '../config/axiosConfig';
 import { API_CONFIG, buildUrl } from '../config/apiConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class ResidentService {
   // Get all residents
   async getAllResidents() {
     try {
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No access token found, skipping API call');
+        return {
+          success: false,
+          error: 'User not authenticated',
+        };
+      }
+
       const response = await apiClient.get(API_CONFIG.ENDPOINTS.RESIDENT.LIST);
       
       if (response.data && Array.isArray(response.data)) {
@@ -30,6 +41,17 @@ class ResidentService {
   // Get resident by ID
   async getResidentById(id) {
     try {
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No access token found, skipping API call');
+        return {
+          success: false,
+          data: null,
+          error: 'User not authenticated',
+        };
+      }
+
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.DETAIL, { id });
       const response = await apiClient.get(url);
       // Log response để debug
@@ -59,6 +81,16 @@ class ResidentService {
   // Get residents by family member ID
   async getResidentsByFamilyMember(familyMemberId) {
     try {
+      // Check if user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        console.log('No access token found, skipping API call');
+        return {
+          success: false,
+          error: 'User not authenticated',
+        };
+      }
+
       const url = buildUrl(API_CONFIG.ENDPOINTS.RESIDENT.BY_FAMILY_MEMBER, { familyMemberId });
       const response = await apiClient.get(url);
       

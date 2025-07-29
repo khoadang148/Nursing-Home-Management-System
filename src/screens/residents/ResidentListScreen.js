@@ -8,41 +8,112 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { Avatar, Badge, Searchbar, Button, FAB, Chip } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useSelector } from 'react-redux';
 
-// Importing mock data - in a real app would come from API
-import { residents } from '../../api/mockData';
+import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import residentService from '../../api/services/residentService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
+import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { formatDateFromBackend } from '../../utils/dateUtils';
+
+const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+
+// Helper để format avatar
+const getAvatarUri = (avatar) => {
+  return getImageUri(avatar, 'avatar');
+};
 
 const ResidentListScreen = ({ navigation }) => {
+  const user = useSelector((state) => state.auth.user);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [residents, setResidents] = useState([]);
   const [filteredResidents, setFilteredResidents] = useState([]);
-  const [filter, setFilter] = useState('Tất cả'); // Tất cả, Cao, Trung bình, Thấp
+  const [residentsWithBedInfo, setResidentsWithBedInfo] = useState([]);
 
+  // Chỉ reload lần đầu khi component mount
   useEffect(() => {
-    // Simulate API loading
-    setTimeout(() => {
-      setFilteredResidents(residents || []);
-      setLoading(false);
-    }, 500);
+    fetchResidents();
   }, []);
 
+  // Redux integration: Reload khi có thay đổi từ Redux store
   useEffect(() => {
-    let result = residents || [];
+    // Có thể thêm logic để reload khi có thay đổi từ Redux
+    // Ví dụ: khi có notification về resident mới
+  }, []);
 
-    // Filter by care level
-    if (filter !== 'Tất cả') {
-      const careLevelMap = {
-        'Cao': 'intensive',
-        'Trung bình': 'intermediate', 
-        'Thấp': 'basic'
-      };
-      const careLevel = careLevelMap[filter];
-      result = result.filter(resident => resident && resident.care_level === careLevel);
+  // Redux integration: Listen to resident changes
+  const residentChanges = useSelector((state) => state.residents?.lastUpdated);
+  
+  useEffect(() => {
+    // Reload khi có thay đổi resident từ Redux
+    if (residentChanges && residents.length > 0) {
+      console.log('Redux detected resident changes, reloading...');
+      fetchResidents();
     }
+  }, [residentChanges]);
+
+  const fetchResidents = async () => {
+    try {
+      setLoading(true);
+      const response = await residentService.getAllResidents();
+      if (response.success) {
+        const residentsData = response.data || [];
+        setResidents(residentsData);
+        setFilteredResidents(residentsData);
+        
+        // Lấy thông tin giường phòng cho từng resident
+        const residentsWithBedData = await Promise.all(
+          residentsData.map(async (resident) => {
+            try {
+              const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(resident._id);
+              if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
+                const bedAssignment = bedResponse.data[0]; // Lấy assignment đầu tiên (active)
+                return {
+                  ...resident,
+                  bed_info: bedAssignment
+                };
+              }
+              return resident;
+            } catch (error) {
+              console.error('Error fetching bed info for resident:', resident._id, error);
+              return resident;
+            }
+          })
+        );
+        
+        setResidentsWithBedInfo(residentsWithBedData);
+        setFilteredResidents(residentsWithBedData);
+      } else {
+        console.error('Failed to fetch residents:', response.error);
+        setResidents([]);
+        setFilteredResidents([]);
+        setResidentsWithBedInfo([]);
+      }
+    } catch (error) {
+      console.error('Error fetching residents:', error);
+      setResidents([]);
+      setFilteredResidents([]);
+      setResidentsWithBedInfo([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pull to refresh function
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchResidents();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    let result = residentsWithBedInfo || [];
 
     // Filter by search query
     if (searchQuery) {
@@ -53,13 +124,13 @@ const ResidentListScreen = ({ navigation }) => {
           resident.full_name
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
-          resident.room_number &&
-          resident.room_number.toLowerCase().includes(searchQuery.toLowerCase())
+          (resident.bed_info?.bed_id?.room_id?.room_number &&
+          resident.bed_info.bed_id.room_id.room_number.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
     setFilteredResidents(result);
-  }, [searchQuery, filter]);
+  }, [searchQuery, residentsWithBedInfo]);
 
   const renderResidentItem = ({ item }) => {
     // Safety check for undefined item
@@ -104,7 +175,7 @@ const ResidentListScreen = ({ navigation }) => {
       >
         <View style={styles.cardHeader}>
           <Avatar.Image
-            source={{ uri: item.photo || item.avatar }}
+            source={{ uri: getAvatarUri(item.photo || item.avatar) || DEFAULT_AVATAR }}
             size={60}
             style={styles.avatar}
           />
@@ -112,9 +183,11 @@ const ResidentListScreen = ({ navigation }) => {
             <Text style={styles.residentName}>{item.full_name}</Text>
             <View style={styles.roomContainer}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
-              <Text style={styles.roomNumber}>Phòng {item.room_number}</Text>
-              {item.bed_number && (
-                <Text style={styles.bedNumber}> - Giường {item.bed_number}</Text>
+              <Text style={styles.roomNumber}>
+                Phòng {item.bed_info?.bed_id?.room_id?.room_number || 'Chưa phân'}
+              </Text>
+              {item.bed_info?.bed_id?.bed_number && (
+                <Text style={styles.bedNumber}> - Giường {item.bed_info.bed_id.bed_number}</Text>
               )}
             </View>
           </View>
@@ -141,7 +214,7 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                {new Date(item.date_of_birth).toLocaleDateString()}
+                {formatDateFromBackend(item.date_of_birth)}
               </Text>
             </View>
             <View style={styles.infoItem}>
@@ -151,22 +224,24 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                Nhập viện: {new Date(item.admission_date).toLocaleDateString()}
+                Nhập viện: {formatDateFromBackend(item.admission_date)}
               </Text>
             </View>
           </View>
 
-          <View style={styles.conditionsContainer}>
-            {medicalConditionsCap.map((condition, index) => (
-              <Chip
-                key={index}
-                style={styles.conditionChip}
-                textStyle={styles.conditionText}
-              >
-                {condition}
-              </Chip>
-            ))}
-          </View>
+          {medicalConditionsCap.length > 0 && (
+            <View style={styles.conditionsContainer}>
+              {medicalConditionsCap.map((condition, index) => (
+                <Chip
+                  key={index}
+                  style={styles.conditionChip}
+                  textStyle={styles.conditionText}
+                >
+                  {condition}
+                </Chip>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.cardFooter}>
@@ -207,7 +282,7 @@ const ResidentListScreen = ({ navigation }) => {
         >
           <Avatar.Image
             size={40}
-            source={{ uri: 'https://randomuser.me/api/portraits/women/21.jpg' }}
+            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) || DEFAULT_AVATAR }}
           />
         </TouchableOpacity>
       </View>
@@ -223,75 +298,6 @@ const ResidentListScreen = ({ navigation }) => {
         />
       </View>
 
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filter === 'Tất cả' && styles.activeFilterButton,
-            ]}
-            onPress={() => setFilter('Tất cả')}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'Tất cả' && styles.activeFilterText,
-              ]}
-            >
-              Tất cả
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filter === 'Cao' && styles.activeFilterButton,
-            ]}
-            onPress={() => setFilter('Cao')}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'Cao' && styles.activeFilterText,
-              ]}
-            >
-              Chăm sóc cao
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filter === 'Trung bình' && styles.activeFilterButton,
-            ]}
-            onPress={() => setFilter('Trung bình')}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'Trung bình' && styles.activeFilterText,
-              ]}
-            >
-              Chăm sóc trung bình
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filter === 'Thấp' && styles.activeFilterButton,
-            ]}
-            onPress={() => setFilter('Thấp')}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'Thấp' && styles.activeFilterText,
-              ]}
-            >
-              Chăm sóc thấp
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -304,6 +310,14 @@ const ResidentListScreen = ({ navigation }) => {
             keyExtractor={(item) => item?._id || Math.random().toString()}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh}
+                colors={[COLORS.primary]}
+                tintColor={COLORS.primary}
+              />
+            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <MaterialIcons name="search-off" size={60} color={COLORS.textSecondary} />
@@ -360,29 +374,6 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     ...FONTS.body2,
-  },
-  filterContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: SIZES.padding,
-  },
-  filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginRight: 8,
-    backgroundColor: COLORS.surface,
-    ...SHADOWS.small,
-  },
-  activeFilterButton: {
-    backgroundColor: COLORS.primary,
-  },
-  filterText: {
-    ...FONTS.body3,
-    color: COLORS.textSecondary,
-  },
-  activeFilterText: {
-    color: COLORS.surface,
-    fontWeight: 'bold',
   },
   loaderContainer: {
     flex: 1,

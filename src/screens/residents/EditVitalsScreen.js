@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Appbar, TextInput, Button, Text, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { validateVitalSigns } from '../../utils/validation';
 import vitalSignsService from '../../api/services/vitalSignsService';
+import { triggerResidentDataReload } from '../../redux/slices/residentSlice';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 
-const RecordVitalsScreen = () => {
+const EditVitalsScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
-  const { residentId } = route.params;
+  const { vitalId, vitalData } = route.params;
   const user = useSelector(state => state.auth.user);
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
 
   const [vitals, setVitals] = useState({
@@ -25,13 +27,26 @@ const RecordVitalsScreen = () => {
     notes: '',
   });
 
-
+  // Pre-populate data when component mounts
+  useEffect(() => {
+    if (vitalData) {
+      setVitals({
+        bloodPressure: vitalData.blood_pressure || '',
+        heartRate: vitalData.heart_rate ? vitalData.heart_rate.toString() : '',
+        temperature: vitalData.temperature ? vitalData.temperature.toString() : '',
+        respiratoryRate: vitalData.respiratory_rate ? vitalData.respiratory_rate.toString() : '',
+        oxygenSaturation: vitalData.oxygen_level ? vitalData.oxygen_level.toString() : '',
+        weight: vitalData.weight ? vitalData.weight.toString() : '',
+        notes: vitalData.notes || '',
+      });
+    }
+  }, [vitalData]);
 
   const handleChange = (field, value) => {
     setVitals({ ...vitals, [field]: value });
   };
 
-  const handleSave = async () => {
+  const handleUpdate = async () => {
     const { isValid, errors } = validateVitalSigns(vitals);
     if (!isValid) {
       const firstError = Object.values(errors)[0];
@@ -42,7 +57,6 @@ const RecordVitalsScreen = () => {
     setLoading(true);
     try {
       const vitalSignData = {
-        resident_id: residentId,
         temperature: vitals.temperature ? parseFloat(vitals.temperature.replace(',', '.')) : undefined,
         heart_rate: vitals.heartRate ? parseInt(vitals.heartRate.replace(',', '.')) : undefined,
         blood_pressure: vitals.bloodPressure || undefined,
@@ -52,18 +66,20 @@ const RecordVitalsScreen = () => {
         notes: vitals.notes || undefined
       };
 
-      const response = await vitalSignsService.createVitalSign(vitalSignData);
+      const response = await vitalSignsService.updateVitalSign(vitalId, vitalSignData);
       
       if (response.success) {
-        Alert.alert('Thành công', 'Đã ghi nhận sinh hiệu!', [
+        // Trigger Redux reload để cập nhật dữ liệu
+        dispatch(triggerResidentDataReload());
+        Alert.alert('Thành công', 'Đã cập nhật sinh hiệu!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        Alert.alert('Lỗi', response.error || 'Không thể ghi nhận sinh hiệu');
+        Alert.alert('Lỗi', response.error || 'Không thể cập nhật sinh hiệu');
       }
     } catch (error) {
-      console.error('Error creating vital signs:', error);
-      Alert.alert('Lỗi', 'Không thể ghi nhận sinh hiệu. Vui lòng thử lại.');
+      console.error('Error updating vital signs:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật sinh hiệu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -78,7 +94,7 @@ const RecordVitalsScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Ghi nhận chỉ số sinh hiệu" />
+          <Appbar.Content title="Chỉnh sửa chỉ số sinh hiệu" />
       </Appbar.Header>
         <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 0 }}>
           <Surface style={styles.card}>
@@ -178,13 +194,13 @@ const RecordVitalsScreen = () => {
           <View style={styles.buttonContainer}>
         <Button
           mode="contained"
-          onPress={handleSave}
+          onPress={handleUpdate}
           loading={loading}
           style={styles.saveButton}
                 labelStyle={styles.saveButtonText}
                 contentStyle={{ paddingVertical: 8 }}
         >
-          Lưu sinh hiệu
+          Cập nhật sinh hiệu
         </Button>
           </View>
       </ScrollView>
@@ -266,4 +282,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RecordVitalsScreen; 
+export default EditVitalsScreen; 

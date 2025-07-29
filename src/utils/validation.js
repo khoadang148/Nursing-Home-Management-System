@@ -89,7 +89,8 @@ export const validateVitalSigns = (vitals) => {
   
   // Heart rate
   if (vitals.heartRate) {
-    const hr = Number(vitals.heartRate);
+    const hrStr = vitals.heartRate.replace(',', '.');
+    const hr = Number(hrStr);
     if (isNaN(hr) || hr < 30 || hr > 200) {
       errors.heartRate = 'Nhịp tim phải từ 30-200 bpm';
     }
@@ -97,7 +98,9 @@ export const validateVitalSigns = (vitals) => {
   
   // Temperature
   if (vitals.temperature) {
-    const temp = Number(vitals.temperature);
+    // Hỗ trợ cả dấu phẩy và dấu chấm cho số thập phân
+    const tempStr = vitals.temperature.replace(',', '.');
+    const temp = Number(tempStr);
     if (isNaN(temp) || temp < 35 || temp > 42) {
       errors.temperature = 'Nhiệt độ phải từ 35-42°C';
     }
@@ -105,7 +108,8 @@ export const validateVitalSigns = (vitals) => {
   
   // Respiratory rate
   if (vitals.respiratoryRate) {
-    const rr = Number(vitals.respiratoryRate);
+    const rrStr = vitals.respiratoryRate.replace(',', '.');
+    const rr = Number(rrStr);
     if (isNaN(rr) || rr < 8 || rr > 40) {
       errors.respiratoryRate = 'Nhịp thở phải từ 8-40 lần/phút';
     }
@@ -113,7 +117,8 @@ export const validateVitalSigns = (vitals) => {
   
   // Oxygen saturation
   if (vitals.oxygenSaturation) {
-    const spo2 = Number(vitals.oxygenSaturation);
+    const spo2Str = vitals.oxygenSaturation.replace(',', '.');
+    const spo2 = Number(spo2Str);
     if (isNaN(spo2) || spo2 < 70 || spo2 > 100) {
       errors.oxygenSaturation = 'SpO2 phải từ 70-100%';
     }

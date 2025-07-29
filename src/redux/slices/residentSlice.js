@@ -107,6 +107,8 @@ const initialState = {
   loading: false,
   error: null,
   success: false,
+  lastUpdated: null, // Track when data was last updated
+  residentDetailsCache: {}, // Cache for resident details (bed info, activities, etc.)
 };
 
 const residentSlice = createSlice({
@@ -127,6 +129,34 @@ const residentSlice = createSlice({
     },
     clearFamilyResidents: (state) => {
       state.familyResidents = [];
+    },
+    triggerResidentDataReload: (state) => {
+      state.lastUpdated = new Date().toISOString();
+    },
+    cacheResidentDetails: (state, action) => {
+      const { residentId, details } = action.payload;
+      state.residentDetailsCache[residentId] = {
+        ...details,
+        cachedAt: new Date().toISOString()
+      };
+    },
+    clearResidentDetailsCache: (state, action) => {
+      if (action.payload) {
+        delete state.residentDetailsCache[action.payload];
+      } else {
+        state.residentDetailsCache = {};
+      }
+    },
+    clearAllResidents: (state) => {
+      // Clear all resident data when logout
+      state.allResidents = [];
+      state.familyResidents = [];
+      state.currentResident = null;
+      state.loading = false;
+      state.error = null;
+      state.success = false;
+      state.lastUpdated = null;
+      state.residentDetailsCache = {};
     },
   },
   extraReducers: (builder) => {
@@ -186,6 +216,7 @@ const residentSlice = createSlice({
         state.allResidents.push(action.payload);
         state.familyResidents.push(action.payload);
         state.success = true;
+        state.lastUpdated = new Date().toISOString(); // Update timestamp
       })
       .addCase(createResident.rejected, (state, action) => {
         state.loading = false;
@@ -211,6 +242,7 @@ const residentSlice = createSlice({
           state.currentResident = action.payload;
         }
         state.success = true;
+        state.lastUpdated = new Date().toISOString(); // Update timestamp
       })
       .addCase(updateResident.rejected, (state, action) => {
         state.loading = false;
@@ -230,6 +262,7 @@ const residentSlice = createSlice({
           state.currentResident = null;
         }
         state.success = true;
+        state.lastUpdated = new Date().toISOString(); // Update timestamp
       })
       .addCase(deleteResident.rejected, (state, action) => {
         state.loading = false;
@@ -243,7 +276,9 @@ export const {
   clearSuccess, 
   setCurrentResident, 
   clearCurrentResident,
-  clearFamilyResidents 
+  clearFamilyResidents,
+  triggerResidentDataReload,
+  clearAllResidents
 } = residentSlice.actions;
 
 export default residentSlice.reducer; 
