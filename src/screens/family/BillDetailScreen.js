@@ -8,14 +8,16 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  Image,
   Dimensions,
+  Linking,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
 import roomTypeService from '../../api/services/roomTypeService';
+import paymentService from '../../api/services/paymentService';
 import { formatCurrency, formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 
@@ -28,11 +30,12 @@ const BillDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [bedAssignment, setBedAssignment] = useState(bedAssignmentFromList || null);
   const [roomTypes, setRoomTypes] = useState([]);
   const [matchedRoomType, setMatchedRoomType] = useState(null);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBillDetail();
@@ -96,19 +99,131 @@ const BillDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const handlePayment = () => {
-    setShowQRModal(true);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchBillDetail();
+      // Cũng refresh bed assignment data nếu cần
+      if (bill && bill.resident_id?._id) {
+        const assignment = await billsService.billingService.getBedAssignmentByResident(bill.resident_id._id);
+        setBedAssignment(assignment);
+      }
+    } catch (error) {
+      console.error('Error refreshing bill detail:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const confirmPayment = async () => {
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+
+  const handlePayment = async () => {
+    setShowPaymentOptions(true);
+  };
+
+  const handlePaymentInApp = async () => {
     try {
       setPaymentLoading(true);
-      const result = await billsService.billingService.processPayment(bill.id, 'qr_code');
-      Alert.alert('Thành công', 'Thanh toán đã được thực hiện thành công!');
-      setShowQRModal(false);
-      navigation.goBack();
+      setShowPaymentOptions(false);
+      
+      // Tạo payment link từ PayOS cho WebView
+      const result = await paymentService.createPaymentLink(bill._id, 'webview');
+      
+      if (result.success && result.data?.data?.checkoutUrl) {
+        const checkoutUrl = result.data.data.checkoutUrl;
+        
+        // Navigate to WebView screen
+        navigation.navigate('PaymentWebViewScreen', {
+          checkoutUrl,
+          billData: {
+            id: bill._id,
+            amount: bill.total_amount,
+            orderCode: bill.order_code || `BILL_${bill._id}`,
+            residentName: bill.resident_id?.full_name,
+            period: bill.due_date ? `${new Date(bill.due_date).getMonth() + 1}/${new Date(bill.due_date).getFullYear()}` : 'N/A',
+          },
+          onPaymentComplete: async (status, billData) => {
+            // Handle payment completion
+            if (status === 'success') {
+              // Reload bill data to check if webhook updated the status
+              console.log('🔄 Payment success detected, reloading bill data...');
+              await fetchBillDetail();
+              
+              // Navigate directly to PaymentResult without Alert
+              navigation.navigate('PaymentResult', {
+                billId: bill._id,
+                paymentStatus: 'success',
+                paymentData: {
+                  transaction_id: billData?.orderCode || 'N/A',
+                  payment_method: 'PayOS',
+                  amount: billData?.amount || 0,
+                  timestamp: new Date().toISOString(),
+                }
+              });
+            } else if (status === 'cancel') {
+              Alert.alert(
+                'Thanh toán đã hủy',
+                'Bạn đã hủy quá trình thanh toán.',
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert(
+                'Thanh toán thất bại',
+                'Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.',
+                [{ text: 'OK' }]
+              );
+            }
+          }
+        });
+      } else {
+        Alert.alert('Lỗi', result.error || 'Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+      }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể thực hiện thanh toán. Vui lòng thử lại sau.');
+      console.error('Payment error:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại sau.');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handlePaymentInBrowser = async () => {
+    try {
+      setPaymentLoading(true);
+      setShowPaymentOptions(false);
+      
+      // Tạo payment link từ PayOS cho browser
+      const result = await paymentService.createPaymentLink(bill._id, 'web');
+      
+      if (result.success && result.data?.data?.checkoutUrl) {
+        // Mở PayOS checkout URL trong browser
+        const checkoutUrl = result.data.data.checkoutUrl;
+        const supported = await Linking.canOpenURL(checkoutUrl);
+        
+        if (supported) {
+          await Linking.openURL(checkoutUrl);
+          
+          // Hiển thị thông báo hướng dẫn
+          Alert.alert(
+            'Thanh toán',
+            'Đã mở trang thanh toán PayOS trong trình duyệt. Vui lòng hoàn tất thanh toán và quay lại ứng dụng.',
+            [
+              {
+                text: 'Đã hiểu',
+                onPress: () => {
+                  // Có thể thêm logic để kiểm tra trạng thái thanh toán sau khi quay lại
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert('Lỗi', 'Không thể mở trang thanh toán. Vui lòng thử lại.');
+        }
+      } else {
+        Alert.alert('Lỗi', result.error || 'Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại sau.');
     } finally {
       setPaymentLoading(false);
     }
@@ -215,6 +330,21 @@ const BillDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const getNotesIcon = (notes) => {
+    const lowerNotes = notes.toLowerCase();
+    if (lowerNotes.includes('cọc') || lowerNotes.includes('deposit')) {
+      return 'card-outline';
+    } else if (lowerNotes.includes('tháng') || lowerNotes.includes('month')) {
+      return 'calendar-outline';
+    } else if (lowerNotes.includes('phí') || lowerNotes.includes('fee') || lowerNotes.includes('cost')) {
+      return 'calculator-outline';
+    } else if (lowerNotes.includes('đặc biệt') || lowerNotes.includes('special')) {
+      return 'star-outline';
+    } else {
+      return 'chatbubble-ellipses-outline';
+    }
+  };
+
   const handleExportPDF = async () => {
     try {
       setExportLoading(true);
@@ -265,18 +395,23 @@ const BillDetailScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
       {/* Header Compact */}
       <View style={styles.header}>
+        {/* Title and Status Row */}
         <View style={styles.headerRow}>
-            <View style={styles.titleContainer}>
           <Text style={styles.title}>{bill.title}</Text>
-              <View style={styles.residentInfoHeader}>
-                <Ionicons name="person" size={16} color="#666" />
-                <Text style={styles.residentNameHeader}>{residentName}</Text>
-                <Text style={styles.roomNumberHeader}> • Phòng {roomNumber}{bedNumber ? ` - Giường ${bedNumber}` : ''}</Text>
-              </View>
-            </View>
           <View style={[
             styles.statusBadge,
             { 
@@ -296,10 +431,21 @@ const BillDetailScreen = ({ route, navigation }) => {
             </Text>
           </View>
         </View>
-          <View style={styles.amountRow}>
-            <Text style={styles.amountLabel}>Tổng tiền:</Text>
-        <Text style={styles.amountText}>{formatCurrency(bill.amount)}</Text>
+        
+        {/* Resident Info Row */}
+        <View style={styles.residentInfoRow}>
+          <View style={styles.residentInfoHeader}>
+            <Ionicons name="person" size={16} color="#666" />
+            <Text style={styles.residentNameHeader}>{residentName}</Text>
+            <Text style={styles.roomNumberHeader}> • Phòng {roomNumber}{bedNumber ? ` - Giường ${bedNumber}` : ''}</Text>
           </View>
+        </View>
+        
+        {/* Amount Row */}
+        <View style={styles.amountRow}>
+          <Text style={styles.amountLabel}>Tổng tiền:</Text>
+          <Text style={styles.amountText}>{formatCurrency(bill.amount)}</Text>
+        </View>
       </View>
 
       {/* Bill Info Compact */}
@@ -365,6 +511,64 @@ const BillDetailScreen = ({ route, navigation }) => {
           )}
         </View>
       </View>
+
+      {/* Bill Notes Section */}
+      {bill.notes && bill.notes.trim() !== '' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ghi chú</Text>
+          <View style={styles.notesContainer}>
+            <TouchableOpacity 
+              style={styles.notesHeader}
+              onPress={() => setNotesExpanded(!notesExpanded)}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Ionicons name={getNotesIcon(bill.notes)} size={20} color="#6c757d" style={styles.notesIcon} />
+                <Text style={styles.notesLabel}>Thông tin bổ sung</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {bill.created_at && (
+                  <Text style={styles.notesTimestamp}>
+                    {new Date(bill.created_at).toLocaleDateString('vi-VN')}
+                  </Text>
+                )}
+                <Ionicons 
+                  name={notesExpanded ? 'chevron-up' : 'chevron-down'} 
+                  size={16} 
+                  color="#6c757d" 
+                  style={{ marginLeft: 8 }}
+                />
+              </View>
+            </TouchableOpacity>
+            <View style={[styles.notesContent, { display: notesExpanded ? 'flex' : 'none' }]}>
+              <Text style={styles.notesText}>{bill.notes}</Text>
+            </View>
+            {!notesExpanded && bill.notes.length > 100 && (
+              <View style={styles.notesPreview}>
+                <Text style={styles.notesText}>
+                  {bill.notes.substring(0, 100)}...
+                </Text>
+                <View style={styles.notesActions}>
+                  <Text style={styles.notesCharCount}>
+                    {bill.notes.length - 100} ký tự còn lại
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => setNotesExpanded(true)}
+                    style={styles.expandButton}
+                  >
+                    <Text style={styles.expandButtonText}>Xem thêm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            {!notesExpanded && bill.notes.length <= 100 && (
+              <View style={styles.notesContent}>
+                <Text style={styles.notesText}>{bill.notes}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Bill Details Compact */}
       <View style={styles.section}>
@@ -524,71 +728,6 @@ const BillDetailScreen = ({ route, navigation }) => {
       </View>
     </ScrollView>
 
-    {/* QR Payment Modal */}
-    <Modal
-      visible={showQRModal}
-      animationType="slide"
-      transparent={true}
-      statusBarTranslucent={true}
-      onRequestClose={() => setShowQRModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Thanh toán QR Code</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowQRModal(false)}
-            >
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.qrContainer}>
-            <View style={styles.qrCodeBox}>
-              <Image
-                source={require('../../../assets/images/qr-code.png')}
-                style={styles.qrCodeImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.qrInstructions}>
-              Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử để thanh toán
-            </Text>
-            <View style={styles.paymentInfo}>
-              <Text style={styles.paymentLabel}>Số tiền:</Text>
-              <Text style={styles.paymentAmount}>{formatCurrency(bill.amount)}</Text>
-            </View>
-            <View style={styles.bankInfo}>
-              <Text style={styles.bankName}>BIDV - CN SỞ GIAO DỊCH 2</Text>
-              <Text style={styles.accountHolder}>TRAN LE CHI BAO</Text>
-              <Text style={styles.accountNumber}>1304040403</Text>
-            </View>
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowQRModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Hủy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={confirmPayment}
-              disabled={paymentLoading}
-            >
-              {paymentLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.confirmButtonText}>Đã thanh toán</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-
     {/* Payment Policy Modal */}
     <Modal
       visible={showPolicyModal}
@@ -662,6 +801,72 @@ const BillDetailScreen = ({ route, navigation }) => {
       </View>
     </Modal>
 
+    {/* Payment Options Modal */}
+    <Modal
+      visible={showPaymentOptions}
+      animationType="slide"
+      transparent={true}
+      statusBarTranslucent={true}
+      onRequestClose={() => setShowPaymentOptions(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Chọn phương thức thanh toán</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowPaymentOptions(false)}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.paymentOptionsContent}>
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={handlePaymentInApp}
+              disabled={paymentLoading}
+            >
+              <View style={styles.paymentOptionIcon}>
+                <Ionicons name="phone-portrait" size={32} color={COLORS.primary} />
+              </View>
+              <View style={styles.paymentOptionContent}>
+                <Text style={styles.paymentOptionTitle}>Thanh toán trong ứng dụng</Text>
+                <Text style={styles.paymentOptionDescription}>
+                  Thanh toán trực tiếp trong ứng dụng, không cần chuyển ra trình duyệt
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={handlePaymentInBrowser}
+              disabled={paymentLoading}
+            >
+              <View style={styles.paymentOptionIcon}>
+                <Ionicons name="globe" size={32} color={COLORS.primary} />
+              </View>
+              <View style={styles.paymentOptionContent}>
+                <Text style={styles.paymentOptionTitle}>Thanh toán qua trình duyệt</Text>
+                <Text style={styles.paymentOptionDescription}>
+                  Mở trang thanh toán trong trình duyệt web
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+            </TouchableOpacity>
+
+            {paymentLoading && (
+              <View style={styles.paymentLoadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.paymentLoadingText}>Đang tạo link thanh toán...</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+
     </SafeAreaView>
   );
 };
@@ -711,21 +916,22 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  titleContainer: {
-    flex: 1,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
     color: '#212529',
+    flex: 1,
+    marginRight: 12,
+  },
+  residentInfoRow: {
+    marginBottom: 12,
   },
   residentInfoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
   },
   residentNameHeader: {
     fontSize: 14,
@@ -739,9 +945,11 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 80,
+    alignItems: 'center',
   },
   statusText: {
     color: 'white',
@@ -752,7 +960,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
@@ -951,108 +1158,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  qrContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  qrCodeBox: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  qrCodeImage: {
-    width: 160,
-    height: 160,
-  },
-  qrInstructions: {
-    fontSize: 14,
-    color: '#6c757d',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  paymentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    width: '100%',
-  },
-  paymentLabel: {
-    fontSize: 16,
-    color: '#495057',
-    flex: 1,
-  },
-  paymentAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  bankInfo: {
-    alignItems: 'center',
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    width: '100%',
-  },
-  bankName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 4,
-  },
-  accountHolder: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#212529',
-    marginBottom: 2,
-  },
-  accountNumber: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontFamily: 'monospace',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  confirmButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: '600',
-  },
   // Policy Modal Styles
   policyContent: {
     maxHeight: 400,
@@ -1108,6 +1213,121 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  // New styles for notes section
+  notesContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    justifyContent: 'space-between',
+  },
+  notesIcon: {
+    marginRight: 8,
+  },
+  notesLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#495057',
+    flex: 1,
+  },
+  notesTimestamp: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
+  notesContent: {
+    paddingLeft: 4,
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#6c757d',
+    lineHeight: 22,
+    textAlign: 'justify',
+  },
+  expandButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  expandButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  notesPreview: {
+    paddingTop: 8,
+  },
+  notesActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  notesCharCount: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
+  // Payment Options Modal Styles
+  paymentOptionsContent: {
+    padding: 20,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  paymentOptionIcon: {
+    marginRight: 16,
+  },
+  paymentOptionContent: {
+    flex: 1,
+  },
+  paymentOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  paymentOptionDescription: {
+    fontSize: 14,
+    color: '#6c757d',
+    lineHeight: 20,
+  },
+  paymentLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  paymentLoadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#6c757d',
   },
 });
 

@@ -146,7 +146,14 @@ const authSlice = createSlice({
     },
     updateProfile: (state, action) => {
       if (state.user) {
-        state.user = { ...state.user, ...action.payload };
+        // Chỉ cập nhật các trường thay đổi, không tạo object mới nếu không cần thiết
+        const hasChanges = Object.keys(action.payload).some(key => 
+          state.user[key] !== action.payload[key]
+        );
+        
+        if (hasChanges) {
+          state.user = { ...state.user, ...action.payload };
+        }
       }
     },
   },

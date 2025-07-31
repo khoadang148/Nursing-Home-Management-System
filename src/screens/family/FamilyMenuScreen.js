@@ -46,7 +46,7 @@ const FamilyMenuScreen = ({ navigation }) => {
     };
     
     fetchProfileIfNeeded();
-  }, [user]);
+  }, [user?.id, user?.avatar]); // Only depend on specific user properties
   
   const handleLogout = () => {
     Alert.alert(

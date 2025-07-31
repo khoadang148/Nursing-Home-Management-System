@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar, Image, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, StatusBar, Image, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { 
   Appbar, 
   Button, 
@@ -24,6 +24,7 @@ import { useSelector } from 'react-redux';
 import activityService from '../../api/services/activityService';
 import activityParticipationService from '../../api/services/activityParticipationService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
+import residentPhotosService from '../../api/services/residentPhotosService';
 import * as ImagePicker from 'expo-image-picker';
 
 import dateUtils from '../../utils/dateUtils';
@@ -41,6 +42,13 @@ const ActivityDetailsScreen = () => {
   const [activityPhotos, setActivityPhotos] = useState([]);
   const [bedAssignments, setBedAssignments] = useState({});
   
+  // New states for attendance tracking
+  const [attendanceChanges, setAttendanceChanges] = useState({});
+  const [participantPhotos, setParticipantPhotos] = useState({});
+  const [participantNotes, setParticipantNotes] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
   // Load activity details and participants
   const loadActivityDetails = async () => {
     try {
@@ -50,33 +58,43 @@ const ActivityDetailsScreen = () => {
       const activityResponse = await activityService.getActivityById(activityId);
       if (activityResponse.success) {
         setActivity(activityResponse.data);
-      } else {
-        throw new Error('Không thể tải thông tin hoạt động');
-      }
-      
-      // Load participants for this activity
-      const participantsResponse = await activityParticipationService.getAllParticipations({
-        activity_id: activityId
-      });
-      if (participantsResponse.success) {
-        const participantsData = participantsResponse.data || [];
-        setParticipants(participantsData);
         
-        // Load bed assignments for each participant
-        const bedAssignmentsData = {};
-        for (const participant of participantsData) {
-          if (participant.resident_id?._id) {
-            try {
-              const bedAssignmentResponse = await bedAssignmentService.getBedAssignmentByResidentId(participant.resident_id._id);
-              if (bedAssignmentResponse.success && bedAssignmentResponse.data.length > 0) {
-                bedAssignmentsData[participant.resident_id._id] = bedAssignmentResponse.data[0];
+        // Load participants for this specific activity using the correct API
+        const activityDate = new Date(activityResponse.data.schedule_time);
+        const dateString = activityDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        const participantsResponse = await activityParticipationService.getParticipationsByActivity(
+          activityId, 
+          dateString
+        );
+        
+        if (participantsResponse.success) {
+          const participantsData = participantsResponse.data || [];
+          setParticipants(participantsData);
+          
+          // Reset attendance tracking states
+          setAttendanceChanges({});
+          setParticipantPhotos({});
+          setParticipantNotes({});
+          
+          // Load bed assignments for each participant
+          const bedAssignmentsData = {};
+          for (const participant of participantsData) {
+            if (participant.resident_id?._id) {
+              try {
+                const bedAssignmentResponse = await bedAssignmentService.getBedAssignmentByResidentId(participant.resident_id._id);
+                if (bedAssignmentResponse.success && bedAssignmentResponse.data.length > 0) {
+                  bedAssignmentsData[participant.resident_id._id] = bedAssignmentResponse.data[0];
+                }
+              } catch (error) {
+                console.log('Error loading bed assignment for resident:', participant.resident_id._id, error);
               }
-            } catch (error) {
-              console.log('Error loading bed assignment for resident:', participant.resident_id._id, error);
             }
           }
+          setBedAssignments(bedAssignmentsData);
         }
-        setBedAssignments(bedAssignmentsData);
+      } else {
+        throw new Error('Không thể tải thông tin hoạt động');
       }
       
     } catch (error) {
@@ -93,56 +111,167 @@ const ActivityDetailsScreen = () => {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadActivityDetails();
+    setRefreshing(false);
+  };
+
+  // Initialize attendance state from database data
+  const initializeAttendanceState = () => {
+    const initialAttendanceChanges = {};
+    const initialParticipantNotes = {};
+    
+    participants.forEach(participant => {
+      initialAttendanceChanges[participant._id] = participant.attendance_status === 'attended';
+      initialParticipantNotes[participant._id] = participant.performance_notes || '';
+    });
+    
+    setAttendanceChanges(initialAttendanceChanges);
+    setParticipantNotes(initialParticipantNotes);
+  };
+
+  // Toggle attendance mode and initialize state
+  const toggleAttendanceMode = () => {
+    if (!attendanceMode) {
+      // Entering attendance mode - initialize from database
+      initializeAttendanceState();
+    }
+    setAttendanceMode(!attendanceMode);
+  };
+
   useEffect(() => {
     loadActivityDetails();
   }, [activityId]);
 
   const handleAttendanceToggle = (participantId) => {
     console.log('Toggling attendance for participant:', participantId);
-    setParticipants(prev => 
-      prev.map(participant => 
-        participant._id === participantId 
-          ? { ...participant, attendance_status: participant.attendance_status === 'attended' ? 'absent' : 'attended' }
-          : participant
-      )
-    );
+    setAttendanceChanges(prev => ({
+      ...prev,
+      [participantId]: !prev[participantId]
+    }));
   };
 
   const handleNotesChange = (participantId, notes) => {
-    setParticipants(prev => 
-      prev.map(participant => 
-        participant._id === participantId 
-          ? { ...participant, performance_notes: notes }
-          : participant
-      )
-    );
+    setParticipantNotes(prev => ({
+      ...prev,
+      [participantId]: notes
+    }));
   };
 
   const handleSaveAttendance = async () => {
     try {
+      setSubmitting(true);
+      
       // Update attendance status for all participants
-      const updatePromises = participants.map(participant => 
-        activityParticipationService.updateParticipation(participant._id, {
-          attendance_status: participant.attendance_status,
-          performance_notes: participant.performance_notes
-        })
-      );
+      const updatePromises = participants.map(async (participant) => {
+        const participantId = participant._id;
+        const residentId = participant.resident_id?._id;
+        
+        // Get the participation record for this resident and activity
+        const participationResponse = await activityParticipationService.getParticipationByResidentAndActivity(
+          residentId, 
+          activityId
+        );
+        
+        if (!participationResponse.success) {
+          console.error('Failed to get participation for resident:', residentId);
+          return null;
+        }
+        
+        const participation = participationResponse.data;
+        const participationId = participation._id;
+        
+        // Determine attendance status
+        const isAttended = attendanceChanges[participantId] || false;
+        const newStatus = isAttended ? 'attended' : 'absent';
+        const notes = participantNotes[participantId] || '';
+        
+        // Update participation
+        const updateResponse = await activityParticipationService.updateParticipation(participationId, {
+          attendance_status: newStatus,
+          performance_notes: notes
+        });
+        
+        // Upload photos if any
+        const photos = participantPhotos[participantId] || [];
+        if (photos.length > 0) {
+          for (const photoUri of photos) {
+            try {
+              console.log('Uploading photo:', photoUri);
+              
+              // Create FormData for file upload
+              const formData = new FormData();
+              
+              // Convert URI to file object for React Native
+              const fileName = photoUri.split('/').pop() || 'activity_photo.jpg';
+              formData.append('file', {
+                uri: photoUri,
+                type: 'image/jpeg',
+                name: fileName,
+              });
+              formData.append('resident_id', residentId);
+              formData.append('activity_type', activity.activity_type);
+              formData.append('related_activity_id', activityId);
+              formData.append('caption', `Ảnh hoạt động: ${activity.activity_name}`);
+              formData.append('taken_date', new Date().toISOString());
+              formData.append('staff_notes', notes || 'Ảnh chụp trong hoạt động');
+              
+              const uploadResult = await residentPhotosService.uploadResidentPhoto(formData);
+              if (!uploadResult.success) {
+                console.error('Failed to upload photo:', uploadResult.error);
+              } else {
+                console.log('Photo uploaded successfully:', uploadResult.data);
+              }
+            } catch (photoError) {
+              console.error('Failed to upload photo:', photoError);
+            }
+          }
+        }
+        
+        return updateResponse;
+      });
       
-      await Promise.all(updatePromises);
+      const results = await Promise.all(updatePromises);
+      const successfulUpdates = results.filter(result => result !== null).length;
       
-      const attendedCount = participants.filter(p => p.attendance_status === 'attended').length;
+      // Count total photos uploaded
+      const totalPhotos = Object.values(participantPhotos).reduce((total, photos) => total + photos.length, 0);
+      
+      let successMessage = `Đã cập nhật điểm danh ${successfulUpdates}/${participants.length} người tham gia!`;
+      if (totalPhotos > 0) {
+        successMessage += `\nĐã upload ${totalPhotos} ảnh cư dân.`;
+      }
+      
       Alert.alert(
         'Thành công',
-        `Đã cập nhật điểm danh ${attendedCount}/${participants.length} người tham gia!`,
+        successMessage,
         [{ text: 'OK' }]
       );
-      setAttendanceMode(false);
       
-      // Reload data
-      loadActivityDetails();
+      // Update local participants state with new data
+      setParticipants(prev => prev.map(participant => {
+        const participantId = participant._id;
+        const isAttended = attendanceChanges[participantId] || false;
+        const notes = participantNotes[participantId] || '';
+        
+        return {
+          ...participant,
+          attendance_status: isAttended ? 'attended' : 'absent',
+          performance_notes: notes
+        };
+      }));
+      
+      setAttendanceMode(false);
+      setAttendanceChanges({});
+      setParticipantPhotos({});
+      setParticipantNotes({});
+      
     } catch (error) {
       console.error('Error saving attendance:', error);
       Alert.alert('Lỗi', 'Không thể lưu điểm danh. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -210,31 +339,25 @@ const ActivityDetailsScreen = () => {
 
   const handleAddPhotoForParticipant = async (participantId) => {
     Alert.alert(
-      'Thêm ảnh cho ' + participants.find(p => p._id === participantId)?.name,
+      'Thêm ảnh cho ' + participants.find(p => p._id === participantId)?.resident_id?.full_name,
       'Chọn cách thêm ảnh',
       [
         { text: 'Chụp ảnh', onPress: async () => {
           const photoUri = await takePhoto();
           if (photoUri) {
-            setParticipants(prev => 
-              prev.map(participant => 
-                participant._id === participantId 
-                  ? { ...participant, photos: [...participant.photos, photoUri] }
-                  : participant
-              )
-            );
+            setParticipantPhotos(prev => ({
+              ...prev,
+              [participantId]: [...(prev[participantId] || []), photoUri]
+            }));
           }
         }},
         { text: 'Chọn từ thư viện', onPress: async () => {
           const photoUri = await pickImage();
           if (photoUri) {
-            setParticipants(prev => 
-              prev.map(participant => 
-                participant._id === participantId 
-                  ? { ...participant, photos: [...participant.photos, photoUri] }
-                  : participant
-              )
-            );
+            setParticipantPhotos(prev => ({
+              ...prev,
+              [participantId]: [...(prev[participantId] || []), photoUri]
+            }));
           }
         }},
         { text: 'Hủy', style: 'cancel' }
@@ -346,19 +469,51 @@ const ActivityDetailsScreen = () => {
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc muốn xóa hoạt động này?',
+      'Xác nhận xóa',
+      'Bạn có chắc muốn xóa hoạt động này? Hành động này sẽ xóa tất cả thông tin tham gia liên quan.',
       [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Xóa', style: 'destructive', onPress: async () => {
             try {
-              await activityService.deleteActivity(activityId);
-              Alert.alert('Thành công', 'Đã xóa hoạt động');
+              setSubmitting(true);
+              
+              // First, delete all activity participations for this activity
+              const activityDate = new Date(activity.schedule_time);
+              const dateString = activityDate.toISOString().split('T')[0];
+              
+              const participationsResponse = await activityParticipationService.getParticipationsByActivity(
+                activityId, 
+                dateString
+              );
+              
+              if (participationsResponse.success && participationsResponse.data) {
+                const participations = participationsResponse.data;
+                console.log(`Deleting ${participations.length} participations for activity ${activityId}`);
+                
+                // Delete all participations
+                const deletePromises = participations.map(participation => 
+                  activityParticipationService.deleteParticipation(participation._id)
+                );
+                
+                await Promise.all(deletePromises);
+                console.log('All participations deleted successfully');
+              }
+              
+              // Then delete the activity
+              const deleteResponse = await activityService.deleteActivity(activityId);
+              if (!deleteResponse.success) {
+                throw new Error(deleteResponse.error || 'Không thể xóa hoạt động');
+              }
+              
+              Alert.alert('Thành công', 'Đã xóa hoạt động và tất cả thông tin tham gia liên quan');
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa hoạt động');
+              console.error('Error deleting activity:', error);
+              Alert.alert('Lỗi', error.message || 'Không thể xóa hoạt động. Vui lòng thử lại.');
+            } finally {
+              setSubmitting(false);
             }
           }
         }
@@ -443,8 +598,23 @@ const ActivityDetailsScreen = () => {
             <Appbar.Action icon="dots-vertical" color="#fff" onPress={openMenu} />
           }
         >
-          <Menu.Item onPress={() => { closeMenu(); navigation.navigate('HoatDong', { screen: 'EditActivityScreen', params: { activityId } }); }} title="Sửa" />
-          <Menu.Item onPress={() => { closeMenu(); handleDelete(); }} title="Xóa" />
+          <Menu.Item 
+            onPress={() => { 
+              closeMenu(); 
+              navigation.navigate('EditActivityScreen', { activityId }); 
+            }} 
+            title="Sửa" 
+            leadingIcon="pencil"
+          />
+          <Menu.Item 
+            onPress={() => { 
+              closeMenu(); 
+              handleDelete(); 
+            }} 
+            title="Xóa" 
+            leadingIcon="delete"
+            titleStyle={{ color: COLORS.error }}
+          />
         </Menu>
       </Appbar.Header>
       
@@ -458,6 +628,9 @@ const ActivityDetailsScreen = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           <Card style={styles.headerCard}>
             <Card.Content style={styles.headerCardContent}>
@@ -470,11 +643,11 @@ const ActivityDetailsScreen = () => {
                 <View style={styles.dateTimeContainer}>
                   <View style={styles.infoRow}>
                     <MaterialIcons name="event" size={18} color={COLORS.textSecondary} />
-                    <Text style={styles.dateText}>{formatDate(activity.scheduledTime)}</Text>
+                    <Text style={styles.dateText}>{formatDate(activity.schedule_time)}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <MaterialIcons name="access-time" size={18} color={COLORS.textSecondary} />
-                    <Text style={styles.timeText}>{formatTime(activity.scheduledTime)}</Text>
+                    <Text style={styles.timeText}>{formatTime(activity.schedule_time)}</Text>
                   </View>
                 </View>
                 
@@ -554,7 +727,7 @@ const ActivityDetailsScreen = () => {
                 </View>
                 <Button
                   mode="outlined"
-                  onPress={() => setAttendanceMode(!attendanceMode)}
+                  onPress={toggleAttendanceMode}
                   style={styles.attendanceButton}
                   labelStyle={styles.attendanceButtonText}
                 >
@@ -562,70 +735,113 @@ const ActivityDetailsScreen = () => {
                 </Button>
               </View>
 
-              {participants.map((participant) => (
-                <View key={participant._id} style={styles.participantCard}>
-                  <View style={styles.participantInfo}>
-                    <Avatar.Text 
-                      size={40} 
-                      label={participant.resident_id?.full_name?.split(' ').slice(-2).map(n => n[0]).join('') || '??'}
-                      style={{ backgroundColor: COLORS.primary }}
-                    />
-                    <View style={styles.participantDetails}>
-                      <Text style={styles.participantName}>
-                        {participant.resident_id?.full_name || 'Không xác định'}
-                      </Text>
-                      <Text style={styles.participantRoom}>
-                        {getRoomBedInfo(participant.resident_id?._id)}
-                      </Text>
-                      <Text style={[styles.attendanceStatus, { color: getAttendanceStatusColor(participant.attendance_status) }]}>
-                        {getAttendanceStatusText(participant.attendance_status)}
-                      </Text>
-                    </View>
-                    {attendanceMode && (
-                      <View style={styles.participantActions}>
-                        <TouchableOpacity 
-                          style={styles.checkboxButton}
-                          onPress={() => handleAttendanceToggle(participant._id)}
-                        >
-                          <MaterialIcons 
-                            name={participant.attendance_status === 'attended' ? "check-box" : "check-box-outline-blank"} 
-                            size={20} 
-                            color={participant.attendance_status === 'attended' ? COLORS.primary : COLORS.textSecondary} 
+              {participants.map((participant) => {
+                const participantId = participant._id;
+                // Show database data when not in attendance mode, show local state when in attendance mode
+                const isAttended = attendanceMode 
+                  ? (attendanceChanges[participantId] || false)
+                  : (participant.attendance_status === 'attended');
+                const notes = attendanceMode 
+                  ? (participantNotes[participantId] || '')
+                  : (participant.performance_notes || '');
+                const photos = participantPhotos[participantId] || [];
+                
+                return (
+                  <View key={participant._id} style={styles.participantCard}>
+                    <View style={styles.participantInfo}>
+                      <Avatar.Text 
+                        size={40} 
+                        label={participant.resident_id?.full_name?.split(' ').slice(-2).map(n => n[0]).join('') || '??'}
+                        style={{ backgroundColor: COLORS.primary }}
+                      />
+                      <View style={styles.participantDetails}>
+                        <Text style={styles.participantName}>
+                          {participant.resident_id?.full_name || 'Không xác định'}
+                        </Text>
+                        <Text style={styles.participantRoom}>
+                          {getRoomBedInfo(participant.resident_id?._id)}
+                        </Text>
+                        <Text style={[styles.attendanceStatus, { color: getAttendanceStatusColor(isAttended ? 'attended' : 'absent') }]}>
+                          {getAttendanceStatusText(isAttended ? 'attended' : 'absent')}
+                        </Text>
+                      </View>
+                      {attendanceMode && (
+                        <View style={styles.participantActions}>
+                          <TouchableOpacity 
+                            style={styles.checkboxButton}
+                            onPress={() => handleAttendanceToggle(participant._id)}
+                          >
+                            <MaterialIcons 
+                              name={isAttended ? "check-box" : "check-box-outline-blank"} 
+                              size={20} 
+                              color={isAttended ? COLORS.primary : COLORS.textSecondary} 
+                            />
+                          </TouchableOpacity>
+                          <IconButton
+                            icon="camera"
+                            size={20}
+                            onPress={() => handleAddPhotoForParticipant(participant._id)}
+                            style={styles.photoButton}
                           />
-                        </TouchableOpacity>
-                        <IconButton
-                          icon="camera"
-                          size={20}
-                          onPress={() => handleAddPhotoForParticipant(participant._id)}
-                          style={styles.photoButton}
-                        />
+                        </View>
+                      )}
+                    </View>
+                    
+                    {attendanceMode && (
+                      <TextInput
+                        label="Ghi chú hoạt động"
+                        value={notes}
+                        onChangeText={(text) => handleNotesChange(participant._id, text)}
+                        multiline
+                        numberOfLines={2}
+                        style={styles.notesInput}
+                        mode="outlined"
+                        placeholder="Nhập ghi chú về hoạt động của cư dân..."
+                      />
+                    )}
+                    
+                    {/* Display notes even when not in attendance mode */}
+                    {!attendanceMode && notes && (
+                      <View style={styles.notesDisplay}>
+                        <Text style={styles.notesLabel}>Ghi chú hoạt động:</Text>
+                        <Text style={styles.notesText}>{notes}</Text>
                       </View>
                     )}
+                    
+                    {/* Display participant photos */}
+                    {photos.length > 0 && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantPhotoScrollView}>
+                        {photos.map((photo, index) => (
+                          <View key={index} style={styles.participantPhotoContainer}>
+                            <Image source={{ uri: photo }} style={styles.participantPhoto} />
+                            <IconButton
+                              icon="close"
+                              size={16}
+                              style={styles.removeParticipantPhotoButton}
+                              onPress={() => {
+                                setParticipantPhotos(prev => ({
+                                  ...prev,
+                                  [participantId]: prev[participantId].filter((_, i) => i !== index)
+                                }));
+                              }}
+                            />
+                          </View>
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
-                  
-                  {attendanceMode && (
-                    <TextInput
-                      label="Ghi chú hoạt động"
-                      value={participant.performance_notes || ''}
-                      onChangeText={(text) => handleNotesChange(participant._id, text)}
-                      multiline
-                      numberOfLines={2}
-                      style={styles.notesInput}
-                      mode="outlined"
-                      placeholder="Nhập ghi chú về hoạt động của cư dân..."
-                    />
-                  )}
-                </View>
-              ))}
+                );
+              })}
 
               <Button
                 mode="contained"
                 onPress={handleSaveAttendance}
                 style={styles.saveButton}
                 icon="check"
-                disabled={attendedCount === 0}
+                loading={submitting}
+                disabled={submitting}
               >
-                Lưu điểm danh ({attendedCount}/{participants.length})
+                Lưu điểm danh ({Object.values(attendanceChanges).filter(Boolean).length}/{participants.length})
               </Button>
             </Card.Content>
           </Card>
@@ -888,6 +1104,25 @@ const styles = StyleSheet.create({
   checkboxButton: {
     padding: 2,
     marginRight: 4,
+  },
+  notesDisplay: {
+    marginTop: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  notesLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  notesText: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    lineHeight: 20,
   },
 });
 

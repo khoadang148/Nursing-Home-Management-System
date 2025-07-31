@@ -636,8 +636,8 @@ const FamilyVisitScreen = ({ navigation }) => {
                 Lịch thăm cho {formatDate(selectedDate)}
               </Text>
               {getVisitsForSelectedDate().length > 0 ? (
-                getVisitsForSelectedDate().map((visit) => (
-                  <View key={visit.id} style={styles.visitItem}>
+                getVisitsForSelectedDate().map((visit, index) => (
+                  <View key={visit._id || visit.id || `visit-${index}`} style={styles.visitItem}>
                     <View style={styles.visitHeader}>
                       <View style={styles.visitTime}>
                         <Ionicons name="time" size={16} color={COLORS.primary} />

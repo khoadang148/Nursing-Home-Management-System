@@ -218,6 +218,29 @@ const bedService = {
         error: error.response?.data || error.message || 'Lấy danh sách giường có sẵn thất bại'
       };
     }
+  },
+
+  /**
+   * Lấy tất cả giường theo trạng thái
+   * @param {string} status - Trạng thái (available, occupied, hoặc undefined để lấy tất cả)
+   * @returns {Promise} - Promise với response data
+   */
+  getAllBedsByStatus: async (status) => {
+    try {
+      const params = status ? { status } : {};
+      const response = await apiClient.get('/beds', { params });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách giường theo trạng thái thành công'
+      };
+    } catch (error) {
+      console.log('Get beds by status error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách giường theo trạng thái thất bại'
+      };
+    }
   }
 };
 

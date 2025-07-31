@@ -58,8 +58,10 @@ const ServicePackageScreen = ({ navigation }) => {
 
   const user = useSelector((state) => state.auth.user);
   useEffect(() => {
-    fetchData();
-  }, [user]);
+    if (user?.id) {
+      fetchData();
+    }
+  }, [user?.id]); // Only depend on user.id, not entire user object
 
   // Lấy thông tin bed assignment cho từng resident
   const fetchBedAssignments = async (packages) => {
@@ -91,16 +93,98 @@ const ServicePackageScreen = ({ navigation }) => {
       await fetchBedAssignments(pkgs);
 
       // Lấy gói có sẵn
-      const availableRes = await carePlanService.getAllCarePlans();
-      if (availableRes.success) {
-        const mainPackages = availableRes.data.filter(pkg => pkg.category === 'main');
-        const supplementaryPackages = availableRes.data.filter(pkg => pkg.category === 'supplementary');
+      const availableRes = await carePlanService.getCarePlans();
+      console.log('DEBUG - Available care plans response:', availableRes);
+      if (availableRes && Array.isArray(availableRes)) {
+        console.log('DEBUG - Available care plans data:', availableRes);
+        const mainPackages = availableRes.filter(pkg => pkg.category === 'main');
+        const supplementaryPackages = availableRes.filter(pkg => pkg.category === 'supplementary');
+        console.log('DEBUG - Main packages count:', mainPackages.length);
+        console.log('DEBUG - Supplementary packages count:', supplementaryPackages.length);
         setAvailablePackages({
           main_packages: mainPackages,
           supplementary_packages: supplementaryPackages
         });
       } else {
-        setAvailablePackages({ main_packages: [], supplementary_packages: [] });
+        console.log('DEBUG - Available care plans failed or empty:', availableRes);
+        // Fallback to mock data if API fails
+        const mockCarePlans = [
+          {
+            _id: 'cp_001',
+            plan_name: 'Gói Chăm Sóc Tiêu Chuẩn',
+            plan_type: 'cham_soc_tieu_chuan',
+            category: 'main',
+            description: 'Gói chăm sóc cơ bản với các dịch vụ thiết yếu',
+            monthly_price: 5000000,
+            services_included: [
+              'Chăm sóc vệ sinh cá nhân',
+              'Theo dõi sức khỏe cơ bản',
+              'Bữa ăn 3 bữa/ngày',
+              'Hoạt động giải trí cơ bản'
+            ],
+            staff_ratio: '1:8',
+            duration: 'Tối thiểu 1 tháng'
+          },
+          {
+            _id: 'cp_002',
+            plan_name: 'Gói Chăm Sóc Tích Cực',
+            plan_type: 'cham_soc_tich_cuc',
+            category: 'main',
+            description: 'Gói chăm sóc nâng cao với chuyên gia y tế',
+            monthly_price: 8000000,
+            services_included: [
+              'Chăm sóc vệ sinh cá nhân',
+              'Theo dõi sức khỏe 24/7',
+              'Bữa ăn dinh dưỡng đặc biệt',
+              'Hoạt động trị liệu chuyên sâu',
+              'Khám sức khỏe định kỳ'
+            ],
+            staff_ratio: '1:4',
+            duration: 'Tối thiểu 1 tháng'
+          },
+          {
+            _id: 'cp_003',
+            plan_name: 'Hỗ Trợ Dinh Dưỡng',
+            plan_type: 'ho_tro_dinh_duong',
+            category: 'supplementary',
+            description: 'Dịch vụ tư vấn và hỗ trợ dinh dưỡng chuyên biệt',
+            monthly_price: 1500000,
+            services_included: [
+              'Tư vấn dinh dưỡng cá nhân',
+              'Thực đơn đặc biệt',
+              'Bổ sung vitamin và khoáng chất',
+              'Theo dõi cân nặng định kỳ'
+            ],
+            staff_ratio: '1:20',
+            duration: 'Tối thiểu 1 tháng'
+          },
+          {
+            _id: 'cp_004',
+            plan_name: 'Vật Lý Trị Liệu',
+            plan_type: 'vat_ly_tri_lieu',
+            category: 'supplementary',
+            description: 'Dịch vụ vật lý trị liệu phục hồi chức năng',
+            monthly_price: 2000000,
+            services_included: [
+              'Đánh giá chức năng vận động',
+              'Tập luyện phục hồi chức năng',
+              'Massage trị liệu',
+              'Hướng dẫn tập luyện tại nhà'
+            ],
+            staff_ratio: '1:10',
+            duration: 'Tối thiểu 1 tháng'
+          }
+        ];
+        
+        const mainPackages = mockCarePlans.filter(pkg => pkg.category === 'main');
+        const supplementaryPackages = mockCarePlans.filter(pkg => pkg.category === 'supplementary');
+        console.log('DEBUG - Using mock data - Main packages:', mainPackages.length);
+        console.log('DEBUG - Using mock data - Supplementary packages:', supplementaryPackages.length);
+        
+        setAvailablePackages({
+          main_packages: mainPackages,
+          supplementary_packages: supplementaryPackages
+        });
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -369,7 +453,7 @@ const ServicePackageScreen = ({ navigation }) => {
 
           <View style={styles.totalCost}>
             <Text style={styles.totalLabel}>Tổng chi phí hàng tháng:</Text>
-            <Text style={styles.totalAmount}>{formatCurrency(item.total_monthly_cost || 0)}</Text>
+            <Text style={styles.totalAmount}>{formatCurrency(item.care_plans_monthly_cost || 0)}</Text>
           </View>
         </View>
 

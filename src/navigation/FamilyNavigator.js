@@ -23,6 +23,8 @@ import BillDetailScreen from '../screens/family/BillDetailScreen';
 import PaymentHistoryScreen from '../screens/family/PaymentHistoryScreen';
 import ServicePackageScreen from '../screens/family/ServicePackageScreen';
 import ServicePackageDetailScreen from '../screens/family/ServicePackageDetailScreen';
+import PaymentResultScreen from '../screens/family/PaymentResultScreen';
+import PaymentWebViewScreen from '../screens/family/PaymentWebViewScreen';
 import SupportScreen from '../screens/family/SupportScreen';
 import ChangePasswordScreen from '../screens/family/ChangePasswordScreen';
 import TermsOfServiceScreen from '../screens/family/TermsOfServiceScreen';
@@ -131,6 +133,11 @@ const FamilyStackNavigator = () => {
         component={TermsOfServiceScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen 
+        name="PaymentResult" 
+        component={PaymentResultScreen}
+        options={{ headerShown: false }}
+      />
   </Stack.Navigator>
 );
 };
@@ -178,6 +185,8 @@ const FamilyBillingStack = () => (
     <Stack.Screen name="FamilyBilling" component={BillingScreen} />
     <Stack.Screen name="BillDetail" component={BillDetailScreen} />
     <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+    <Stack.Screen name="PaymentResult" component={PaymentResultScreen} />
+    <Stack.Screen name="PaymentWebViewScreen" component={PaymentWebViewScreen} />
   </Stack.Navigator>
 );
 

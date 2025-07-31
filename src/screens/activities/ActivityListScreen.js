@@ -82,10 +82,16 @@ const ActivityListScreen = () => {
     };
     
     activities.forEach(activity => {
-      // Sử dụng date từ API response, không phải activity_id.date
-      if (!activity.date) return;
+      // Sử dụng schedule_time từ activity_id nếu có, không thì dùng date
+      let activityDate;
+      if (activity.activity_id?.schedule_time) {
+        activityDate = new Date(activity.activity_id.schedule_time);
+      } else if (activity.date) {
+        activityDate = new Date(activity.date);
+      } else {
+        return; // Skip if no date available
+      }
       
-      const activityDate = new Date(activity.date);
       activityDate.setHours(0, 0, 0, 0);
       
       if (activityDate.getTime() === today.getTime()) {
@@ -172,8 +178,8 @@ const ActivityListScreen = () => {
     
     const activity = item.activity_id;
     
-    // Sử dụng date từ item (API response), không phải activity.date
-    const activityDate = new Date(item.date);
+    // Sử dụng schedule_time từ activity object thay vì item.date
+    const activityDate = activity?.schedule_time ? new Date(activity.schedule_time) : new Date(item.date);
     const formattedTime = activityDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const formattedDate = activityDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 

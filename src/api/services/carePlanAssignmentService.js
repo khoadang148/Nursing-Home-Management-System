@@ -96,7 +96,9 @@ const carePlanAssignmentService = {
    */
   getCarePlanAssignmentsByResidentId: async (residentId, params = {}) => {
     try {
-      const response = await apiClient.get(`/care-plan-assignments/resident/${residentId}`, { params });
+      console.log(`[carePlanAssignmentService] Calling API: /care-plan-assignments/by-resident/${residentId}`);
+      const response = await apiClient.get(`/care-plan-assignments/by-resident/${residentId}`, { params });
+      console.log(`[carePlanAssignmentService] API Response:`, response.data);
       return {
         success: true,
         data: response.data,
@@ -104,6 +106,11 @@ const carePlanAssignmentService = {
       };
     } catch (error) {
       console.log('Get care plan assignments by resident ID error:', error);
+      console.log(`[carePlanAssignmentService] Error details:`, {
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       return {
         success: false,
         error: error.response?.data || error.message || 'Lấy phân công gói chăm sóc theo cư dân thất bại'
@@ -298,6 +305,79 @@ const carePlanAssignmentService = {
       return {
         success: false,
         error: error.response?.data || error.message || 'Tìm kiếm phân công gói chăm sóc thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy danh sách cư dân có thể đăng ký gói dịch vụ
+   * @param {Object} packageData - Thông tin gói dịch vụ
+   * @returns {Promise} - Promise với response data
+   */
+  getAvailableResidents: async (packageData) => {
+    try {
+      // Tạm thời sử dụng mock data cho đến khi có API thật
+      const mockResidents = [
+        {
+          _id: 'res_001',
+          full_name: 'Nguyễn Văn A',
+          room_number: '101',
+          bed_number: '1',
+          date_of_birth: '1940-05-15'
+        },
+        {
+          _id: 'res_002',
+          full_name: 'Trần Thị B',
+          room_number: '102',
+          bed_number: '2',
+          date_of_birth: '1938-12-20'
+        }
+      ];
+      
+      return {
+        success: true,
+        data: mockResidents,
+        message: 'Lấy danh sách cư dân có thể đăng ký thành công'
+      };
+    } catch (error) {
+      console.log('Get available residents error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách cư dân có thể đăng ký thất bại'
+      };
+    }
+  },
+
+  /**
+   * Đăng ký gói dịch vụ cho cư dân
+   * @param {Object} registrationData - Dữ liệu đăng ký
+   * @param {string} registrationData.care_plan_id - ID gói dịch vụ
+   * @param {string} registrationData.family_member_id - ID thành viên gia đình
+   * @param {string} registrationData.notes - Ghi chú
+   * @returns {Promise} - Promise với response data
+   */
+  registerCarePlanAssignment: async (registrationData) => {
+    try {
+      // Tạm thời sử dụng mock response cho đến khi có API thật
+      const mockResponse = {
+        _id: 'assignment_' + Date.now(),
+        care_plan_id: registrationData.care_plan_id,
+        family_member_id: registrationData.family_member_id,
+        status: 'active',
+        start_date: new Date().toISOString(),
+        notes: registrationData.notes
+      };
+      
+      return {
+        success: true,
+        data: mockResponse,
+        message: 'Đăng ký gói dịch vụ thành công'
+      };
+    } catch (error) {
+      console.log('Register care plan assignment error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Đăng ký gói dịch vụ thất bại'
       };
     }
   }

@@ -33,7 +33,7 @@ import vitalSignsService from '../../api/services/vitalSignsService';
 import assessmentService from '../../api/services/assessmentService';
 import activityParticipationService from '../../api/services/activityParticipationService';
 import medicationService from '../../api/services/medicationService';
-import carePlanService from '../../api/services/carePlanService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 const FamilyResidentDetailScreen = ({ route, navigation }) => {
@@ -73,7 +73,7 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
         loadResidentData();
       }
     }
-  }, [residentId, residentDetailsCache]);
+  }, [residentId, residentDetailsCache[residentId]]); // Only depend on specific cache entry
 
   useEffect(() => {
     // Set active tab based on initialTab parameter
@@ -81,16 +81,6 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
-
-  // Check for data updates when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Only reload if there's no data and no cache
-      if (residentId && !residentData && !residentDetailsCache[residentId]) {
-        loadResidentData();
-      }
-    }, [residentId, residentData, residentDetailsCache])
-  );
 
   // ======= REPLACE loadResidentData WITH REAL API CALLS =======
   const loadResidentData = async () => {
@@ -122,9 +112,14 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       }
       // 1b. Lấy gói chăm sóc assignment
       try {
-        const carePlanRes = await carePlanService.getCarePlanAssignmentByResidentId(residentId);
-        setCarePlanAssignment(carePlanRes.success && carePlanRes.data ? carePlanRes.data : null);
+        const carePlanRes = await carePlanAssignmentService.getCarePlanAssignmentsByResidentId(residentId);
+        if (carePlanRes.success && carePlanRes.data && carePlanRes.data.length > 0) {
+          setCarePlanAssignment(carePlanRes.data[0]); // Lấy assignment đầu tiên
+        } else {
+          setCarePlanAssignment(null);
+        }
       } catch (e) {
+        console.log('Error loading care plan assignment:', e.message);
         setCarePlanAssignment(null);
       }
 

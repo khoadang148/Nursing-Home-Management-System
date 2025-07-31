@@ -8,7 +8,8 @@ export const API_CONFIG = {
   // Sử dụng IP thay vì localhost cho React Native
   
   // IP thực tế từ log - WiFi network
-  BASE_URL: 'http://192.168.2.5:8000', // IP WiFi thực tế từ log
+  BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
+  // BASE_URL: 'http://192.168.2.5:8000', // IP WiFi thực tế từ log
   
   // Các IP khác cho các môi trường khác nhau (uncomment để sử dụng)
   // BASE_URL: 'http://192.168.56.1:8000', // IP VirtualBox/Hyper-V
@@ -157,8 +158,13 @@ export const getImageUri = (imagePath, type = 'avatar') => {
     return imagePath;
   }
   
-  // Chuyển toàn bộ \\ hoặc \ thành /
-  const cleanPath = imagePath.replace(/\\/g, '/').replace(/\\/g, '/').replace(/\//g, '/').replace(/^\/+|^\/+/, '');
+  // Chuyển toàn bộ \\ hoặc \ thành / và loại bỏ dấu / thừa
+  const cleanPath = imagePath
+    .replace(/\\/g, '/')  // Thay thế tất cả backslash thành forward slash
+    .replace(/\/+/g, '/') // Thay thế nhiều dấu / liên tiếp thành 1 dấu /
+    .replace(/^\/+/, '')  // Loại bỏ dấu / ở đầu
+    .replace(/\/+$/, ''); // Loại bỏ dấu / ở cuối
+  
   const baseUrl = getApiBaseUrl();
   const uri = `${baseUrl}/${cleanPath}`;
   

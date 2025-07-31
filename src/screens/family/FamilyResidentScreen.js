@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
   View, 
@@ -27,7 +27,7 @@ import { updateProfile } from '../../redux/slices/authSlice';
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
-import carePlanService from '../../api/services/carePlanService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import authService from '../../api/services/authService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
@@ -120,31 +120,26 @@ const FamilyResidentScreen = ({ navigation }) => {
 
   const userData = getUserData();
   
+  // Load data only when user changes or on mount
   useEffect(() => {
-    loadData();
-  }, [user]);
+    console.log('🔄 FamilyResidentScreen useEffect triggered - user?.id:', user?.id);
+    if (user?.id) {
+      console.log('📡 Loading data for user:', user?.id);
+      loadData();
+    }
+  }, [user?.id, loadData]); // Add loadData to dependencies
 
   // Load resident details when familyResidents changes - chỉ load 1 lần
   useEffect(() => {
     if (familyResidents.length > 0 && residentsWithDetails.length === 0) {
       loadResidentDetails();
     }
-  }, [familyResidents]);
-
-  // Check for data updates when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      // Only reload if there's no data or if Redux indicates data has been updated
-      if (familyResidents.length === 0) {
-        loadData();
-      }
-    }, [familyResidents.length])
-  );
+  }, [familyResidents.length]); // Remove residentsWithDetails.length dependency
 
   // Fetch profile after login to get complete user data including avatar
   useEffect(() => {
     const fetchProfileIfNeeded = async () => {
-      if (user && user.id && !user.avatar) {
+      if (user?.id && !user.avatar) {
         try {
           const profileRes = await authService.getProfile();
           if (profileRes.success && profileRes.data) {
@@ -158,13 +153,13 @@ const FamilyResidentScreen = ({ navigation }) => {
     };
     
     fetchProfileIfNeeded();
-  }, [user]);
+  }, [user?.id]); // Remove user?.avatar dependency to prevent loop
 
   useEffect(() => {
     filterResidents();
-  }, [searchQuery, residentsWithDetails]);
+  }, [searchQuery, residentsWithDetails.length]); // Only depend on searchQuery and residentsWithDetails length
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // Fetch residents for this family member
       if (userData?.id || userData?._id) {
@@ -177,7 +172,7 @@ const FamilyResidentScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, [userData?.id, userData?._id, dispatch]);
   
   const loadResidentDetails = async () => {
     try {
@@ -215,11 +210,17 @@ const FamilyResidentScreen = ({ navigation }) => {
           let carePlanName = 'Chưa có';
           let carePlanCost = '';
           try {
-            const carePlanRes = await carePlanService.getCarePlanAssignmentByResidentId(resident._id);
-            if (carePlanRes.success && carePlanRes.data && carePlanRes.data.care_plan_ids?.[0]) {
-              carePlanName = carePlanRes.data.care_plan_ids[0].plan_name || 'Chưa có';
-              if (carePlanRes.data.care_plan_ids[0].monthly_price) {
-                carePlanCost = formatCurrency(carePlanRes.data.care_plan_ids[0].monthly_price) + '/tháng';
+            const carePlanRes = await carePlanAssignmentService.getCarePlanAssignmentsByResidentId(resident._id);
+            if (carePlanRes.success && carePlanRes.data && carePlanRes.data.length > 0) {
+              // Lấy assignment đầu tiên (mới nhất)
+              const assignment = carePlanRes.data[0];
+              if (assignment.care_plan_ids && assignment.care_plan_ids.length > 0) {
+                // Lấy care plan đầu tiên
+                const carePlan = assignment.care_plan_ids[0];
+                carePlanName = carePlan.plan_name || 'Chưa có';
+                if (carePlan.monthly_price) {
+                  carePlanCost = formatCurrency(carePlan.monthly_price) + '/tháng';
+                }
               }
             }
           } catch (error) {

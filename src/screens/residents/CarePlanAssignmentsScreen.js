@@ -145,15 +145,7 @@ const CarePlanAssignmentsScreen = () => {
     }
   };
 
-  const getCareLevel = (level) => {
-    switch (level) {
-      case 'basic': return 'Cơ bản';
-      case 'intermediate': return 'Trung bình';
-      case 'intensive': return 'Tăng cường';
-      case 'specialized': return 'Chuyên biệt';
-      default: return level;
-    }
-  };
+
 
   const handleAssignmentPress = (assignment) => {
     Alert.alert(
@@ -222,7 +214,7 @@ const CarePlanAssignmentsScreen = () => {
                 <View style={styles.residentInfo}>
                   <Text style={styles.residentName}>{assignment.resident_id?.full_name || 'Không có tên'}</Text>
                   <Text style={styles.residentDetails}>
-                    {`${assignment.resident_id?.gender === 'male' ? 'Nam' : 'Nữ'} • ${getCareLevel(assignment.resident_id?.care_level)}`}
+                    {`${assignment.resident_id?.gender === 'male' ? 'Nam' : 'Nữ'}`}
                   </Text>
                 </View>
                 <View style={styles.statusContainer}>

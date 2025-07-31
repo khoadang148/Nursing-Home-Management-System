@@ -278,6 +278,8 @@ export const {
   clearCurrentResident,
   clearFamilyResidents,
   triggerResidentDataReload,
+  cacheResidentDetails,
+  clearResidentDetailsCache,
   clearAllResidents
 } = residentSlice.actions;
 

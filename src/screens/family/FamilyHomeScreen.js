@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -109,14 +109,19 @@ const FamilyHomeScreen = ({ navigation }) => {
 
   const userData = getUserData();
   
+  // Load data only when user changes or on mount
   useEffect(() => {
-    loadData();
-  }, [user]);
+    console.log('🔄 FamilyHomeScreen useEffect triggered - user?.id:', user?.id);
+    if (user?.id) {
+      console.log('📡 Loading data for user:', user?.id);
+      loadData();
+    }
+  }, [user?.id, loadData]); // Add loadData to dependencies
 
   // Fetch profile after login to get complete user data including avatar
   useEffect(() => {
     const fetchProfileIfNeeded = async () => {
-      if (user && user.id && !user.avatar) {
+      if (user?.id && !user.avatar) {
         try {
           const profileRes = await authService.getProfile();
           if (profileRes.success && profileRes.data) {
@@ -130,7 +135,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     };
     
     fetchProfileIfNeeded();
-  }, [user]);
+  }, [user?.id]); // Remove user?.avatar dependency to prevent loop
   
   // Sắp xếp residents theo admission_date tăng dần
   const sortedFamilyResidents = [...familyResidents].sort((a, b) => new Date(a.admission_date) - new Date(b.admission_date));
@@ -138,17 +143,18 @@ const FamilyHomeScreen = ({ navigation }) => {
   // Set selected resident when familyResidents changes
   useEffect(() => {
     if (sortedFamilyResidents.length > 0 && !selectedResident) {
-      setSelectedResident(sortedFamilyResidents[0]);
-      dispatch(setCurrentResident(sortedFamilyResidents[0]));
+      const firstResident = sortedFamilyResidents[0];
+      setSelectedResident(firstResident);
+      dispatch(setCurrentResident(firstResident));
     }
-  }, [familyResidents, selectedResident, dispatch]);
+  }, [familyResidents.length]); // Only depend on familyResidents length
 
   // Load bed info when selected resident changes
   useEffect(() => {
-    if (selectedResident && selectedResident._id) {
+    if (selectedResident?._id) {
       loadResidentBedInfo(selectedResident._id);
     }
-  }, [selectedResident]);
+  }, [selectedResident?._id]); // Only depend on selected resident ID
   
   const onRefresh = async () => {
     setRefreshing(true);
@@ -159,7 +165,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     setRefreshing(false);
   };
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // Fetch residents for this family member
       if (userData?.id || userData?._id) {
@@ -172,9 +178,9 @@ const FamilyHomeScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, [userData?.id, userData?._id, dispatch]);
   
-  const loadResidentBedInfo = async (residentId) => {
+  const loadResidentBedInfo = useCallback(async (residentId) => {
     try {
       setBedInfoLoading(true);
       const result = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
@@ -194,7 +200,7 @@ const FamilyHomeScreen = ({ navigation }) => {
     } finally {
       setBedInfoLoading(false);
     }
-  };
+  }, []);
   
   const loadAdditionalData = async () => {
     // Lấy lịch thăm từ API

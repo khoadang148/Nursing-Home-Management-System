@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, StatusBar, Alert, KeyboardAvoidingView, Platform, FlatList, SafeAreaView } from 'react-native';
 import { 
   Appbar, 
@@ -13,7 +13,8 @@ import {
   Menu,
   Checkbox,
   Card,
-  Avatar
+  Avatar,
+  ActivityIndicator
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -21,6 +22,12 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useDispatch, useSelector } from 'react-redux';
 import { createActivity } from '../../redux/slices/activitySlice';
+
+// Import services
+import activityService from '../../api/services/activityService';
+import activityParticipationService from '../../api/services/activityParticipationService';
+import residentService from '../../api/services/residentService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 const ACTIVITY_TYPES = [
   { value: 'Thể thao', label: 'Thể thao', icon: 'run' },
@@ -45,18 +52,8 @@ const LOCATIONS = [
   'Phòng riêng',
 ];
 
-// Mock residents data - trong thực tế sẽ load từ API
-const MOCK_RESIDENTS = [
-  { id: '1', name: 'Nguyễn Văn Nam', room: 'Phòng 101-A', age: 74 },
-  { id: '2', name: 'Trần Thị Lan', room: 'Phòng 102-A', age: 76 },
-  { id: '3', name: 'Lê Văn Bình', room: 'Phòng 201-B', age: 79 },
-  { id: '4', name: 'Phạm Thị Hương', room: 'Phòng 202-C', age: 72 },
-  { id: '5', name: 'Hoàng Văn Minh', room: 'Phòng 301-A', age: 81 },
-  { id: '6', name: 'Vũ Thị Thanh', room: 'Phòng 302-B', age: 75 },
-];
-
-// Memoized ActivityTypeChip component
-const ActivityTypeChip = React.memo(({ type, isSelected, onPress }) => {
+// ActivityTypeChip component
+const ActivityTypeChip = ({ type, isSelected, onPress }) => {
   const iconColor = isSelected ? '#FFFFFF' : COLORS.primary;
   
   console.log(`DEBUG: ${type.label} - isSelected: ${isSelected}, iconColor: ${iconColor}`);
@@ -88,7 +85,7 @@ const ActivityTypeChip = React.memo(({ type, isSelected, onPress }) => {
       {type.label}
     </Chip>
   );
-});
+};
 
 const CreateActivityScreen = () => {
   const navigation = useNavigation();
@@ -109,17 +106,90 @@ const CreateActivityScreen = () => {
   const [selectedResidents, setSelectedResidents] = useState([]);
   const [errors, setErrors] = useState({});
   
+  // New states for real data
+  const [residents, setResidents] = useState([]);
+  const [loadingResidents, setLoadingResidents] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
   // Dropdown picker states
   const [locationOpen, setLocationOpen] = useState(false);
   const [residentsOpen, setResidentsOpen] = useState(false);
   
   // Helper functions
   const getSelectedResidentsData = () => {
-    return MOCK_RESIDENTS.filter(resident => selectedResidents.includes(resident.id));
+    return residents.filter(resident => selectedResidents.includes(resident._id));
   };
 
   const getAvailableResidents = () => {
-    return MOCK_RESIDENTS.filter(resident => !selectedResidents.includes(resident.id));
+    return residents.filter(resident => !selectedResidents.includes(resident._id));
+  };
+
+  // Load residents from API
+  useEffect(() => {
+    loadResidents();
+  }, []);
+
+  const loadResidents = async () => {
+    try {
+      setLoadingResidents(true);
+      const response = await residentService.getAllResidents();
+      if (response.success) {
+        const residentsData = response.data || [];
+        
+        // Fetch bed assignments for each resident
+        const residentsWithBedInfo = await Promise.all(
+          residentsData.map(async (resident) => {
+            try {
+              // Calculate age from birth date
+              let age = 'N/A';
+              if (resident.birth_date) {
+                const birthDate = new Date(resident.birth_date);
+                const today = new Date();
+                age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                  age--;
+                }
+              }
+              
+              // Fetch bed assignment
+              let bedInfo = null;
+              try {
+                const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(resident._id);
+                if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
+                  bedInfo = bedResponse.data[0]; // Take the first assignment
+                }
+              } catch (bedError) {
+                console.log(`No bed assignment found for resident ${resident._id}:`, bedError.message);
+              }
+              
+              return {
+                ...resident,
+                age: age,
+                bed_info: bedInfo
+              };
+            } catch (error) {
+              console.error(`Error processing resident ${resident._id}:`, error);
+              return {
+                ...resident,
+                age: 'N/A',
+                bed_info: null
+              };
+            }
+          })
+        );
+        
+        setResidents(residentsWithBedInfo);
+      } else {
+        console.error('Failed to load residents:', response.error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách cư dân');
+      }
+    } catch (error) {
+      console.error('Error loading residents:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách cư dân');
+    } finally {
+      setLoadingResidents(false);
+    }
   };
   
   // Memoize expensive calculations
@@ -128,65 +198,81 @@ const CreateActivityScreen = () => {
     []
   );
 
-  const residentsItems = useMemo(() => {
+  const residentsItems = () => {
     const availableResidents = getAvailableResidents();
-    return availableResidents.map(resident => ({
-      label: `${resident.name} (${resident.room} • ${resident.age} tuổi)`,
-      value: resident.id,
-      resident: resident
-    }));
-  }, [selectedResidents]);
+    return availableResidents.map(resident => {
+      // Get bed and room information
+      let bedRoomInfo = 'Chưa phân công';
+      if (resident.bed_info) {
+        if (resident.bed_info.room_id) {
+          const roomNumber = resident.bed_info.room_id.room_number || 'N/A';
+          const bedNumber = resident.bed_info.bed_number || 'N/A';
+          bedRoomInfo = `P${roomNumber} - G${bedNumber}`;
+        } else if (resident.bed_info.bed_id) {
+          const roomNumber = resident.bed_info.bed_id.room_id?.room_number || 'N/A';
+          const bedNumber = resident.bed_info.bed_id.bed_number || 'N/A';
+          bedRoomInfo = `P${roomNumber} - G${bedNumber}`;
+        }
+      }
+      
+      return {
+        label: `${resident.full_name} (${bedRoomInfo} • ${resident.age} tuổi)`,
+        value: resident._id,
+        resident: resident
+      };
+    });
+  };
 
-  // Memoize handlers to prevent re-creation
-  const handleActivityTypeChange = useCallback((newType) => {
+  // Simple handlers without useCallback to prevent focus issues
+  const handleActivityTypeChange = (newType) => {
     console.log(`DEBUG: Pressing ${newType}, current activityType: ${activityType}`);
     setActivityType(newType);
-  }, [activityType]);
+  };
 
-  const handleResidentSelect = useCallback((callback) => {
+  const handleResidentSelect = (callback) => {
     const value = callback(null);
     if (value && !selectedResidents.includes(value)) {
       setSelectedResidents(prev => [...prev, value]);
     }
-  }, [selectedResidents]);
+  };
 
-  const handleRemoveResident = useCallback((residentId) => {
+  const handleRemoveResident = (residentId) => {
     setSelectedResidents(prev => prev.filter(id => id !== residentId));
-  }, []);
+  };
 
-  const handleLocationChange = useCallback((newLocation) => {
+  const handleLocationChange = (newLocation) => {
     setLocation(newLocation);
-  }, []);
+  };
 
-  const handleNameChange = useCallback((text) => {
+  const handleNameChange = (text) => {
     setName(text);
-  }, []);
+  };
 
-  const handleDescriptionChange = useCallback((text) => {
+  const handleDescriptionChange = (text) => {
     setDescription(text);
-  }, []);
+  };
 
-  const handleCustomActivityTypeChange = useCallback((text) => {
+  const handleCustomActivityTypeChange = (text) => {
     setCustomActivityType(text);
-  }, []);
+  };
 
-  const handleDurationChange = useCallback((text) => {
+  const handleDurationChange = (text) => {
     setDuration(text);
-  }, []);
+  };
 
-  const handleCapacityChange = useCallback((text) => {
+  const handleCapacityChange = (text) => {
     setCapacity(text);
-  }, []);
+  };
 
-  const handleDateChange = useCallback((event, selectedDate) => {
+  const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) setDate(selectedDate);
-  }, []);
+  };
 
-  const handleTimeChange = useCallback((event, selectedTime) => {
+  const handleTimeChange = (event, selectedTime) => {
     setShowTimePicker(false);
     if (selectedTime) setTime(selectedTime);
-  }, []);
+  };
   
   const validate = () => {
     const newErrors = {};
@@ -216,30 +302,69 @@ const CreateActivityScreen = () => {
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
     
-    const scheduledTime = new Date(date);
-    scheduledTime.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    
-    const activityData = {
-      name,
-      description,
-      type: activityType === 'Khác' ? customActivityType : activityType,
-      scheduledTime: scheduledTime.toISOString(),
-      durationMinutes: parseInt(duration),
-      location,
-      capacity: parseInt(capacity),
-      facilitator: user?.full_name || 'Nhân viên',
-      selectedResidents,
-    };
-    
-    // Simulate API call
-    Alert.alert(
-      'Thành công',
-      'Hoạt động đã được tạo thành công!',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
+    try {
+      setSubmitting(true);
+      
+      // Prepare activity data according to API structure
+      const scheduledTime = new Date(date);
+      scheduledTime.setHours(time.getHours(), time.getMinutes(), 0, 0);
+      
+      const activityData = {
+        activity_name: name,
+        description: description,
+        activity_type: activityType === 'Khác' ? customActivityType : activityType,
+        schedule_time: scheduledTime.toISOString(),
+        duration: parseInt(duration),
+        location: location,
+        capacity: parseInt(capacity)
+      };
+      
+      console.log('Creating activity with data:', activityData);
+      
+      // Create activity
+      const activityResponse = await activityService.createActivity(activityData);
+      if (!activityResponse.success) {
+        throw new Error(activityResponse.error || 'Không thể tạo hoạt động');
+      }
+      
+      const createdActivity = activityResponse.data;
+      console.log('Activity created successfully:', createdActivity);
+      
+      // Create activity participations for selected residents
+      if (selectedResidents.length > 0) {
+        const participationDataList = selectedResidents.map(residentId => ({
+          staff_id: user._id,
+          activity_id: createdActivity._id,
+          resident_id: residentId,
+          date: scheduledTime.toISOString().split('T')[0], // YYYY-MM-DD format
+          attendance_status: 'pending' // Default status as per schema
+        }));
+        
+        console.log('Creating participations:', participationDataList);
+        
+        const participationResponse = await activityParticipationService.createMultipleActivityParticipations(participationDataList);
+        if (!participationResponse.success) {
+          console.warn('Failed to create some participations:', participationResponse.error);
+        } else {
+          console.log('Participations created successfully:', participationResponse.data);
+        }
+      }
+      
+      Alert.alert(
+        'Thành công',
+        'Hoạt động đã được tạo thành công!',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+      
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể tạo hoạt động. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   const formatDate = (date) => {
@@ -255,238 +380,6 @@ const CreateActivityScreen = () => {
     return time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const FormContent = React.memo(() => {
-    console.log('DEBUG: FormContent re-rendering');
-    console.log('DEBUG: COLORS.primary =', COLORS.primary);
-    
-    return (
-      <View style={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Thông tin hoạt động</Text>
-        
-        <TextInput
-          label="Tên hoạt động"
-          value={name}
-          onChangeText={handleNameChange}
-          style={styles.input}
-          error={!!errors.name}
-          mode="outlined"
-        />
-        <HelperText type="error" visible={!!errors.name}>
-          {errors.name}
-        </HelperText>
-        
-        <TextInput
-          label="Mô tả"
-          value={description}
-          onChangeText={handleDescriptionChange}
-          multiline
-          numberOfLines={4}
-          style={styles.input}
-          error={!!errors.description}
-          mode="outlined"
-        />
-        <HelperText type="error" visible={!!errors.description}>
-          {errors.description}
-        </HelperText>
-        
-        <Text style={styles.inputLabel}>Loại hoạt động</Text>
-        <View style={styles.activityTypeContainer}>
-          {ACTIVITY_TYPES.map((type) => {
-            const isSelected = activityType === type.value;
-            
-            return (
-              <ActivityTypeChip
-                key={type.value}
-                type={type}
-                isSelected={isSelected}
-                onPress={() => handleActivityTypeChange(type.value)}
-              />
-            );
-          })}
-        </View>
-        
-        {activityType === 'Khác' && (
-          <>
-            <TextInput
-              label="Nhập loại hoạt động"
-              value={customActivityType}
-              onChangeText={handleCustomActivityTypeChange}
-              style={styles.input}
-              error={!!errors.customActivityType}
-              mode="outlined"
-            />
-            <HelperText type="error" visible={!!errors.customActivityType}>
-              {errors.customActivityType}
-            </HelperText>
-          </>
-        )}
-        
-        <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Lịch trình</Text>
-        
-        <View>
-          <TextInput
-            label="Ngày"
-            value={formatDate(date)}
-            onPressIn={() => setShowDatePicker(true)}
-            right={<TextInput.Icon icon="calendar" />}
-            mode="outlined"
-            editable={false}
-            style={styles.input}
-          />
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-            />
-          )}
-          
-          <TextInput
-            label="Thời gian"
-            value={formatTime(time)}
-            onPressIn={() => setShowTimePicker(true)}
-            right={<TextInput.Icon icon="clock-outline" />}
-            mode="outlined"
-            editable={false}
-            style={styles.input}
-          />
-          {showTimePicker && (
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display="default"
-              onChange={handleTimeChange}
-            />
-          )}
-          
-          <TextInput
-            label="Thời lượng (phút)"
-            value={duration}
-            onChangeText={handleDurationChange}
-            keyboardType="numeric"
-            style={styles.input}
-            error={!!errors.duration}
-            mode="outlined"
-          />
-          <HelperText type="error" visible={!!errors.duration}>
-            {errors.duration}
-          </HelperText>
-          
-          <Text style={styles.inputLabel}>Địa điểm</Text>
-          <DropDownPicker
-            open={locationOpen}
-            value={location}
-            items={locationItems}
-            setOpen={setLocationOpen}
-            setValue={handleLocationChange}
-            style={styles.dropdownPicker}
-            dropDownContainerStyle={styles.dropdownContainerStyle}
-            placeholder="Chọn địa điểm"
-            zIndex={5000}
-            zIndexInverse={1000}
-            listMode="SCROLLVIEW"
-            scrollViewProps={{
-              nestedScrollEnabled: true,
-              showsVerticalScrollIndicator: true,
-            }}
-            maxHeight={150}
-            minHeight={50}
-            listItemContainerStyle={styles.listItemContainer}
-            listItemLabelStyle={styles.listItemLabel}
-          />
-          <HelperText type="error" visible={!!errors.location}>
-            {errors.location}
-          </HelperText>
-        </View>
-        
-        <Divider style={styles.divider} />
-        <Text style={styles.sectionTitle}>Tham gia</Text>
-        
-        <TextInput
-          label="Sức chứa tối đa"
-          value={capacity}
-          onChangeText={handleCapacityChange}
-          keyboardType="numeric"
-          style={styles.input}
-          error={!!errors.capacity}
-          mode="outlined"
-        />
-        <HelperText type="error" visible={!!errors.capacity}>
-          {errors.capacity}
-        </HelperText>
-        
-        <Text style={styles.inputLabel}>Người hướng dẫn</Text>
-        <View style={styles.facilitatorContainer}>
-          <Text style={styles.facilitatorText}>{user?.full_name || 'Nhân viên'}</Text>
-          <Text style={styles.facilitatorRole}>{user?.position || 'Nhân viên'}</Text>
-        </View>
-        
-        <Text style={styles.inputLabel}>Đề xuất cư dân tham gia</Text>
-        
-        <DropDownPicker
-          open={residentsOpen}
-          value={null}
-          items={residentsItems}
-          setOpen={setResidentsOpen}
-          setValue={handleResidentSelect}
-          style={styles.dropdownPicker}
-          dropDownContainerStyle={styles.dropdownContainerStyle}
-          placeholder={`${getAvailableResidents().length} cư dân có sẵn`}
-          zIndex={4000}
-          zIndexInverse={2000}
-          multiple={false}
-          searchable={true}
-          searchPlaceholder="Tìm kiếm cư dân..."
-          listMode="SCROLLVIEW"
-          scrollViewProps={{
-            nestedScrollEnabled: true,
-            showsVerticalScrollIndicator: true,
-          }}
-          maxHeight={200}
-          minHeight={50}
-          searchTextInputProps={{
-            style: styles.searchInput,
-            placeholderTextColor: COLORS.textSecondary,
-          }}
-          searchContainerStyle={styles.searchContainer}
-          listItemContainerStyle={styles.listItemContainer}
-          listItemLabelStyle={styles.listItemLabel}
-        />
-        
-        {selectedResidents.length > 0 && (
-          <View style={styles.selectedResidentsContainer}>
-            <Text style={styles.selectedResidentsTitle}>
-              Cư dân đã chọn ({selectedResidents.length})
-            </Text>
-            <View style={styles.selectedResidentsList}>
-              {getSelectedResidentsData().map((resident) => (
-                <Chip
-                  key={resident.id}
-                  style={styles.selectedResidentChip}
-                  textStyle={styles.selectedResidentChipText}
-                  onClose={() => handleRemoveResident(resident.id)}
-                  closeIcon="close"
-                >
-                  {resident.name}
-                </Chip>
-              ))}
-            </View>
-          </View>
-        )}
-        
-        <Button
-          mode="contained"
-          onPress={handleSubmit}
-          style={styles.submitButton}
-        >
-          Tạo hoạt động
-        </Button>
-      </View>
-    );
-  });
-  
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
@@ -504,10 +397,248 @@ const CreateActivityScreen = () => {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           nestedScrollEnabled={true}
+          removeClippedSubviews={false}
         >
-          <FormContent />
+          <View style={styles.scrollContent}>
+            <Text style={styles.sectionTitle}>Thông tin hoạt động</Text>
+            
+            <TextInput
+              key="activity-name"
+              label="Tên hoạt động"
+              value={name}
+              onChangeText={handleNameChange}
+              style={styles.input}
+              error={!!errors.name}
+              mode="outlined"
+            />
+            <HelperText type="error" visible={!!errors.name}>
+              {errors.name}
+            </HelperText>
+            
+            <TextInput
+              key="activity-description"
+              label="Mô tả"
+              value={description}
+              onChangeText={handleDescriptionChange}
+              multiline
+              numberOfLines={4}
+              style={styles.input}
+              error={!!errors.description}
+              mode="outlined"
+            />
+            <HelperText type="error" visible={!!errors.description}>
+              {errors.description}
+            </HelperText>
+            
+            <Text style={styles.inputLabel}>Loại hoạt động</Text>
+            <View style={styles.activityTypeContainer}>
+              {ACTIVITY_TYPES.map((type) => {
+                const isSelected = activityType === type.value;
+                
+                return (
+                  <ActivityTypeChip
+                    key={type.value}
+                    type={type}
+                    isSelected={isSelected}
+                    onPress={() => handleActivityTypeChange(type.value)}
+                  />
+                );
+              })}
+            </View>
+            
+            {activityType === 'Khác' && (
+              <>
+                <TextInput
+                  key="custom-activity-type"
+                  label="Nhập loại hoạt động"
+                  value={customActivityType}
+                  onChangeText={handleCustomActivityTypeChange}
+                  style={styles.input}
+                  error={!!errors.customActivityType}
+                  mode="outlined"
+                />
+                <HelperText type="error" visible={!!errors.customActivityType}>
+                  {errors.customActivityType}
+                </HelperText>
+              </>
+            )}
+            
+            <Divider style={styles.divider} />
+            <Text style={styles.sectionTitle}>Lịch trình</Text>
+            
+            <View>
+              <TextInput
+                label="Ngày"
+                value={formatDate(date)}
+                onPressIn={() => setShowDatePicker(true)}
+                right={<TextInput.Icon icon="calendar" />}
+                mode="outlined"
+                editable={false}
+                style={styles.input}
+              />
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                />
+              )}
+              
+              <TextInput
+                label="Thời gian"
+                value={formatTime(time)}
+                onPressIn={() => setShowTimePicker(true)}
+                right={<TextInput.Icon icon="clock-outline" />}
+                mode="outlined"
+                editable={false}
+                style={styles.input}
+              />
+              {showTimePicker && (
+                <DateTimePicker
+                  value={time}
+                  mode="time"
+                  display="default"
+                  onChange={handleTimeChange}
+                />
+              )}
+              
+              <TextInput
+                key="duration"
+                label="Thời lượng (phút)"
+                value={duration}
+                onChangeText={handleDurationChange}
+                keyboardType="numeric"
+                style={styles.input}
+                error={!!errors.duration}
+                mode="outlined"
+              />
+              <HelperText type="error" visible={!!errors.duration}>
+                {errors.duration}
+              </HelperText>
+              
+              <Text style={styles.inputLabel}>Địa điểm</Text>
+              <DropDownPicker
+                open={locationOpen}
+                value={location}
+                items={locationItems}
+                setOpen={setLocationOpen}
+                setValue={handleLocationChange}
+                style={styles.dropdownPicker}
+                dropDownContainerStyle={styles.dropdownContainerStyle}
+                placeholder="Chọn địa điểm"
+                zIndex={5000}
+                zIndexInverse={1000}
+                listMode="SCROLLVIEW"
+                scrollViewProps={{
+                  nestedScrollEnabled: true,
+                  showsVerticalScrollIndicator: true,
+                }}
+                maxHeight={150}
+                minHeight={50}
+                listItemContainerStyle={styles.listItemContainer}
+                listItemLabelStyle={styles.listItemLabel}
+              />
+              <HelperText type="error" visible={!!errors.location}>
+                {errors.location}
+              </HelperText>
+            </View>
+            
+            <Divider style={styles.divider} />
+            <Text style={styles.sectionTitle}>Tham gia</Text>
+            
+            <TextInput
+              key="capacity"
+              label="Sức chứa tối đa"
+              value={capacity}
+              onChangeText={handleCapacityChange}
+              keyboardType="numeric"
+              style={styles.input}
+              error={!!errors.capacity}
+              mode="outlined"
+            />
+            <HelperText type="error" visible={!!errors.capacity}>
+              {errors.capacity}
+            </HelperText>
+            
+            <Text style={styles.inputLabel}>Người hướng dẫn</Text>
+            <View style={styles.facilitatorContainer}>
+              <Text style={styles.facilitatorText}>{user?.full_name || 'Nhân viên'}</Text>
+              <Text style={styles.facilitatorRole}>{user?.position || 'Nhân viên'}</Text>
+            </View>
+            
+            <Text style={styles.inputLabel}>Đề xuất cư dân tham gia</Text>
+            
+            {loadingResidents ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách cư dân...</Text>
+              </View>
+            ) : (
+              <DropDownPicker
+                open={residentsOpen}
+                value={null}
+                items={residentsItems()}
+                setOpen={setResidentsOpen}
+                setValue={handleResidentSelect}
+                style={styles.dropdownPicker}
+                dropDownContainerStyle={styles.dropdownContainerStyle}
+                placeholder={`${getAvailableResidents().length} cư dân có sẵn`}
+                zIndex={4000}
+                zIndexInverse={2000}
+                multiple={false}
+                searchable={true}
+                searchPlaceholder="Tìm kiếm cư dân..."
+                listMode="SCROLLVIEW"
+                scrollViewProps={{
+                  nestedScrollEnabled: true,
+                  showsVerticalScrollIndicator: true,
+                }}
+                maxHeight={200}
+                minHeight={50}
+                searchTextInputProps={{
+                  style: styles.searchInput,
+                  placeholderTextColor: COLORS.textSecondary,
+                }}
+                searchContainerStyle={styles.searchContainer}
+                listItemContainerStyle={styles.listItemContainer}
+                listItemLabelStyle={styles.listItemLabel}
+              />
+            )}
+            
+            {selectedResidents.length > 0 && (
+              <View style={styles.selectedResidentsContainer}>
+                <Text style={styles.selectedResidentsTitle}>
+                  Cư dân đã chọn ({selectedResidents.length})
+                </Text>
+                <View style={styles.selectedResidentsList}>
+                  {getSelectedResidentsData().map((resident) => (
+                    <Chip
+                      key={resident._id}
+                      style={styles.selectedResidentChip}
+                      textStyle={styles.selectedResidentChipText}
+                      onClose={() => handleRemoveResident(resident._id)}
+                      closeIcon="close"
+                    >
+                      {resident.full_name}
+                    </Chip>
+                  ))}
+                </View>
+              </View>
+            )}
+            
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={styles.submitButton}
+              loading={submitting}
+              disabled={submitting}
+            >
+              {submitting ? 'Đang tạo...' : 'Tạo hoạt động'}
+            </Button>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -649,6 +780,16 @@ const styles = StyleSheet.create({
   listItemLabel: {
     fontSize: 16,
     color: COLORS.text,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginLeft: 10,
+    color: COLORS.textSecondary,
   },
 });
 

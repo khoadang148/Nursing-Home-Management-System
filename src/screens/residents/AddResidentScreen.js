@@ -131,53 +131,76 @@ const AddResidentScreen = ({ navigation }) => {
 
   // Image picker logic
   const pickAvatar = async () => {
-    Alert.alert(
-      'Chọn ảnh',
-      'Chọn cách lấy ảnh',
-      [
-        {
-          text: 'Chụp ảnh',
-          onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
-              return;
+    try {
+      Alert.alert(
+        'Chọn ảnh',
+        'Chọn cách lấy ảnh',
+        [
+          {
+            text: 'Chụp ảnh',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
+                  return;
+                }
+                
+                let result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.7,
+                });
+                
+                console.log('Camera result:', result);
+                
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setAvatarUri(result.assets[0].uri);
+                  console.log('Avatar URI set:', result.assets[0].uri);
+                }
+              } catch (error) {
+                console.error('Camera error:', error);
+                Alert.alert('Lỗi', 'Không thể mở camera. Vui lòng thử lại!');
+              }
             }
-            
-            let result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.7,
-            });
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-              setAvatarUri(result.assets[0].uri);
+          },
+          {
+            text: 'Chọn từ thư viện',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
+                  return;
+                }
+                
+                let result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.7,
+                });
+                
+                console.log('Gallery result:', result);
+                
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setAvatarUri(result.assets[0].uri);
+                  console.log('Avatar URI set:', result.assets[0].uri);
+                }
+              } catch (error) {
+                console.error('Gallery error:', error);
+                Alert.alert('Lỗi', 'Không thể mở thư viện ảnh. Vui lòng thử lại!');
+              }
             }
-          }
-        },
-        {
-          text: 'Chọn từ thư viện',
-          onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
-              return;
-            }
-            
-            let result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.7,
-            });
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-              setAvatarUri(result.assets[0].uri);
-            }
-          }
-        },
-        { text: 'Hủy', style: 'cancel' }
-      ]
-    );
+          },
+          { text: 'Hủy', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Lỗi', 'Không thể mở image picker. Vui lòng thử lại!');
+    }
   };
 
 

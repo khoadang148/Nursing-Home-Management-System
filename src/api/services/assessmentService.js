@@ -80,7 +80,19 @@ const assessmentService = {
    */
   createAssessment: async (assessmentData) => {
     try {
+      console.log('Creating assessment with data:', assessmentData);
+      
+      // Validate required fields
+      if (!assessmentData.resident_id) {
+        return {
+          success: false,
+          error: 'Resident ID là bắt buộc'
+        };
+      }
+
       const response = await apiClient.post('/assessments', assessmentData);
+      console.log('Assessment created successfully:', response.data);
+      
       return {
         success: true,
         data: response.data,
@@ -88,9 +100,32 @@ const assessmentService = {
       };
     } catch (error) {
       console.log('Create assessment error:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        return {
+          success: false,
+          error: error.response?.data?.message || 'Dữ liệu không hợp lệ'
+        };
+      }
+      
+      if (error.response?.status === 401) {
+        return {
+          success: false,
+          error: 'Không có quyền tạo đánh giá'
+        };
+      }
+      
+      if (error.response?.status === 500) {
+        return {
+          success: false,
+          error: 'Lỗi server, vui lòng thử lại sau'
+        };
+      }
+      
       return {
         success: false,
-        error: error.response?.data || error.message || 'Tạo đánh giá thất bại'
+        error: error.response?.data?.message || error.message || 'Tạo đánh giá thất bại'
       };
     }
   },

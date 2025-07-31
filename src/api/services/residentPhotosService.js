@@ -6,14 +6,13 @@ import apiClient from '../config/axiosConfig';
 const residentPhotosService = {
   /**
    * Tải lên ảnh cư dân
-   * @param {string} residentId - ID cư dân
    * @param {FormData} formData - Dữ liệu ảnh (FormData)
    * @param {Function} onProgress - Callback cho progress upload
    * @returns {Promise} - Promise với response data
    */
-  uploadResidentPhoto: async (residentId, formData, onProgress = () => {}) => {
+  uploadResidentPhoto: async (formData, onProgress = () => {}) => {
     try {
-      const response = await apiClient.post(`/resident-photos/${residentId}/upload`, formData, {
+      const response = await apiClient.post('/resident-photos', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

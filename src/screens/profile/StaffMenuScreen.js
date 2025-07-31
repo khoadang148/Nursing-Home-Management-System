@@ -7,13 +7,9 @@ import { logout } from '../../redux/slices/authSlice';
 import { COLORS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { getAvatarUri } from '../../utils/avatarUtils';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  return getImageUri(avatar, 'avatar');
-};
 
 const StaffMenuScreen = () => {
   const navigation = useNavigation();
@@ -70,6 +66,12 @@ const StaffMenuScreen = () => {
       onPress: () => navigation.navigate('TaoHoaDon'),
     },
     {
+      id: 'my-created-bills',
+      title: 'Hóa đơn tôi đã tạo',
+      icon: <MaterialIcons name="fact-check" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('MyCreatedBills'),
+    },
+    {
       id: 'family-contact',
       title: 'Liên hệ người nhà',
       icon: <MaterialIcons name="people" size={24} color={COLORS.primary} />,
@@ -91,7 +93,7 @@ const StaffMenuScreen = () => {
     // Thêm mục quản lý giường
     {
       id: 'bed-management',
-      title: 'Quản lý giường',
+      title: 'Quản lý phân bổ giường',
       icon: <MaterialIcons name="bed" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('QuanLyGiuong'),
     },

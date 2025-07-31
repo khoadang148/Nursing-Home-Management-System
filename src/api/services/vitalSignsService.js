@@ -136,7 +136,9 @@ const vitalSignsService = {
    */
   deleteVitalSign: async (vitalSignId) => {
     try {
+      console.log('Attempting to delete vital sign:', vitalSignId);
       const response = await apiClient.delete(`/vital-signs/${vitalSignId}`);
+      console.log('Delete vital sign response:', response.data);
       return {
         success: true,
         data: response.data,
@@ -144,9 +146,37 @@ const vitalSignsService = {
       };
     } catch (error) {
       console.log('Delete vital sign error:', error);
+      console.log('Error response:', error.response?.data);
+      console.log('Error status:', error.response?.status);
       return {
         success: false,
         error: error.response?.data || error.message || 'Xóa chỉ số sinh hiệu thất bại'
+      };
+    }
+  },
+
+  /**
+   * Test DELETE endpoint
+   * @param {string} testId - Test ID
+   * @returns {Promise} - Promise với response data
+   */
+  testDeleteEndpoint: async (testId) => {
+    try {
+      console.log('Testing DELETE endpoint with ID:', testId);
+      const response = await apiClient.delete(`/vital-signs/debug/test-delete/${testId}`);
+      console.log('Test DELETE response:', response.data);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Test DELETE endpoint thành công'
+      };
+    } catch (error) {
+      console.log('Test DELETE error:', error);
+      console.log('Error response:', error.response?.data);
+      console.log('Error status:', error.response?.status);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Test DELETE endpoint thất bại'
       };
     }
   },

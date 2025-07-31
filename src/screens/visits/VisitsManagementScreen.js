@@ -260,7 +260,7 @@ const VisitsManagementScreen = ({ navigation }) => {
             data={filteredVisits}
             keyExtractor={item => item._id}
             renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 4 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
@@ -289,9 +289,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingHorizontal: 20,
   },
   searchBar: {
     marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    elevation: 2,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -304,8 +308,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 4,
     borderRadius: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#fff',
     alignItems: 'center',
+    elevation: 1,
   },
   filterTabActive: {
     backgroundColor: COLORS.primary,
@@ -330,10 +335,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
+    elevation: 1,
   },
   datePickerText: {
     fontSize: 14,
@@ -345,7 +351,16 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 12,
-    ...SHADOWS.medium,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   headerRow: {
     flexDirection: 'row',

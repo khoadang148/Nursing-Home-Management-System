@@ -12,20 +12,16 @@ import {
 } from 'react-native';
 import { Avatar, Badge, Searchbar, Button, FAB, Chip } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
 
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import { useSelector } from 'react-redux';
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { getAvatarUri } from '../../utils/avatarUtils';
 import { formatDateFromBackend } from '../../utils/dateUtils';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  return getImageUri(avatar, 'avatar');
-};
 
 const ResidentListScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
@@ -35,31 +31,22 @@ const ResidentListScreen = ({ navigation }) => {
   const [residents, setResidents] = useState([]);
   const [filteredResidents, setFilteredResidents] = useState([]);
   const [residentsWithBedInfo, setResidentsWithBedInfo] = useState([]);
+  const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
 
   // Chỉ reload lần đầu khi component mount
   useEffect(() => {
     fetchResidents();
   }, []);
 
-  // Redux integration: Reload khi có thay đổi từ Redux store
-  useEffect(() => {
-    // Có thể thêm logic để reload khi có thay đổi từ Redux
-    // Ví dụ: khi có notification về resident mới
-  }, []);
-
-  // Redux integration: Listen to resident changes
-  const residentChanges = useSelector((state) => state.residents?.lastUpdated);
-  
-  useEffect(() => {
-    // Reload khi có thay đổi resident từ Redux
-    if (residentChanges && residents.length > 0) {
-      console.log('Redux detected resident changes, reloading...');
-      fetchResidents();
-    }
-  }, [residentChanges]);
-
   const fetchResidents = async () => {
+    // Prevent multiple simultaneous API calls
+    if (isFetching && !refreshing) {
+      console.log('Already fetching residents, skipping...');
+      return;
+    }
+
     try {
+      setIsFetching(true);
       setLoading(true);
       const response = await residentService.getAllResidents();
       if (response.success) {
@@ -102,6 +89,7 @@ const ResidentListScreen = ({ navigation }) => {
       setResidentsWithBedInfo([]);
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
@@ -113,6 +101,11 @@ const ResidentListScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
+    // Only filter if we have data to filter
+    if (!residentsWithBedInfo || residentsWithBedInfo.length === 0) {
+      return;
+    }
+
     let result = residentsWithBedInfo || [];
 
     // Filter by search query
@@ -175,7 +168,7 @@ const ResidentListScreen = ({ navigation }) => {
       >
         <View style={styles.cardHeader}>
           <Avatar.Image
-            source={{ uri: getAvatarUri(item.photo || item.avatar) || DEFAULT_AVATAR }}
+            source={{ uri: getAvatarUri(item.photo || item.avatar) }}
             size={60}
             style={styles.avatar}
           />
@@ -282,7 +275,7 @@ const ResidentListScreen = ({ navigation }) => {
         >
           <Avatar.Image
             size={40}
-            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) || DEFAULT_AVATAR }}
+            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) }}
           />
         </TouchableOpacity>
       </View>
@@ -324,6 +317,16 @@ const ResidentListScreen = ({ navigation }) => {
                 <Text style={styles.emptyText}>Không tìm thấy cư dân</Text>
               </View>
             }
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            initialNumToRender={10}
+            onEndReachedThreshold={0.5}
+            getItemLayout={(data, index) => ({
+              length: 120, // Approximate height of each item
+              offset: 120 * index,
+              index,
+            })}
           />
 
           <FAB

@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Appbar, TextInput, Button, Text, Surface } from 'react-native-paper';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Appbar, TextInput, Button, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { useSelector, useDispatch } from 'react-redux';
-import { validateVitalSigns } from '../../utils/validation';
-import vitalSignsService from '../../api/services/vitalSignsService';
-import { triggerResidentDataReload } from '../../redux/slices/residentSlice';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import vitalSignsService from '../../api/services/vitalSignsService';
+import { validateVitalSigns } from '../../utils/validation';
 
 const EditVitalsScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { vitalId, vitalData } = route.params;
-  const user = useSelector(state => state.auth.user);
-  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
 
   const [vitals, setVitals] = useState({
@@ -69,8 +73,10 @@ const EditVitalsScreen = () => {
       const response = await vitalSignsService.updateVitalSign(vitalId, vitalSignData);
       
       if (response.success) {
-        // Trigger Redux reload để cập nhật dữ liệu
-        dispatch(triggerResidentDataReload());
+        // Use callback instead of Redux dispatch
+        if (route.params?.onGoBack) {
+          route.params.onGoBack();
+        }
         Alert.alert('Thành công', 'Đã cập nhật sinh hiệu!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);

@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 const bedAssignmentService = {
   /**
-   * Lấy phân công giường theo resident ID
+   * Lấy phân công giường theo resident ID (chỉ lấy những assignment đang hoạt động - unassigned_date = null)
    * @param {string} residentId - ID cư dân
    * @returns {Promise} - Promise với response data
    */
@@ -102,6 +102,33 @@ const bedAssignmentService = {
       return {
         success: false,
         error: error.response?.data || error.message || 'Hủy phân công giường thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy tất cả phân công giường (bao gồm cả đã unassign) - chỉ dành cho admin/staff
+   * @param {Object} params - Query parameters (optional)
+   * @param {string} params.bed_id - Lọc theo ID giường
+   * @param {string} params.resident_id - Lọc theo ID cư dân
+   * @param {boolean} params.include_inactive - Bao gồm cả assignment đã unassign
+   * @returns {Promise} - Promise với response data
+   */
+  getAllBedAssignmentsIncludingInactive: async (params = {}) => {
+    try {
+      const response = await apiClient.get('/bed-assignments', { 
+        params: { ...params, include_inactive: 'true' } 
+      });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách phân công giường thành công'
+      };
+    } catch (error) {
+      console.log('Get all bed assignments including inactive error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách phân công giường thất bại'
       };
     }
   }

@@ -287,17 +287,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     if (user?.id && photos.length === 0) {
       loadData();
     }
-  }, [user, photos.length]);
-
-  // Check for data updates when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Only reload if there's no data
-      if (user?.id && photos.length === 0) {
-        loadData();
-      }
-    }, [user?.id, photos.length])
-  );
+  }, [user?.id, photos.length]); // Only depend on user.id, not entire user object
 
   useEffect(() => {
     const filtered = filterAndSearchPhotos();
@@ -540,6 +530,46 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       </SafeAreaView>
     );
   }
+
+  // Empty state when no photos
+  if (photos.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Header with Search */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Thư viện ảnh</Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </View>
+        
+        {/* Empty State */}
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <MaterialIcons name="photo-library" size={80} color="#ccc" />
+          </View>
+          <Text style={styles.emptyTitle}>Chưa có ảnh nào</Text>
+          <Text style={styles.emptyDescription}>
+            Hiện tại chưa có ảnh nào được đăng tải cho người thân của bạn.{'\n'}
+            Nhân viên sẽ cập nhật ảnh thường xuyên để bạn có thể theo dõi hoạt động của người thân.
+          </Text>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onRefresh}
+          >
+            <MaterialIcons name="refresh" size={20} color={COLORS.primary} />
+            <Text style={styles.refreshButtonText}>Tải lại</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -586,19 +616,43 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       </View>
       
         {/* Photo Gallery */}
-        <SectionList
-          sections={sections}
-          keyExtractor={(item, index) => `section-item-${item._id}-${index}`}
-          renderSectionHeader={renderSectionHeader}
-          renderItem={({ item, index, section }) => renderPhotoItem(item, index, section.data)}
-          stickySectionHeadersEnabled={true}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
-          numColumns={COLUMNS}
-          columnWrapperStyle={styles.row}
-        />
+        {sections.length > 0 ? (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item, index) => `section-item-${item._id}-${index}`}
+            renderSectionHeader={renderSectionHeader}
+            renderItem={({ item, index, section }) => renderPhotoItem(item, index, section.data)}
+            stickySectionHeadersEnabled={true}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+            numColumns={COLUMNS}
+            columnWrapperStyle={styles.row}
+          />
+        ) : (
+          // Empty state when no results after filtering
+          <View style={styles.noResultsContainer}>
+            <View style={styles.noResultsIconContainer}>
+              <MaterialIcons name="search-off" size={60} color="#ccc" />
+            </View>
+            <Text style={styles.noResultsTitle}>Không tìm thấy ảnh</Text>
+            <Text style={styles.noResultsDescription}>
+              Không có ảnh nào phù hợp với tìm kiếm hoặc bộ lọc hiện tại.{'\n'}
+              Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.
+            </Text>
+            <TouchableOpacity 
+              style={styles.clearFiltersButton}
+              onPress={() => {
+                setSearchQuery('');
+                setActiveFilters({});
+              }}
+            >
+              <MaterialIcons name="clear" size={20} color={COLORS.primary} />
+              <Text style={styles.clearFiltersButtonText}>Xóa bộ lọc</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Image Viewer */}
         <ImageViewing
@@ -1083,6 +1137,86 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+  },
+
+  // Empty State Styles
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  emptyIconContainer: {
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  emptyDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '10',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    marginLeft: 8,
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // No Results Styles
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  noResultsIconContainer: {
+    marginBottom: 20,
+  },
+  noResultsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  noResultsDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '10',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  clearFiltersButtonText: {
+    marginLeft: 8,
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

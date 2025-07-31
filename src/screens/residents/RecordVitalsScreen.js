@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Appbar, TextInput, Button, Text, Surface } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { Appbar, TextInput, Button, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
-import { validateVitalSigns } from '../../utils/validation';
 import vitalSignsService from '../../api/services/vitalSignsService';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 
@@ -32,25 +39,67 @@ const RecordVitalsScreen = () => {
   };
 
   const handleSave = async () => {
-    const { isValid, errors } = validateVitalSigns(vitals);
-    if (!isValid) {
-      const firstError = Object.values(errors)[0];
-      Alert.alert('Lỗi', firstError);
+    // Validate that at least one vital sign is recorded
+    const hasVitalSigns = vitals.temperature || vitals.heartRate || vitals.bloodPressure || 
+                         vitals.respiratoryRate || vitals.oxygenSaturation || vitals.weight;
+    
+    if (!hasVitalSigns) {
+      Alert.alert('Lỗi', 'Vui lòng nhập ít nhất một chỉ số sinh hiệu');
       return;
     }
     
     setLoading(true);
     try {
+      // Prepare data with proper type conversion and validation
       const vitalSignData = {
         resident_id: residentId,
-        temperature: vitals.temperature ? parseFloat(vitals.temperature.replace(',', '.')) : undefined,
-        heart_rate: vitals.heartRate ? parseInt(vitals.heartRate.replace(',', '.')) : undefined,
-        blood_pressure: vitals.bloodPressure || undefined,
-        respiratory_rate: vitals.respiratoryRate ? parseInt(vitals.respiratoryRate.replace(',', '.')) : undefined,
-        oxygen_level: vitals.oxygenSaturation ? parseFloat(vitals.oxygenSaturation.replace(',', '.')) : undefined,
-        weight: vitals.weight ? parseFloat(vitals.weight.replace(',', '.')) : undefined,
-        notes: vitals.notes || undefined
       };
+
+      // Only add fields that have values and convert to proper types
+      if (vitals.temperature && vitals.temperature.trim()) {
+        const temp = parseFloat(vitals.temperature.replace(',', '.'));
+        if (!isNaN(temp) && temp >= 30 && temp <= 45) {
+          vitalSignData.temperature = temp;
+        }
+      }
+
+      if (vitals.heartRate && vitals.heartRate.trim()) {
+        const hr = parseInt(vitals.heartRate.replace(',', '.'));
+        if (!isNaN(hr) && hr >= 30 && hr <= 200) {
+          vitalSignData.heart_rate = hr;
+        }
+      }
+
+      if (vitals.bloodPressure && vitals.bloodPressure.trim()) {
+        vitalSignData.blood_pressure = vitals.bloodPressure.trim();
+      }
+
+      if (vitals.respiratoryRate && vitals.respiratoryRate.trim()) {
+        const rr = parseInt(vitals.respiratoryRate.replace(',', '.'));
+        if (!isNaN(rr) && rr >= 5 && rr <= 50) {
+          vitalSignData.respiratory_rate = rr;
+        }
+      }
+
+      if (vitals.oxygenSaturation && vitals.oxygenSaturation.trim()) {
+        const o2 = parseFloat(vitals.oxygenSaturation.replace(',', '.'));
+        if (!isNaN(o2) && o2 >= 70 && o2 <= 100) {
+          vitalSignData.oxygen_level = o2;
+        }
+      }
+
+      if (vitals.weight && vitals.weight.trim()) {
+        const weight = parseFloat(vitals.weight.replace(',', '.'));
+        if (!isNaN(weight) && weight >= 20 && weight <= 200) {
+          vitalSignData.weight = weight;
+        }
+      }
+
+      if (vitals.notes && vitals.notes.trim()) {
+        vitalSignData.notes = vitals.notes.trim();
+      }
+
+      console.log('Sending vital sign data:', vitalSignData);
 
       const response = await vitalSignsService.createVitalSign(vitalSignData);
       

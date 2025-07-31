@@ -126,6 +126,52 @@ const activityParticipationService = {
   },
 
   /**
+   * Lấy hoạt động tham gia theo activity ID và date
+   * @param {string} activityId - ID của hoạt động
+   * @param {string} date - Ngày tham gia (YYYY-MM-DD format)
+   * @returns {Promise} - Promise với response data
+   */
+  getParticipationsByActivity: async (activityId, date) => {
+    try {
+      const response = await apiClient.get(`/activity-participations/by-activity?activity_id=${activityId}&date=${date}`);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách tham gia hoạt động theo activity và date thành công'
+      };
+    } catch (error) {
+      console.log('Get participations by activity error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách tham gia hoạt động theo activity thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy hoạt động tham gia theo resident ID và activity ID
+   * @param {string} residentId - ID của cư dân
+   * @param {string} activityId - ID của hoạt động
+   * @returns {Promise} - Promise với response data
+   */
+  getParticipationByResidentAndActivity: async (residentId, activityId) => {
+    try {
+      const response = await apiClient.get(`/activity-participations/by-resident-activity?resident_id=${residentId}&activity_id=${activityId}`);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy thông tin tham gia hoạt động theo resident và activity thành công'
+      };
+    } catch (error) {
+      console.log('Get participation by resident and activity error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy thông tin tham gia hoạt động theo resident và activity thất bại'
+      };
+    }
+  },
+
+  /**
    * Lấy hoạt động tham gia theo ID
    * @param {string} participationId - ID tham gia hoạt động
    * @returns {Promise} - Promise với response data
@@ -165,6 +211,60 @@ const activityParticipationService = {
       return {
         success: false,
         error: error.response?.data || error.message || 'Tạo hoạt động tham gia thất bại'
+      };
+    }
+  },
+
+  /**
+   * Tạo activity participation mới
+   * @param {Object} participationData - Dữ liệu tham gia hoạt động
+   * @returns {Promise} - Promise với response data
+   */
+  createActivityParticipation: async (participationData) => {
+    try {
+      console.log('Creating activity participation with data:', participationData);
+      const response = await apiClient.post('/activity-participations', participationData);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Tạo bản ghi tham gia hoạt động thành công'
+      };
+    } catch (error) {
+      console.error('Create activity participation error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Tạo bản ghi tham gia hoạt động thất bại'
+      };
+    }
+  },
+
+  /**
+   * Tạo nhiều activity participation cùng lúc
+   * @param {Array} participationDataList - Danh sách dữ liệu tham gia hoạt động
+   * @returns {Promise} - Promise với response data
+   */
+  createMultipleActivityParticipations: async (participationDataList) => {
+    try {
+      console.log('Creating multiple activity participations:', participationDataList.length);
+      
+      // Tạo tất cả các participation records
+      const promises = participationDataList.map(data => 
+        apiClient.post('/activity-participations', data)
+      );
+      
+      const responses = await Promise.all(promises);
+      const results = responses.map(response => response.data);
+      
+      return {
+        success: true,
+        data: results,
+        message: `Tạo thành công ${results.length} bản ghi tham gia hoạt động`
+      };
+    } catch (error) {
+      console.error('Create multiple activity participations error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Tạo bản ghi tham gia hoạt động thất bại'
       };
     }
   },

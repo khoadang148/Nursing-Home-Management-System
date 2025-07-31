@@ -102,13 +102,37 @@ const AddAssessmentScreen = ({ route, navigation }) => {
     
     try {
       setSubmitting(true);
+      
+      // Prepare data with proper validation
       const assessmentData = {
-        assessment_type: assessmentType === 'Khác' ? otherAssessmentType : assessmentType,
-        notes: notes,
-        recommendations: recommendations.trim() || undefined, // Chỉ gửi khi có giá trị
         resident_id: residentId,
-        conducted_by: user._id || user.id
       };
+
+      // Handle assessment_type
+      if (assessmentType && assessmentType.trim()) {
+        if (assessmentType === 'Khác' && otherAssessmentType && otherAssessmentType.trim()) {
+          assessmentData.assessment_type = otherAssessmentType.trim();
+        } else if (assessmentType !== 'Khác') {
+          assessmentData.assessment_type = assessmentType.trim();
+        }
+      }
+
+      // Handle notes - only send if not empty
+      if (notes && notes.trim()) {
+        assessmentData.notes = notes.trim();
+      }
+
+      // Handle recommendations - only send if not empty
+      if (recommendations && recommendations.trim()) {
+        assessmentData.recommendations = recommendations.trim();
+      }
+
+      // Add conducted_by if available
+      if (user && (user._id || user.id)) {
+        assessmentData.conducted_by = user._id || user.id;
+      }
+
+      console.log('Sending assessment data:', assessmentData);
 
       const response = await assessmentService.createAssessment(assessmentData);
       

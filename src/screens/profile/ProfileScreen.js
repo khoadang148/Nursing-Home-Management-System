@@ -29,15 +29,12 @@ import * as ImagePicker from 'expo-image-picker';
 // Import constants
 import { COLORS, FONTS } from '../../constants/theme';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { getAvatarUri } from '../../utils/avatarUtils';
 import dateUtils, { formatDateFromBackend } from '../../utils/dateUtils';
 import authService from '../../api/services/authService';
+import userService from '../../api/services/userService';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  return getImageUri(avatar, 'avatar');
-};
 
 // Helper để format ngày thành dd/mm/yyyy
 const formatDateToDDMMYYYY = (dateValue) => {
@@ -161,54 +158,117 @@ const ProfileScreen = () => {
         { 
           text: 'Chụp ảnh', 
           onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
-              return;
-            }
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
+                return;
+              }
 
-            let result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.7,
-            });
+              let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+              });
 
-            if (!result.canceled && result.assets[0]) {
-              console.log('Camera photo:', result.assets[0].uri);
-              // Dispatch action to update user avatar
-              dispatch(updateProfile({ avatar: result.assets[0].uri }));
-              Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện!');
+              if (!result.canceled && result.assets[0]) {
+                console.log('Camera photo:', result.assets[0].uri);
+                await uploadAvatarToServer(result.assets[0].uri);
+              }
+            } catch (error) {
+              console.error('Error taking photo:', error);
+              Alert.alert('Lỗi', 'Không thể chụp ảnh. Vui lòng thử lại.');
             }
           }
         },
         { 
           text: 'Chọn từ thư viện', 
           onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
-              return;
-            }
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
+                return;
+              }
 
-            let result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.7,
-            });
+              let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+              });
 
-            if (!result.canceled && result.assets[0]) {
-              console.log('Gallery photo:', result.assets[0].uri);
-              // Dispatch action to update user avatar
-              dispatch(updateProfile({ avatar: result.assets[0].uri }));
-              Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện!');
+              if (!result.canceled && result.assets[0]) {
+                console.log('Gallery photo:', result.assets[0].uri);
+                await uploadAvatarToServer(result.assets[0].uri);
+              }
+            } catch (error) {
+              console.error('Error selecting photo:', error);
+              Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
             }
           }
         },
         { text: 'Hủy', style: 'cancel' }
       ]
     );
+  };
+
+  const uploadAvatarToServer = async (imageUri) => {
+    try {
+      setLoading(true);
+      
+      // Gọi API để upload avatar
+      const response = await userService.updateAvatar(userData._id, imageUri);
+      
+      if (response.success) {
+        // Cập nhật Redux store với avatar mới
+        dispatch(updateProfile({ avatar: response.data.avatar }));
+        Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện!');
+        
+        // Reload profile để lấy thông tin mới nhất
+        await loadProfile();
+      } else {
+        Alert.alert('Lỗi', response.error || 'Không thể cập nhật ảnh đại diện');
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      
+      // Xử lý các loại lỗi cụ thể
+      let errorMessage = 'Không thể cập nhật ảnh đại diện. Vui lòng thử lại.';
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        switch (status) {
+          case 400:
+            errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+            break;
+          case 401:
+            errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+            break;
+          case 403:
+            errorMessage = 'Bạn không có quyền thực hiện thao tác này.';
+            break;
+          case 404:
+            errorMessage = 'Không tìm thấy thông tin người dùng.';
+            break;
+          case 413:
+            errorMessage = 'Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.';
+            break;
+          case 500:
+            errorMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
+            break;
+          default:
+            errorMessage = data?.message || errorMessage;
+        }
+      } else if (error.request) {
+        errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+      }
+      
+      Alert.alert('Lỗi', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -261,8 +321,13 @@ const ProfileScreen = () => {
         <TouchableOpacity 
               style={styles.editAvatarButton}
               onPress={handleChangeAvatar}
+              disabled={loading}
         >
-              <MaterialIcons name="edit" size={20} color={COLORS.surface} />
+              {loading ? (
+                <ActivityIndicator size="small" color={COLORS.surface} />
+              ) : (
+                <MaterialIcons name="edit" size={20} color={COLORS.surface} />
+              )}
         </TouchableOpacity>
           </View>
           

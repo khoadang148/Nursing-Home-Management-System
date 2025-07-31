@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,12 @@ import {
   FlatList,
   Dimensions,
   ScrollView as RNScrollView,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Surface, Button, Chip, Divider, Menu, Appbar } from 'react-native-paper';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { useSelector } from 'react-redux';
 
 // Import services
 import residentService from '../../api/services/residentService';
@@ -27,6 +27,7 @@ import residentPhotosService from '../../api/services/residentPhotosService';
 import assessmentService from '../../api/services/assessmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { getAvatarUri, getImageUriHelper } from '../../utils/avatarUtils';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
 
@@ -36,15 +37,7 @@ const getApiBaseUrl = () => {
   return DEFAULT_API_BASE_URL;
 };
 
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  return getImageUri(avatar, 'avatar');
-};
 
-// Helper để format hình ảnh
-const getImageUriHelper = (imagePath) => {
-  return getImageUri(imagePath, 'image');
-};
 
 // Mock data for medications (để test giao diện khi chưa có API)
 const MOCK_MEDICATIONS = [
@@ -104,12 +97,25 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   const [resident, setResident] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
   // Tab mới: overview, activity, meds, vitals, images, assessment
   const [activeTab, setActiveTab] = useState(initialTab);
+  
+  const fetchData = useCallback(async (isRefreshing = false) => {
+    console.log('🔄 fetchData called - isRefreshing:', isRefreshing, 'residentId:', residentId);
+    
+    // Prevent multiple simultaneous API calls
+    if (isFetching && !isRefreshing) {
+      console.log('Already fetching data, skipping...');
+      return;
+    }
 
-  const fetchData = async () => {
     try {
-      setLoading(true);
+      setIsFetching(true);
+      if (!isRefreshing) {
+        setLoading(true);
+      }
       
       // Fetch resident data
       const residentResponse = await residentService.getResidentById(residentId);
@@ -154,6 +160,21 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       console.error('Error fetching resident data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setIsFetching(false);
+    }
+  }, [residentId]);
+
+  // Handle pull-to-refresh
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchData(true);
+    } catch (error) {
+      console.error('Error during refresh:', error);
+      Alert.alert('Lỗi', 'Không thể làm mới dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -162,16 +183,21 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     fetchData();
   }, [residentId]);
 
-  // Chỉ reload khi có thay đổi từ Redux store (khi có dữ liệu mới)
-  const residentChanges = useSelector((state) => state.residents?.lastUpdated);
-  
-  useEffect(() => {
-    // Chỉ reload khi có thay đổi thực sự từ Redux
-    if (residentChanges && resident) {
-      console.log('Redux detected changes, reloading resident data...');
-      fetchData();
-    }
-  }, [residentChanges, residentId]);
+  // Reload data when screen comes into focus (e.g., returning from edit screens)
+  useFocusEffect(
+    useCallback(() => {
+      if (resident && !loading && !isFetching) {
+        console.log('Screen focused, reloading resident data...');
+        fetchData();
+      }
+    }, [residentId, fetchData])
+  );
+
+  // Add callback for edit screens to trigger reload
+  const handleEditCallback = useCallback(() => {
+    console.log('Edit callback triggered, reloading data...');
+    fetchData();
+  }, [fetchData]);
 
   // Update active tab when initialTab changes
   useEffect(() => {
@@ -184,6 +210,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Đang tải thông tin cư dân...</Text>
       </View>
     );
   }
@@ -201,6 +228,64 @@ const ResidentDetailScreen = ({ route, navigation }) => {
 
   const handleRegisterCarePlan = () => {
     navigation.navigate('CarePlanSelection', { residentId: resident._id, residentName: resident.full_name });
+  };
+
+  const handleDeleteAssessment = async (assessmentId, assessmentType) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa đánh giá "${assessmentType || 'này'}" không?\n\nHành động này không thể hoàn tác.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await assessmentService.deleteAssessment(assessmentId);
+              if (response.success) {
+                Alert.alert('Thành công', 'Đánh giá đã được xóa thành công.');
+                fetchData(); // Reload data after deletion
+              } else {
+                Alert.alert('Lỗi', response.error || 'Không thể xóa đánh giá. Vui lòng thử lại sau.');
+                console.error('Error deleting assessment:', response.error);
+              }
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể xóa đánh giá. Vui lòng thử lại sau.');
+              console.error('Error deleting assessment:', error);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDeleteVitals = async (vitalId) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      'Bạn có chắc chắn muốn xóa dấu hiệu sinh tồn này không?\n\nHành động này không thể hoàn tác.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await vitalSignsService.deleteVitalSign(vitalId);
+              if (response.success) {
+                Alert.alert('Thành công', 'Dấu hiệu sinh tồn đã được xóa thành công.');
+                fetchData(); // Reload data after deletion
+              } else {
+                Alert.alert('Lỗi', response.error || 'Không thể xóa dấu hiệu sinh tồn. Vui lòng thử lại sau.');
+                console.error('Error deleting vital signs:', response.error);
+              }
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể xóa dấu hiệu sinh tồn. Vui lòng thử lại sau.');
+              console.error('Error deleting vital signs:', error);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const renderOverviewTab = () => {
@@ -394,6 +479,14 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           keyExtractor={item => item._id}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: cardMargin }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
           renderItem={({ item, index }) => {
             const imgSrc = getImageUriHelper(item.file_path);
             // Hiển thị tối đa 2 tag, còn lại dùng '...'
@@ -443,7 +536,13 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <Button
             mode="contained"
             icon="plus"
-            onPress={() => navigation.navigate('AddAssessment', { residentId })}
+            onPress={() => navigation.navigate('AddAssessment', { 
+              residentId,
+              onGoBack: () => {
+                console.log('Returning from AddAssessment, reloading data...');
+                fetchData();
+              }
+            })}
             style={styles.addButton}
             labelStyle={styles.addButtonText}
           >
@@ -457,9 +556,27 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                 <View style={styles.assessmentTitleContainer}>
                   <Text style={styles.assessmentType}>{as.assessment_type || 'Không có loại'}</Text>
                 </View>
-                {/* Temporarily removed edit functionality */}
-                <View style={styles.editButton}>
-                  <MaterialIcons name="edit" size={18} color={COLORS.disabled} />
+                <View style={styles.assessmentActions}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('EditAssessment', { 
+                      assessmentId: as._id, 
+                      assessmentData: as,
+                      residentId: residentId,
+                      onGoBack: () => {
+                        console.log('Returning from EditAssessment, reloading data...');
+                        fetchData();
+                      }
+                    })}
+                    style={styles.editButton}
+                  >
+                    <MaterialIcons name="edit" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteAssessment(as._id, as.assessment_type)}
+                    style={styles.deleteButton}
+                  >
+                    <MaterialIcons name="delete" size={18} color={COLORS.error} />
+                  </TouchableOpacity>
                 </View>
               </View>
               <Text style={styles.assessmentDate}>Ngày: {as.date ? new Date(as.date).toLocaleDateString('vi-VN') : 'N/A'}</Text>
@@ -566,7 +683,13 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <Button
             mode="contained"
             icon="plus"
-            onPress={() => navigation.navigate('RecordVitals', { residentId })}
+            onPress={() => navigation.navigate('RecordVitals', { 
+              residentId,
+              onGoBack: () => {
+                console.log('Returning from RecordVitals, reloading data...');
+                fetchData();
+              }
+            })}
             style={styles.addButton}
             labelStyle={styles.addButtonText}
           >
@@ -583,12 +706,27 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                     Ngày: {vital.date_time ? new Date(vital.date_time).toLocaleDateString('vi-VN') : 'N/A'}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('EditVitals', { vitalId: vital._id, vitalData: vital })}
-                  style={styles.editButton}
-                >
-                  <MaterialIcons name="edit" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
+                <View style={styles.vitalActions}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('EditVitals', { 
+                      vitalId: vital._id, 
+                      vitalData: vital,
+                      onGoBack: () => {
+                        console.log('Returning from EditVitals, reloading data...');
+                        fetchData();
+                      }
+                    })}
+                    style={styles.editButton}
+                  >
+                    <MaterialIcons name="edit" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteVitals(vital._id)}
+                    style={styles.deleteButton}
+                  >
+                    <MaterialIcons name="delete" size={18} color={COLORS.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.vitalGrid}>
                 <View style={styles.vitalItem}>
@@ -650,36 +788,45 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <Menu.Item
             onPress={() => {
               setMenuVisible(false);
-              navigation.navigate('EditResident', { residentId });
+              navigation.navigate('EditResident', { 
+                residentId,
+                residentData: resident,
+                onGoBack: () => {
+                  console.log('Returning from EditResident, reloading data...');
+                  fetchData();
+                }
+              });
             }}
             title="Chỉnh Sửa Thông Tin"
             icon="pencil"
           />
-          <Menu.Item
-            onPress={() => {
-              setMenuVisible(false);
-              navigation.navigate('ResidentNotes', { residentId });
-            }}
-            title="Ghi Chú"
-            icon="notebook"
-          />
-          <Menu.Item
-            onPress={() => {
-              setMenuVisible(false);
-              navigation.navigate('ResidentFamily', { residentId });
-            }}
-            title="Liên Hệ Gia Đình"
-            icon="account-group"
-          />
         </Menu>
       </Appbar.Header>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+            title="Kéo xuống để làm mới"
+            titleColor={COLORS.textSecondary}
+          />
+        }
+      >
         <View style={styles.profileContainer}>
-          <Image source={{ uri: getAvatarUri(resident.photo || resident.avatar) || DEFAULT_AVATAR }} style={styles.profileImage} />
+          <Image source={{ uri: getAvatarUri(resident.photo || resident.avatar) }} style={styles.profileImage} />
           <View style={styles.profileInfo}>
             <View style={styles.nameContainer}>
               <Text style={styles.name}>{resident.full_name || 'Không có tên'}</Text>
+              {refreshing && (
+                <View style={styles.refreshingIndicator}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.refreshingText}>Đang cập nhật...</Text>
+                </View>
+              )}
             </View>
             <View style={styles.roomBadge}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
@@ -834,6 +981,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
   },
   appbar: {
     backgroundColor: COLORS.primary,
@@ -1172,6 +1324,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  vitalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   assessmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1182,10 +1338,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  assessmentActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   editButton: {
     padding: 6,
     borderRadius: 16,
     backgroundColor: COLORS.primary + '10',
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    marginRight: 4,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.error + '10',
     alignSelf: 'flex-start',
     marginTop: 2,
   },
@@ -1254,6 +1422,16 @@ const styles = StyleSheet.create({
   tabScrollContainer: {
     paddingHorizontal: 4,
     alignItems: 'center',
+  },
+  refreshingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  refreshingText: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    marginLeft: 8,
   },
 });
 

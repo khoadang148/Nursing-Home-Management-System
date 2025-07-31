@@ -180,7 +180,7 @@ const BedListScreen = ({ navigation }) => {
       <StatusBar barStyle="dark-content" />
       <Appbar.Header style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Quản lý Giường" />
+        <Appbar.Content title="Quản lý phân giường" />
       </Appbar.Header>
 
       <View style={styles.content}>

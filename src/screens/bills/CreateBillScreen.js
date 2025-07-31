@@ -18,7 +18,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Menu, Button, TextInput } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, FONTS } from '../../constants/theme';
-import billService from '../../api/services/billService';
+import billsService from '../../api/services/billsService';
 import carePlanService from '../../api/services/carePlanService';
 
 const CreateBillScreen = () => {
@@ -92,7 +92,8 @@ const CreateBillScreen = () => {
         bed_id: bedAssign?.bed_id,
         room_id: bedAssign?.bed_id?.room_id,
         room_number: bedAssign?.bed_id?.room_id?.room_number,
-        bed_number: bedAssign?.bed_id?.bed_number
+        bed_number: bedAssign?.bed_id?.bed_number,
+        room_type: bedAssign?.bed_id?.room_id?.room_type
       });
     }
   }, [bedAssignment]);
@@ -100,21 +101,29 @@ const CreateBillScreen = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [residentsData, roomTypesData] = await Promise.all([
-        carePlanService.getResidents(), // Use working service
-        carePlanService.getRoomTypes()  // Use working service
+      // Lấy residents, assignments, roomTypes song song
+      const [residentsData, assignmentsData, roomTypesData] = await Promise.all([
+        billsService.billingService.getResidents(),
+        billsService.getAllCarePlanAssignments(),
+        billsService.billingService.getRoomTypes()
       ]);
 
-      setResidents(residentsData || []);
       setRoomTypes(roomTypesData || []);
 
+      // Lấy danh sách resident_id đã đăng ký dịch vụ
+      const registeredResidentIds = new Set(
+        (assignmentsData || []).map(a => (a.resident_id?._id || a.resident_id))
+      );
+      // Lọc residents đã đăng ký dịch vụ
+      const filteredResidents = (residentsData || []).filter(r => registeredResidentIds.has(r._id));
+      setResidents(filteredResidents);
+
       // Prepare dropdown items
-      const dropdownItems = residentsData.map(resident => ({
-        label: `${resident.full_name} - ${resident.gender === 'male' ? 'Nam' : 'Nữ'}`,
+      const dropdownItems = filteredResidents.map(resident => ({
+        label: `${resident.full_name || resident.name} - ${resident.gender === 'male' ? 'Nam' : 'Nữ'}`,
         value: resident._id,
         resident: resident
       }));
-
       setResidentDropdownItems(dropdownItems);
     } catch (error) {
       console.error('Error loading initial data:', error);
@@ -156,8 +165,8 @@ const CreateBillScreen = () => {
       console.log('DEBUG - Loading assignment data for resident:', residentId);
 
       const [carePlanData, bedAssignmentData] = await Promise.all([
-        billService.getCarePlanAssignmentByResident(residentId),
-        billService.getBedAssignmentByResident(residentId)
+        billsService.billingService.getCarePlanAssignmentByResident(residentId),
+        billsService.billingService.getBedAssignmentByResident(residentId)
       ]);
 
       setCarePlanAssignment(carePlanData);
@@ -166,10 +175,10 @@ const CreateBillScreen = () => {
       console.log('DEBUG - Set care plan assignment:', carePlanData);
       console.log('DEBUG - Set bed assignment:', bedAssignmentData);
 
-      // Calculate amount
-      const calculatedAmount = billService.calculateBillAmount(
+      // Calculate amount - chỉ sử dụng care plan data
+      const calculatedAmount = billsService.calculateBillAmount(
         carePlanData,
-        bedAssignmentData,
+        null, // Không sử dụng bed assignment cho tính toán
         roomTypes
       );
 
@@ -248,7 +257,11 @@ const CreateBillScreen = () => {
 
       console.log('DEBUG - Creating bill with data:', billData);
 
-      await billService.createBill(billData);
+      const result = await billsService.createBill(billData);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Không thể tạo hóa đơn');
+      }
 
       Alert.alert(
         'Thành công',
@@ -280,6 +293,26 @@ const CreateBillScreen = () => {
   const getSelectedResident = useMemo(() => {
     return residents.find(resident => resident._id === residentDropdownValue);
   }, [residents, residentDropdownValue]);
+
+  // Get selected resident display name
+  const getSelectedResidentName = useMemo(() => {
+    const resident = getSelectedResident;
+    return resident ? (resident.full_name || resident.name) : '';
+  }, [getSelectedResident]);
+
+  // Hàm tính tiêu đề mặc định cho hóa đơn
+  const getNextMonthTitle = () => {
+    const now = new Date();
+    let month = now.getMonth() + 2; // getMonth() là 0-based, +1 cho tháng hiện tại, +1 nữa cho tháng tiếp theo
+    let year = now.getFullYear();
+    
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    
+    return `Hóa đơn chăm sóc tháng ${month.toString().padStart(2, '0')}/${year}`;
+  };
 
   if (loading) {
     return (
@@ -330,8 +363,9 @@ const CreateBillScreen = () => {
                   style={styles.dropdown}
                   contentStyle={styles.dropdownContentStyle}
                   labelStyle={styles.dropdownLabelStyle}
+                  textAlign="center"
                 >
-                  {residentDropdownValue ? getSelectedResident?.full_name : 'Chọn người cao tuổi...'}
+                  {residentDropdownValue ? getSelectedResidentName : 'Chọn người cao tuổi...'}
                 </Button>
               }
               style={styles.dropdownContainer}
@@ -347,6 +381,10 @@ const CreateBillScreen = () => {
                   onPress={() => {
                     setResidentDropdownValue(item.value);
                     setResidentDropdownOpen(false);
+                    // Tự động điền tiêu đề hóa đơn nếu chưa có
+                    if (!title.trim()) {
+                      setTitle(getNextMonthTitle());
+                    }
                   }}
                   title={item.label}
                 />
@@ -384,16 +422,37 @@ const CreateBillScreen = () => {
                           formatPrice(carePlan.total_monthly_cost) : 'Chưa có thông tin'}
                       </Text>
                     </View>
+                  </>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* Thông tin phòng và giường */}
+          {bedAssignment && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>3. Thông Tin Phòng & Giường</Text>
+              {(() => {
+                const bedAssign = Array.isArray(bedAssignment) ? bedAssignment[0] : bedAssignment;
+                
+                return (
+                  <>
                     <View style={styles.infoCard}>
                       <Text style={styles.infoLabel}>Phòng số:</Text>
                       <Text style={styles.infoValue}>
-                        {carePlan?.assigned_room_id?.room_number || 'Chưa có thông tin'}
+                        {bedAssign?.bed_id?.room_id?.room_number || 'Chưa có thông tin'}
                       </Text>
                     </View>
                     <View style={styles.infoCard}>
                       <Text style={styles.infoLabel}>Giường số:</Text>
                       <Text style={styles.infoValue}>
-                        {carePlan?.assigned_bed_id?.bed_number || 'Chưa có thông tin'}
+                        {bedAssign?.bed_id?.bed_number || 'Chưa có thông tin'}
+                      </Text>
+                    </View>
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoLabel}>Loại phòng:</Text>
+                      <Text style={styles.infoValue}>
+                        {bedAssign?.bed_id?.room_id?.room_type || 'Chưa có thông tin'}
                       </Text>
                     </View>
                   </>
@@ -404,7 +463,7 @@ const CreateBillScreen = () => {
 
           {/* Form tạo hóa đơn */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Thông Tin Hóa Đơn</Text>
+            <Text style={styles.sectionTitle}>4. Thông Tin Hóa Đơn</Text>
             
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Tiêu đề hóa đơn *</Text>
@@ -414,6 +473,7 @@ const CreateBillScreen = () => {
                 onChangeText={setTitle}
                 placeholder="Nhập tiêu đề hóa đơn..."
                 maxLength={100}
+                contentStyle={{ paddingVertical: 8 }}
               />
             </View>
 
@@ -426,6 +486,7 @@ const CreateBillScreen = () => {
                 placeholder="Nhập số tiền..."
                 keyboardType="numeric"
                 editable={!loadingCalculation}
+                contentStyle={{ paddingVertical: 8 }}
               />
               {loadingCalculation && (
                 <ActivityIndicator size="small" color={COLORS.primary} style={styles.calculationLoader} />
@@ -437,13 +498,12 @@ const CreateBillScreen = () => {
               <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
                 <View pointerEvents="none">
                   <TextInput
-                    label="Ngày đến hạn *"
+                    mode="outlined"
                     value={dueDate || ''}
                     placeholder="Chọn ngày đến hạn..."
                     editable={false}
-                    mode="outlined"
                     right={<TextInput.Icon icon="calendar" />}
-                    style={styles.dateInput}
+                    contentStyle={{ paddingVertical: 8 }}
                   />
                 </View>
               </TouchableOpacity>
@@ -583,7 +643,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 8,
     minHeight: 50,
-    justifyContent: 'flex-start',
+    justifyContent: 'center', // Center vertically
+    alignItems: 'center', // Center horizontally
     paddingHorizontal: 15,
   },
   dropdownContainer: {
@@ -593,11 +654,13 @@ const styles = StyleSheet.create({
   dropdownContentStyle: {
     backgroundColor: COLORS.white,
     borderRadius: 8,
+    justifyContent: 'center', // Center content
+    alignItems: 'center', // Center content
   },
   dropdownLabelStyle: {
     fontSize: 16,
     color: COLORS.text,
-    textAlign: 'left',
+    textAlign: 'center', // Center the text
   },
   infoCard: {
     flexDirection: 'row',
@@ -625,15 +688,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
   },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: COLORS.white,
-  },
+
   calculationLoader: {
     position: 'absolute',
     right: 15,

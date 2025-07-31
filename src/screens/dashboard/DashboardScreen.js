@@ -10,20 +10,15 @@ import {
 } from 'react-native';
 import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 import residentService from '../../api/services/residentService';
 import activityService from '../../api/services/activityService';
 import activityParticipationService from '../../api/services/activityParticipationService';
 import { getApiBaseUrl, getImageUri, APP_CONFIG } from '../../config/appConfig';
+import { getAvatarUri } from '../../utils/avatarUtils';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  return getImageUri(avatar, 'avatar');
-};
 
 // Mock data - In a real app, this would come from an API
 const mockDashboardData = {
@@ -175,7 +170,7 @@ const DashboardScreen = ({ navigation }) => {
         >
           <Avatar.Image
             size={40}
-            source={{ uri: user?.avatar || user?.profile_picture ? getAvatarUri(user?.avatar || user?.profile_picture) : DEFAULT_AVATAR }}
+            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) }}
           />
         </TouchableOpacity>
       </View>
@@ -217,6 +212,75 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={styles.cardValue}>{activityCount}</Text>
             {/* Có thể thêm thông tin phụ nếu muốn */}
           </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions for Staff */}
+        <View style={styles.quickActionContainer}>
+          <Text style={styles.sectionTitle}>Tiện Ích Nhân Viên</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('ChonGoiDichVu')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.primary }]}>
+                <MaterialIcons name="assignment" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Chọn Gói Dịch Vụ</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('TaoHoaDon')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.warning }]}>
+                <MaterialIcons name="receipt" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Tạo Hóa Đơn</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('QuanLyGiuong')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.success }]}>
+                <MaterialIcons name="bed" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Quản Lý Giường</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Second row of quick actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('QuanLyLichTham')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.accent }]}>
+                <MaterialIcons name="event-available" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Quản Lý Lịch Thăm</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('GoiDichVuDaDangKy')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.secondary }]}>
+                <MaterialIcons name="list-alt" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Gói Đã Đăng Ký</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('LienHeNguoiNha')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.info }]}>
+                <MaterialIcons name="people" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Liên Hệ Gia Đình</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {/* Ẩn các card nhiệm vụ và thuốc */}
         {/* Upcoming Shifts, Recent Alerts giữ nguyên nếu muốn */}
@@ -479,6 +543,45 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
     opacity: 0.7,
+  },
+  quickActionContainer: {
+    marginBottom: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius,
+    padding: SIZES.padding,
+    ...SHADOWS.medium,
+  },
+  sectionTitle: {
+    ...FONTS.h4,
+    color: COLORS.text,
+    marginBottom: 12,
+    fontWeight: 'bold',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    paddingVertical: 12,
+  },
+  iconBackground: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionText: {
+    ...FONTS.body3,
+    color: COLORS.text,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
 

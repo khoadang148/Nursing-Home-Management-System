@@ -535,7 +535,7 @@ const CarePlanSelectionScreen = () => {
                 Vui lòng chọn gói dịch vụ chính trước để hiển thị danh sách phòng phù hợp.
               </Text>
             ) : loadingRooms ? (
-              <View style={styles.loadingContainer}>
+              <View style={styles.sectionLoadingContainer}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.loadingText}>Đang tải danh sách phòng...</Text>
               </View>
@@ -572,7 +572,7 @@ const CarePlanSelectionScreen = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>6. Chọn Giường</Text>
             {loadingBeds ? (
-              <View style={styles.loadingContainer}>
+              <View style={styles.sectionLoadingContainer}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.loadingText}>Đang tải danh sách giường...</Text>
               </View>
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
   },
-  loadingContainer: {
+  sectionLoadingContainer: {
     alignItems: 'center',
     paddingVertical: 20,
   },

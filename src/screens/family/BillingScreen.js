@@ -15,6 +15,7 @@ import {
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 import { formatCurrency, formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
@@ -41,34 +42,36 @@ const BillingScreen = ({ navigation }) => {
     if (user?.id && bills.length === 0) {
       fetchBills();
     }
-  }, [user, bills.length, filters, searchQuery]);
-
-  // Check for data updates when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Only reload if there's no data
-      if (user?.id && bills.length === 0) {
-        fetchBills();
-      }
-    }, [user?.id, bills.length])
-  );
+  }, [user?.id, bills.length]); // Only depend on user.id and bills.length
 
   // Lấy thông tin bed assignment cho tất cả resident_id trong bills
   useEffect(() => {
     const fetchBedAssignments = async () => {
       const assignments = {};
       const residentIds = Array.from(new Set(bills.map(b => b.resident_id?._id || b.resident_id).filter(Boolean)));
-      for (const residentId of residentIds) {
-        if (!bedAssignments[residentId]) {
-          const assignment = await billsService.billingService.getBedAssignmentByResident(residentId);
-          assignments[residentId] = assignment;
+      
+              for (const residentId of residentIds) {
+          if (!bedAssignments[residentId] && residentId) {
+            try {
+              const result = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
+              if (result.success && result.data && result.data.length > 0) {
+                assignments[residentId] = result.data[0]; // Lấy phần tử đầu tiên
+              } else {
+                assignments[residentId] = null;
+              }
+            } catch (error) {
+              console.log(`Error fetching bed assignment for resident ${residentId}:`, error);
+              assignments[residentId] = null;
+            }
+          }
         }
-      }
       setBedAssignments(prev => ({ ...prev, ...assignments }));
     };
-    if (bills.length > 0) fetchBedAssignments();
-    // eslint-disable-next-line
-  }, [bills]);
+    
+    if (bills.length > 0) {
+      fetchBedAssignments();
+    }
+  }, [bills.length]); // Only depend on bills.length, not entire bills array
 
   const fetchBills = async () => {
     try {

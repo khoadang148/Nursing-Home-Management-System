@@ -201,6 +201,32 @@ const billsService = {
   },
 
   /**
+   * Lấy hóa đơn theo staff_id
+   * @param {string} staffId - ID của staff
+   * @param {Object} params - Tham số lọc
+   * @param {string} params.status - Trạng thái hóa đơn
+   * @param {string} params.start_date - Ngày bắt đầu
+   * @param {string} params.end_date - Ngày kết thúc
+   * @returns {Promise} - Promise với response data
+   */
+  getBillsByStaffId: async (staffId, params = {}) => {
+    try {
+      const response = await apiClient.get(`/bills/staff/${staffId}`, { params });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách hóa đơn theo staff thành công'
+      };
+    } catch (error) {
+      console.log('Get bills by staff ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách hóa đơn theo staff thất bại'
+      };
+    }
+  },
+
+  /**
    * Lấy hóa đơn theo ID
    * @param {string} billId - ID hóa đơn
    * @returns {Promise} - Promise với response data
@@ -528,22 +554,27 @@ const billsService = {
     }
   },
 
-  /**
-   * Lấy danh sách residents (Mock Data)
-   * @returns {Promise<Array>} Danh sách residents
-   */
-  getResidents: async () => {
-    await delay(300);
-    
-    // Sử dụng data từ file chính mockData.js để đảm bảo consistency
-    return MAIN_RESIDENTS.map(resident => ({
-      _id: resident._id,
-      id: resident._id, // For backward compatibility
-      name: resident.full_name,
-      room: `${resident.room_number}-${resident.bed_number}`,
-      status: resident.status
-    })).filter(resident => resident && resident._id); // Filter out any null/undefined
-  },
+      /**
+     * Lấy danh sách residents (API thực tế)
+     * @returns {Promise<Array>} Danh sách residents
+     */
+    getResidents: async () => {
+      try {
+        const response = await apiClient.get('/residents');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching residents:', error);
+        // Fallback to mock data if API fails
+        await delay(300);
+        return MAIN_RESIDENTS.map(resident => ({
+          _id: resident._id,
+          id: resident._id, // For backward compatibility
+          name: resident.full_name,
+          room: `${resident.room_number}-${resident.bed_number}`,
+          status: resident.status
+        })).filter(resident => resident && resident._id);
+      }
+    },
 
   /**
    * Lấy residents theo family member id (API thực tế)
@@ -614,6 +645,60 @@ const billsService = {
       url: `https://example.com/bills/${billId}.pdf`,
       fileName: `HoaDon_${billId}.pdf`,
     };
+  },
+
+  // ==================== BILL CALCULATION ====================
+
+  /**
+   * Tính toán số tiền hóa đơn
+   * @param {Object} carePlanAssignment - Thông tin gói dịch vụ
+   * @param {Object} bedAssignment - Thông tin phòng/giường
+   * @param {Array} roomTypes - Danh sách loại phòng
+   * @returns {number} Tổng số tiền
+   */
+  calculateBillAmount: (carePlanAssignment, bedAssignment, roomTypes) => {
+    try {
+      let totalAmount = 0;
+
+      // Handle carePlanAssignment as array (take first item)
+      const carePlan = Array.isArray(carePlanAssignment) ? carePlanAssignment[0] : carePlanAssignment;
+      const bedAssign = Array.isArray(bedAssignment) ? bedAssignment[0] : bedAssignment;
+
+      console.log('DEBUG - Processing care plan:', carePlan);
+      console.log('DEBUG - Processing bed assignment:', bedAssign);
+
+      // Add care plans cost from care plan assignment
+      if (carePlan && carePlan.care_plans_monthly_cost) {
+        totalAmount += carePlan.care_plans_monthly_cost;
+        console.log('DEBUG - Added care plans cost:', carePlan.care_plans_monthly_cost);
+      }
+
+      // Add room cost from care plan assignment (this already includes room cost)
+      if (carePlan && carePlan.room_monthly_cost) {
+        totalAmount += carePlan.room_monthly_cost;
+        console.log('DEBUG - Added room cost from care plan assignment:', carePlan.room_monthly_cost);
+      }
+
+      // Alternative: If room cost is not in care plan assignment, try to get from bed assignment
+      if (totalAmount === 0 && bedAssign && bedAssign.room_id) {
+        if (bedAssign.room_id.monthly_price) {
+          totalAmount += bedAssign.room_id.monthly_price;
+          console.log('DEBUG - Added room cost from bed assignment:', bedAssign.room_id.monthly_price);
+        } else if (bedAssign.room_id.room_type_id) {
+          const roomType = roomTypes.find(rt => rt._id === bedAssign.room_id.room_type_id);
+          if (roomType && roomType.monthly_price) {
+            totalAmount += roomType.monthly_price;
+            console.log('DEBUG - Added room cost from room type:', roomType.monthly_price);
+          }
+        }
+      }
+
+      console.log('DEBUG - Final calculated bill amount:', totalAmount);
+      return totalAmount;
+    } catch (error) {
+      console.error('Error calculating bill amount:', error);
+      return 0;
+    }
   },
 
   // ==================== LEGACY SUPPORT ====================
@@ -732,6 +817,49 @@ const billsService = {
         return null;
       }
     },
+
+    /**
+     * Lấy thông tin care plan assignment theo resident_id
+     * @param {string} residentId
+     * @returns {Promise<Object>} Thông tin care plan assignment
+     */
+    getCarePlanAssignmentByResident: async (residentId) => {
+      try {
+        const response = await apiClient.get(`/care-plan-assignments/by-resident/${residentId}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching care plan assignment by resident:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Lấy danh sách room types
+     * @returns {Promise<Array>} Danh sách room types
+     */
+    getRoomTypes: async () => {
+      try {
+        const response = await apiClient.get('/room-types');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching room types:', error);
+        return [];
+      }
+    },
+  },
+
+  /**
+   * Lấy tất cả care plan assignments
+   * @returns {Promise<Array>} Danh sách assignment
+   */
+  getAllCarePlanAssignments: async () => {
+    try {
+      const response = await apiClient.get('/care-plan-assignments');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching care plan assignments:', error);
+      return [];
+    }
   },
 };
 
