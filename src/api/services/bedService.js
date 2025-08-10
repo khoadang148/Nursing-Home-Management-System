@@ -101,6 +101,48 @@ const bedService = {
   },
 
   /**
+   * Lấy tất cả giường trống (chưa được phân)
+   * @returns {Promise} - Promise với response data
+   */
+  getAvailableBeds: async () => {
+    try {
+      const response = await apiClient.get('/beds/available');
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách giường trống thành công'
+      };
+    } catch (error) {
+      console.log('Get available beds error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách giường trống thất bại'
+      };
+    }
+  },
+
+  /**
+   * Lấy tất cả giường đã được phân
+   * @returns {Promise} - Promise với response data
+   */
+  getOccupiedBeds: async () => {
+    try {
+      const response = await apiClient.get('/beds/occupied');
+      return {
+        success: true,
+        data: response.data,
+        message: 'Lấy danh sách giường đã phân thành công'
+      };
+    } catch (error) {
+      console.log('Get occupied beds error:', error);
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Lấy danh sách giường đã phân thất bại'
+      };
+    }
+  },
+
+  /**
    * Cập nhật giường theo ID
    * @param {string} bedId - ID giường
    * @param {Object} updateData - Dữ liệu cập nhật

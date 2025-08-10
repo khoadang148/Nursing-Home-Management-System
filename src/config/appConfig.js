@@ -8,8 +8,10 @@ export const API_CONFIG = {
   // Sử dụng IP thay vì localhost cho React Native
   
   // IP thực tế từ log - WiFi network
-  BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
-  // BASE_URL: 'http://192.168.2.5:8000', // IP WiFi thực tế từ log
+  // BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
+  // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
+  BASE_URL: 'http://10.1.143.234:8000', // IP WiFi thực tế từ log trên trường student
+  // BASE_URL: 'http://192.168.2.1:8000', // IP WiFi thực tế từ log
   
   // Các IP khác cho các môi trường khác nhau (uncomment để sử dụng)
   // BASE_URL: 'http://192.168.56.1:8000', // IP VirtualBox/Hyper-V

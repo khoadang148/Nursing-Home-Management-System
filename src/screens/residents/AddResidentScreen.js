@@ -314,7 +314,7 @@ const AddResidentScreen = ({ navigation }) => {
           relationship: finalEmergencyRelationship,
         },
         
-        medical_history: medicalConditions.length > 0 ? medicalConditions.join(', ') : '',
+        medical_history: medicalConditions.length > 0 ? medicalConditions.join(', ') : null,
         current_medications: [], // Mảng rỗng vì chưa có thuốc
         allergies: allergies,
       };

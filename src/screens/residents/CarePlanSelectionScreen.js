@@ -18,6 +18,7 @@ import { COLORS, FONTS } from '../../constants/theme';
 // Removed mock data import
 import { Picker } from '@react-native-picker/picker';
 import DropDownPicker from 'react-native-dropdown-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const CarePlanSelectionScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +38,9 @@ const CarePlanSelectionScreen = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedBed, setSelectedBed] = useState(null);
   const [consultationNotes, setConsultationNotes] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [selectedEndDate, setSelectedEndDate] = useState(new Date());
   const [familyPreferences, setFamilyPreferences] = useState({
     preferredRoomGender: '',
     preferredFloor: '',
@@ -223,6 +227,18 @@ const CarePlanSelectionScreen = () => {
     }
   }, [bedDropdownValue, availableBeds]);
 
+  const onChangeEndDate = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      setSelectedEndDate(selectedDate);
+      setEndDate(selectedDate.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+    }
+  };
+
+  const showEndDatePickerModal = () => {
+    setShowEndDatePicker(true);
+  };
+
   const handleSubmit = async () => {
     if (!selectedResident) {
       Alert.alert('Lỗi', 'Vui lòng chọn người cao tuổi');
@@ -283,6 +299,7 @@ const CarePlanSelectionScreen = () => {
         room_monthly_cost: costCalculation.roomCost,
         care_plans_monthly_cost: costCalculation.carePlansCost,
         start_date: new Date().toISOString(), // Use ISO string format
+        end_date: endDate || undefined, // Add end date if provided
         status: 'active'
       };
 
@@ -597,9 +614,38 @@ const CarePlanSelectionScreen = () => {
           </View>
         )}
 
+        {/* Ngày kết thúc dịch vụ */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>7. Ngày Kết Thúc Dịch Vụ (Tùy chọn)</Text>
+          <Text style={styles.sectionSubtitle}>Chọn ngày kết thúc dịch vụ nếu có</Text>
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={showEndDatePickerModal}
+          >
+            <View style={styles.datePickerContent}>
+              <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.datePickerText}>
+                {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+          {endDate && (
+            <TouchableOpacity
+              style={styles.clearDateButton}
+              onPress={() => {
+                setEndDate('');
+                setSelectedEndDate(new Date());
+              }}
+            >
+              <Text style={styles.clearDateText}>Xóa ngày kết thúc</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Tổng chi phí */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Tổng Chi Phí</Text>
+          <Text style={styles.sectionTitle}>8. Tổng Chi Phí</Text>
           <View style={styles.costCard}>
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Gói dịch vụ chính:</Text>
@@ -646,6 +692,17 @@ const CarePlanSelectionScreen = () => {
           <Text style={styles.submitButtonText}>Đăng Ký Gói Dịch Vụ</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Date Picker Modal */}
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={selectedEndDate}
+          mode="date"
+          display="default"
+          onChange={onChangeEndDate}
+          minimumDate={new Date()} // Không cho chọn ngày trong quá khứ
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -878,6 +935,38 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  datePickerButton: {
+    backgroundColor: COLORS.white,
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  datePickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginLeft: 10,
+  },
+  clearDateButton: {
+    backgroundColor: COLORS.error + '10',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  clearDateText: {
+    color: COLORS.error,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

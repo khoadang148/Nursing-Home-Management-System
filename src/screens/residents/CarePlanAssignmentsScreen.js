@@ -154,6 +154,8 @@ const CarePlanAssignmentsScreen = () => {
       `Gói chính: ${assignment.care_plan_ids?.[0]?.plan_name || 'N/A'}\n` +
       `Phòng: ${assignment.bed_info?.bed_id?.room_id?.room_number || 'N/A'}\n` +
       `Giường: ${assignment.bed_info?.bed_id?.bed_number || 'N/A'}\n` +
+      `Ngày bắt đầu: ${formatDate(assignment.start_date || assignment.registration_date || assignment.created_at)}\n` +
+      `Ngày kết thúc: ${assignment.end_date ? formatDate(assignment.end_date) : 'Chưa có'}\n` +
       `Tổng chi phí: ${formatPrice(assignment.total_monthly_cost || 0)}\n` +
       `Trạng thái: ${getStatusText(assignment.status)}\n` +
       `Thanh toán: ${getPaymentStatusText(assignment.payment_status || 'pending')}`
@@ -268,9 +270,16 @@ const CarePlanAssignmentsScreen = () => {
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Ngày đăng ký:</Text>
+                  <Text style={styles.detailLabel}>Ngày bắt đầu:</Text>
                   <Text style={styles.detailValue}>
-                    {formatDate(assignment.registration_date || assignment.created_at)}
+                    {formatDate(assignment.start_date || assignment.registration_date || assignment.created_at)}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Ngày kết thúc:</Text>
+                  <Text style={styles.detailValue}>
+                    {assignment.end_date ? formatDate(assignment.end_date) : 'Chưa có'}
                   </Text>
                 </View>
 

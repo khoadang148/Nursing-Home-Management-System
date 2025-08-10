@@ -114,6 +114,8 @@ class ResidentService {
     }
   }
 
+
+
   // Create new resident
   async createResident(residentData) {
     try {

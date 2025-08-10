@@ -26,6 +26,7 @@ import activityParticipationService from '../../api/services/activityParticipati
 import residentPhotosService from '../../api/services/residentPhotosService';
 import assessmentService from '../../api/services/assessmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri, getImageUriHelper } from '../../utils/avatarUtils';
 
@@ -99,6 +100,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
+  const [carePlanAssignments, setCarePlanAssignments] = useState([]);
   // Tab mới: overview, activity, meds, vitals, images, assessment
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -153,6 +155,12 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       const vitalResponse = await vitalSignsService.getVitalSignsByResidentId(residentId);
       if (vitalResponse.success) {
         setResident(prev => ({ ...prev, vital_signs: vitalResponse.data }));
+      }
+
+      // Fetch care plan assignments
+      const carePlanResponse = await carePlanAssignmentService.getCarePlanAssignmentsByResidentId(residentId);
+      if (carePlanResponse.success) {
+        setCarePlanAssignments(carePlanResponse.data);
       }
 
     } catch (error) {
@@ -344,6 +352,73 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <Text style={styles.medicalHistoryText}>
             {resident.medical_history || 'Chưa có thông tin tiền sử bệnh'}
           </Text>
+        </Surface>
+      </View>
+
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>Gói Dịch Vụ Chăm Sóc</Text>
+        <Surface style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
+          {carePlanAssignments && carePlanAssignments.length > 0 ? (
+            carePlanAssignments.map((assignment, index) => (
+              <View key={assignment._id || index} style={styles.carePlanItem}>
+                <View style={styles.carePlanHeader}>
+                  <Text style={styles.carePlanName}>
+                    {assignment.care_plan_ids?.[0]?.plan_name || 'Gói chăm sóc'}
+                  </Text>
+                  <Chip
+                    style={[
+                      styles.statusChip,
+                      {
+                        backgroundColor: assignment.status === 'active' ? COLORS.success + '20' : COLORS.warning + '20',
+                      },
+                    ]}
+                    textStyle={{
+                      color: assignment.status === 'active' ? COLORS.success : COLORS.warning,
+                    }}
+                  >
+                    {assignment.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
+                  </Chip>
+                </View>
+                
+                <View style={styles.carePlanDetails}>
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Ngày bắt đầu:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.start_date ? new Date(assignment.start_date).toLocaleDateString('vi-VN') : 'N/A'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Ngày kết thúc:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.end_date ? new Date(assignment.end_date).toLocaleDateString('vi-VN') : 'Chưa có'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Chi phí:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.care_plan_ids?.[0]?.monthly_price 
+                        ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(assignment.care_plan_ids[0].monthly_price) + '/tháng'
+                        : 'N/A'
+                      }
+                    </Text>
+                  </View>
+                  
+                  {assignment.notes && (
+                    <View style={styles.carePlanDetail}>
+                      <Text style={styles.carePlanLabel}>Ghi chú:</Text>
+                      <Text style={styles.carePlanValue}>{assignment.notes}</Text>
+                    </View>
+                  )}
+                </View>
+                
+                {index < carePlanAssignments.length - 1 && <Divider style={styles.carePlanDivider} />}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noDataText}>Chưa có gói dịch vụ chăm sóc nào</Text>
+          )}
         </Surface>
       </View>
 
@@ -1432,6 +1507,48 @@ const styles = StyleSheet.create({
     ...FONTS.body3,
     color: COLORS.textSecondary,
     marginLeft: 8,
+  },
+  carePlanItem: {
+    marginBottom: 16,
+  },
+  carePlanHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  carePlanName: {
+    ...FONTS.h4,
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    flex: 1,
+    marginRight: 8,
+  },
+  carePlanDetails: {
+    backgroundColor: COLORS.background,
+    padding: 12,
+    borderRadius: 8,
+  },
+  carePlanDetail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  carePlanLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  carePlanValue: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  carePlanDivider: {
+    marginVertical: 16,
   },
 });
 

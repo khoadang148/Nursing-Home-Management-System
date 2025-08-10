@@ -20,11 +20,14 @@ import {
   Chip,
   HelperText,
   Menu,
+  Avatar,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import residentService from '../../api/services/residentService';
+import * as ImagePicker from 'expo-image-picker';
+import { getAvatarUri } from '../../utils/avatarUtils';
 
 const EditResidentScreen = () => {
   const navigation = useNavigation();
@@ -51,6 +54,10 @@ const EditResidentScreen = () => {
   const [emergencyRelationship, setEmergencyRelationship] = useState('');
   const [emergencyRelationshipMenuVisible, setEmergencyRelationshipMenuVisible] = useState(false);
   const [customRelationship, setCustomRelationship] = useState('');
+
+  // Image states
+  const [avatarUri, setAvatarUri] = useState(null);
+  const [hasImageChanged, setHasImageChanged] = useState(false);
 
   // Error states
   const [errors, setErrors] = useState({});
@@ -90,6 +97,95 @@ const EditResidentScreen = () => {
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   };
 
+  // Image picker logic
+  const pickAvatar = async () => {
+    try {
+      Alert.alert(
+        'Chọn ảnh',
+        'Chọn cách lấy ảnh',
+        [
+          {
+            text: 'Chụp ảnh',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
+                  return;
+                }
+                
+                let result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.7,
+                });
+                
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setAvatarUri(result.assets[0].uri);
+                  setHasImageChanged(true);
+                }
+              } catch (error) {
+                console.error('Camera error:', error);
+                Alert.alert('Lỗi', 'Không thể mở camera. Vui lòng thử lại!');
+              }
+            }
+          },
+          {
+            text: 'Chọn từ thư viện',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
+                  return;
+                }
+                
+                let result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.7,
+                });
+                
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setAvatarUri(result.assets[0].uri);
+                  setHasImageChanged(true);
+                }
+              } catch (error) {
+                console.error('Gallery error:', error);
+                Alert.alert('Lỗi', 'Không thể mở thư viện ảnh. Vui lòng thử lại!');
+              }
+            }
+          },
+          { text: 'Hủy', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Lỗi', 'Không thể mở image picker. Vui lòng thử lại!');
+    }
+  };
+
+  // Remove avatar
+  const removeAvatar = () => {
+    Alert.alert(
+      'Xóa ảnh',
+      'Bạn có chắc chắn muốn xóa ảnh đại diện?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: () => {
+            setAvatarUri(null);
+            setHasImageChanged(true);
+          }
+        }
+      ]
+    );
+  };
+
   useEffect(() => {
     if (residentData) {
       setResident(residentData);
@@ -102,6 +198,11 @@ const EditResidentScreen = () => {
       setGender(residentData.gender || '');
       setMedicalHistory(residentData.medical_history || '');
       setAllergies(residentData.allergies || []);
+      
+      // Set avatar from existing data
+      if (residentData.avatar) {
+        setAvatarUri(getAvatarUri(residentData.avatar));
+      }
       
       // Emergency contact
       if (residentData.emergency_contact) {
@@ -184,9 +285,14 @@ const EditResidentScreen = () => {
         full_name: fullName.trim(),
         date_of_birth: parseDate(dateOfBirth)?.toISOString(),
         gender,
-        medical_history: medicalHistory.trim() || undefined,
+        medical_history: medicalHistory.trim() || null,
         allergies: allergies.length > 0 ? allergies : undefined,
       };
+
+      // Add avatar if changed
+      if (hasImageChanged) {
+        updateData.avatar = avatarUri || null; // null để xóa ảnh
+      }
 
       // Add emergency contact if provided
       if (emergencyName.trim() || emergencyPhone.trim() || emergencyRelationship) {
@@ -252,6 +358,42 @@ const EditResidentScreen = () => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Surface style={styles.surface}>
+            <Text style={styles.sectionTitle}>Ảnh Đại Diện</Text>
+            
+            <View style={styles.photoContainer}>
+              {avatarUri ? (
+                <Avatar.Image size={100} source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <Avatar.Icon size={100} icon="account" style={styles.avatar} color={COLORS.surface} />
+              )}
+              {hasImageChanged && (
+                <Text style={styles.changeIndicator}>* Ảnh đã được thay đổi</Text>
+              )}
+              <View style={styles.photoButtonsContainer}>
+                <Button
+                  mode="contained"
+                  onPress={pickAvatar}
+                  style={styles.uploadButton}
+                  icon="camera"
+                >
+                  {avatarUri ? 'Thay đổi ảnh' : 'Tải ảnh lên'}
+                </Button>
+                {avatarUri && (
+                  <Button
+                    mode="outlined"
+                    onPress={removeAvatar}
+                    style={styles.removeButton}
+                    icon="delete"
+                    textColor={COLORS.error}
+                  >
+                    Xóa ảnh
+                  </Button>
+                )}
+              </View>
+            </View>
+          </Surface>
+
           <Surface style={styles.surface}>
             <Text style={styles.sectionTitle}>Thông Tin Cơ Bản</Text>
             
@@ -483,7 +625,7 @@ const EditResidentScreen = () => {
             >
               Lưu thay đổi
             </Button>
-          </View>
+      </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -595,6 +737,37 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: COLORS.textSecondary,
+  },
+  photoContainer: {
+    alignItems: 'center',
+    paddingVertical: SIZES.padding,
+  },
+  avatar: {
+    marginBottom: SIZES.padding,
+    backgroundColor: COLORS.lightGray,
+  },
+  uploadButton: {
+    backgroundColor: COLORS.primary,
+    marginTop: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  removeButton: {
+    borderColor: COLORS.error,
+    marginTop: 8,
+    flex: 1,
+    marginLeft: 8,
+  },
+  photoButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  changeIndicator: {
+    ...FONTS.body4,
+    color: COLORS.primary,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
 });
 

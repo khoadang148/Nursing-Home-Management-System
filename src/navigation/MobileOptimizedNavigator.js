@@ -37,6 +37,7 @@ import EditBedScreen from '../screens/beds/EditBedScreen';
 // Import Bill screens
 import CreateBillScreen from '../screens/bills/CreateBillScreen';
 import MyCreatedBillsScreen from '../screens/bills/MyCreatedBillsScreen';
+import StaffBillDetailScreen from '../screens/bills/StaffBillDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -161,7 +162,8 @@ const StaffMainStack = () => (
 
     {/* Bill Management Screens */}
     <Stack.Screen name="TaoHoaDon" component={CreateBillScreen} />
-    <Stack.Screen name="MyCreatedBills" component={MyCreatedBillsScreen} />
+            <Stack.Screen name="MyCreatedBills" component={MyCreatedBillsScreen} />
+        <Stack.Screen name="StaffBillDetail" component={StaffBillDetailScreen} />
   </Stack.Navigator>
 );
 

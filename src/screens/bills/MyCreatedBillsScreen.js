@@ -15,6 +15,8 @@ import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
+import residentService from '../../api/services/residentService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import { COLORS, FONTS } from '../../constants/theme';
 
 const MyCreatedBillsScreen = () => {
@@ -33,40 +35,35 @@ const MyCreatedBillsScreen = () => {
     if (!staffId) return;
     setLoading(true);
     try {
-      console.log('DEBUG - Fetching bills for staff:', staffId);
+      // Gọi API lấy hóa đơn theo staff_id
+      const response = await billsService.getBillsByStaffId(staffId);
       
-      // Thử gọi API lấy hóa đơn theo staff_id trước
-      let response = await billsService.getBillsByStaffId(staffId);
-      
-      // Nếu API staff không tồn tại, fallback về getAllBills và lọc
-      if (!response.success) {
-        console.log('DEBUG - Staff API not available, falling back to getAllBills');
-        response = await billsService.getAllBills();
+      if (response.success && response.data) {
+        console.log('DEBUG - Staff API response:', response);
+        console.log('DEBUG - Bills data:', response.data);
         
-        if (response.success && response.data) {
-          console.log('DEBUG - Raw bills data:', response.data);
+        // Process và enhance dữ liệu nếu cần
+        const enhancedBills = response.data.map((bill) => {
+          let enhancedBill = { ...bill };
           
-          // Lọc hóa đơn theo staff_id hiện tại
-          const myBills = response.data.filter(bill => {
-            const billStaffId = bill.staff_id?._id || bill.staff_id;
-            console.log('DEBUG - Comparing bill staff_id:', billStaffId, 'with current staffId:', staffId);
-            return billStaffId === staffId;
+          // Debug log để xem cấu trúc dữ liệu
+          console.log('DEBUG - Processing bill:', {
+            id: bill._id,
+            resident_id_type: typeof bill.resident_id,
+            resident_id_value: bill.resident_id,
+            care_plan_assignment_id_type: typeof bill.care_plan_assignment_id,
+            care_plan_assignment_id_value: bill.care_plan_assignment_id
           });
           
-          console.log('DEBUG - Found bills:', myBills.length);
-          console.log('DEBUG - My bills:', myBills);
-          setBills(myBills);
-          setFilteredBills(myBills);
-        } else {
-          console.error('DEBUG - API response error:', response.error);
-          setBills([]);
-          setFilteredBills([]);
-        }
+          return enhancedBill;
+        });
+        
+        setBills(enhancedBills || []);
+        setFilteredBills(enhancedBills || []);
       } else {
-        // API staff thành công
-        console.log('DEBUG - Staff API response:', response);
-        setBills(response.data || []);
-        setFilteredBills(response.data || []);
+        console.error('DEBUG - API response error:', response.error);
+        setBills([]);
+        setFilteredBills([]);
       }
     } catch (error) {
       console.error('DEBUG - Fetch bills error:', error);
@@ -134,71 +131,154 @@ const MyCreatedBillsScreen = () => {
     return new Date(date).toLocaleDateString('vi-VN');
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.billItem}
-      onPress={() => handleBillPress(item)}
-    >
-      <View style={styles.billHeader}>
-        <View style={styles.billInfo}>
-          <Text style={styles.residentName}>
-            {item.resident_id?.full_name || item.resident?.full_name || item.resident?.name || 'Không rõ'}
-          </Text>
-          <Text style={styles.billTitle}>{item.title || 'Hóa đơn chăm sóc'}</Text>
-        </View>
-        <View style={styles.statusContainer}>
-          {renderStatus(item.status)}
-        </View>
-      </View>
+  const renderItem = ({ item }) => {
+    // Debug log để kiểm tra dữ liệu
+    console.log('DEBUG - Bill item data:', {
+      id: item._id,
+      resident_id: item.resident_id,
+      care_plan_assignment_id: item.care_plan_assignment_id,
+      title: item.title
+    });
+
+    // Lấy thông tin resident với fallback tốt hơn
+    let residentName = 'Không rõ';
+    if (item.resident_id) {
+      if (typeof item.resident_id === 'object') {
+        // Thử các trường khác nhau có thể chứa tên
+        if (item.resident_id.full_name) {
+          residentName = item.resident_id.full_name;
+        } else if (item.resident_id.name) {
+          residentName = item.resident_id.name;
+        } else if (item.resident_id.first_name && item.resident_id.last_name) {
+          residentName = item.resident_id.first_name + ' ' + item.resident_id.last_name;
+        } else if (item.resident_id._id) {
+          residentName = item.resident_id._id; // Fallback về ID nếu không có tên
+        } else {
+          residentName = 'Không rõ';
+        }
+      } else if (typeof item.resident_id === 'string') {
+        residentName = item.resident_id; // Fallback nếu chỉ có ID
+      }
+    }
+
+    // Lấy thông tin phòng/giường với logic cải thiện
+    let roomInfo = 'Chưa phân phòng';
+    let bedInfo = '';
+    
+    // Thử lấy từ care_plan_assignment_id trước
+    if (item.care_plan_assignment_id) {
+      const assignment = item.care_plan_assignment_id;
       
-      <View style={styles.billDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Số tiền:</Text>
-          <Text style={styles.amount} numberOfLines={1}>{formatPrice(item.amount || 0)}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Ngày tạo:</Text>
-          <Text style={styles.date}>{formatDate(item.created_at)}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Ngày đến hạn:</Text>
-          <Text style={styles.date}>{formatDate(item.due_date)}</Text>
-        </View>
-        {item.care_plan_assignment_id && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Phòng:</Text>
-            <Text style={styles.date}>
-              {item.care_plan_assignment_id?.assigned_room_id?.room_number || 'Chưa phân'}
-            </Text>
+      // Lấy thông tin phòng
+      if (assignment.assigned_room_id) {
+        if (typeof assignment.assigned_room_id === 'object') {
+          if (assignment.assigned_room_id.room_number) {
+            roomInfo = `Phòng ${assignment.assigned_room_id.room_number}`;
+          } else if (assignment.assigned_room_id._id) {
+            roomInfo = `Phòng ${assignment.assigned_room_id._id}`;
+          }
+        } else if (typeof assignment.assigned_room_id === 'string') {
+          roomInfo = `Phòng ${assignment.assigned_room_id}`;
+        }
+      }
+      
+      // Lấy thông tin giường
+      if (assignment.assigned_bed_id) {
+        if (typeof assignment.assigned_bed_id === 'object') {
+          if (assignment.assigned_bed_id.bed_number) {
+            bedInfo = ` - Giường ${assignment.assigned_bed_id.bed_number}`;
+          } else if (assignment.assigned_bed_id._id) {
+            bedInfo = ` - Giường ${assignment.assigned_bed_id._id}`;
+          }
+        } else if (typeof assignment.assigned_bed_id === 'string') {
+          bedInfo = ` - Giường ${assignment.assigned_bed_id}`;
+        }
+      }
+    }
+    
+    // Fallback: Thử lấy từ resident_id nếu có thông tin phòng
+    if (roomInfo === 'Chưa phân phòng' && item.resident_id && typeof item.resident_id === 'object') {
+      if (item.resident_id.room_number) {
+        roomInfo = `Phòng ${item.resident_id.room_number}`;
+      } else if (item.resident_id.room_id) {
+        roomInfo = `Phòng ${item.resident_id.room_id}`;
+      }
+      
+      if (item.resident_id.bed_number) {
+        bedInfo = ` - Giường ${item.resident_id.bed_number}`;
+      } else if (item.resident_id.bed_id) {
+        bedInfo = ` - Giường ${item.resident_id.bed_id}`;
+      }
+    }
+
+    const title = item.title || 'Hóa đơn chăm sóc';
+    const amount = item.amount || 0;
+    const dueDate = item.due_date;
+    const status = item.status;
+    
+    // Tính số ngày còn lại/quá hạn
+    const today = new Date();
+    const due = new Date(dueDate);
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    const daysRemaining = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+    
+    let daysText = '';
+    if (status === 'pending') {
+      daysText = daysRemaining === 0 ? 'Quá hạn 0 ngày' : `Còn ${daysRemaining} ngày`;
+    } else if (status === 'overdue') {
+      daysText = `Quá hạn ${Math.abs(daysRemaining)} ngày`;
+    }
+
+    return (
+      <TouchableOpacity
+        style={styles.billItem}
+        onPress={() => handleBillPress(item)}
+      >
+        <View style={styles.billHeader}>
+          <View style={styles.billTitleContainer}>
+            <Text style={styles.billTitle}>{title}</Text>
+            <View style={styles.residentInfo}>
+              <Ionicons name="person-outline" size={14} color="#666" />
+              <Text style={styles.residentName}>{residentName}</Text>
+              <Text style={styles.roomNumber}>• {roomInfo}{bedInfo}</Text>
+            </View>
           </View>
-        )}
-      </View>
-      
-      <View style={styles.chevronContainer}>
-        <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-      </View>
-    </TouchableOpacity>
-  );
+          <View style={styles.statusContainer}>
+            {renderStatus(status)}
+          </View>
+        </View>
+        
+        <Text style={styles.billAmount}>{formatPrice(amount)}</Text>
+        
+        <View style={styles.billFooter}>
+          <Text style={styles.dueDate}>
+            Hạn thanh toán: {formatDate(dueDate)}
+          </Text>
+          {(status === 'pending' || status === 'overdue') && (
+            <Text style={[
+              styles.daysRemaining,
+              status === 'overdue' && styles.overdueText,
+              daysRemaining === 0 && status === 'pending' && styles.dueTodayText
+            ]}>
+              {daysText}
+            </Text>
+          )}
+        </View>
+        
+        <View style={styles.chevronContainer}>
+          <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const handleBillPress = (bill) => {
-    const residentName = bill.resident_id?.full_name || bill.resident?.full_name || bill.resident?.name || 'N/A';
-    const roomNumber = bill.care_plan_assignment_id?.assigned_room_id?.room_number || 'Chưa phân';
-    const bedNumber = bill.care_plan_assignment_id?.assigned_bed_id?.bed_number || 'Chưa phân';
-    const carePlanName = bill.care_plan_assignment_id?.care_plan_ids?.[0]?.plan_name || 'N/A';
-    
-    Alert.alert(
-      'Chi tiết hóa đơn',
-      `Cư dân: ${residentName}\n` +
-      `Tiêu đề: ${bill.title || 'N/A'}\n` +
-      `Số tiền: ${formatPrice(bill.amount || 0)}\n` +
-      `Ngày tạo: ${formatDate(bill.created_at)}\n` +
-      `Ngày đến hạn: ${formatDate(bill.due_date)}\n` +
-      `Trạng thái: ${bill.status === 'paid' ? 'Đã thanh toán' : bill.status === 'overdue' ? 'Quá hạn' : 'Chưa thanh toán'}\n` +
-      `Phòng: ${roomNumber}\n` +
-      `Giường: ${bedNumber}\n` +
-      `Gói dịch vụ: ${carePlanName}\n` +
-      `Ghi chú: ${bill.notes || 'Không có'}`
-    );
+    // Navigate to StaffBillDetailScreen instead of showing Alert
+    navigation.navigate('StaffBillDetail', { 
+      billId: bill._id || bill.id,
+      billData: bill
+    });
   };
 
   if (loading) {
@@ -388,20 +468,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  billInfo: {
+  billTitleContainer: {
     flex: 1,
-  },
-  residentName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
+    marginRight: 8,
   },
   billTitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  residentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  residentName: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 4,
+  },
+  roomNumber: {
+    fontSize: 13,
+    color: '#999',
+    marginLeft: 4,
   },
   statusContainer: {
     marginLeft: 10,
@@ -426,27 +517,30 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.warning,
     color: COLORS.white,
   },
-  billDetails: {
-    gap: 6,
+  billAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 8,
   },
-  detailRow: {
+  billFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingRight: 40, // Tạo khoảng trống cho chevron
   },
-  detailLabel: {
+  dueDate: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: '#666',
   },
-  amount: {
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  date: {
+  daysRemaining: {
     fontSize: 14,
-    color: COLORS.text,
+    color: '#FFA000',
+  },
+  overdueText: {
+    color: '#F44336',
+  },
+  dueTodayText: {
+    color: '#FF9800',
     fontWeight: '500',
   },
   chevronContainer: {

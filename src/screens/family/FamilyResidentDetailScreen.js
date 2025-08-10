@@ -52,6 +52,7 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
   const [activities, setActivities] = useState([]);
   const [medicationAdministrations, setMedicationAdministrations] = useState([]);
   const [carePlanAssignment, setCarePlanAssignment] = useState(null);
+  const [carePlanAssignments, setCarePlanAssignments] = useState([]);
   const [bedInfo, setBedInfo] = useState(null);
 
   useEffect(() => {
@@ -64,6 +65,7 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
         setResidentData(cachedData.residentData);
         setBedInfo(cachedData.bedInfo);
         setCarePlanAssignment(cachedData.carePlanAssignment);
+        setCarePlanAssignments(cachedData.carePlanAssignments || []);
         setVitalSigns(cachedData.vitalSigns || []);
         setAssessments(cachedData.assessments || []);
         setActivities(cachedData.activities || []);
@@ -114,13 +116,16 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       try {
         const carePlanRes = await carePlanAssignmentService.getCarePlanAssignmentsByResidentId(residentId);
         if (carePlanRes.success && carePlanRes.data && carePlanRes.data.length > 0) {
-          setCarePlanAssignment(carePlanRes.data[0]); // Lấy assignment đầu tiên
+          setCarePlanAssignment(carePlanRes.data[0]); // Lấy assignment đầu tiên cho backward compatibility
+          setCarePlanAssignments(carePlanRes.data); // Lưu tất cả assignments
         } else {
           setCarePlanAssignment(null);
+          setCarePlanAssignments([]);
         }
       } catch (e) {
         console.log('Error loading care plan assignment:', e.message);
         setCarePlanAssignment(null);
+        setCarePlanAssignments([]);
       }
 
       // 2. Lấy vital signs
@@ -171,6 +176,7 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
           residentData,
           bedInfo,
           carePlanAssignment,
+          carePlanAssignments,
           vitalSigns,
           assessments,
           activities,
@@ -188,6 +194,7 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
     setResidentData(null);
     setBedInfo(null);
     setCarePlanAssignment(null);
+    setCarePlanAssignments([]);
     setVitalSigns([]);
     setAssessments([]);
     setActivities([]);
@@ -380,19 +387,60 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
             <MaterialIcons name="assignment" size={24} color={COLORS.primary} />
             <Title style={styles.cardTitle}>Gói chăm sóc</Title>
           </View>
-          {carePlanAssignment ? (
-            <>
-              <Text style={styles.carePlanName}>{carePlanAssignment.care_plan_ids?.[0]?.plan_name || 'Chưa có'}</Text>
-          <Text style={styles.carePlanCost}>
-                Chi phí: {carePlanAssignment.care_plan_ids?.[0]?.monthly_price ? formatCurrency(carePlanAssignment.care_plan_ids[0].monthly_price) + '/tháng' : 'Chưa có'}
-          </Text>
-          <Chip
-            style={[styles.statusChip, { backgroundColor: COLORS.success + '20' }]}
-            textStyle={{ color: COLORS.success }}
-          >
-                {carePlanAssignment.status === 'active' ? 'Đang hoạt động' : 'Chưa có'}
-          </Chip>
-            </>
+          {carePlanAssignments && carePlanAssignments.length > 0 ? (
+            carePlanAssignments.map((assignment, index) => (
+              <View key={assignment._id || index} style={styles.carePlanItem}>
+                <View style={styles.carePlanHeader}>
+                  <Text style={styles.carePlanName}>{assignment.care_plan_ids?.[0]?.plan_name || 'Gói chăm sóc'}</Text>
+                  <Chip
+                    style={[
+                      styles.statusChip,
+                      { backgroundColor: assignment.status === 'active' ? COLORS.success + '20' : COLORS.warning + '20' }
+                    ]}
+                    textStyle={{ 
+                      color: assignment.status === 'active' ? COLORS.success : COLORS.warning 
+                    }}
+                  >
+                    {assignment.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
+                  </Chip>
+                </View>
+                
+                <View style={styles.carePlanDetails}>
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Ngày bắt đầu:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.start_date ? formatDate(assignment.start_date) : 'N/A'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Ngày kết thúc:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.end_date ? formatDate(assignment.end_date) : 'Chưa có'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.carePlanDetail}>
+                    <Text style={styles.carePlanLabel}>Chi phí:</Text>
+                    <Text style={styles.carePlanValue}>
+                      {assignment.care_plan_ids?.[0]?.monthly_price 
+                        ? formatCurrency(assignment.care_plan_ids[0].monthly_price) + '/tháng'
+                        : 'N/A'
+                      }
+                    </Text>
+                  </View>
+                  
+                  {assignment.notes && (
+                    <View style={styles.carePlanDetail}>
+                      <Text style={styles.carePlanLabel}>Ghi chú:</Text>
+                      <Text style={styles.carePlanValue}>{assignment.notes}</Text>
+                    </View>
+                  )}
+                </View>
+                
+                {index < carePlanAssignments.length - 1 && <View style={styles.carePlanDivider} />}
+              </View>
+            ))
           ) : (
             <Text style={styles.noDataText}>Chưa có gói chăm sóc</Text>
           )}
@@ -1092,6 +1140,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  carePlanItem: {
+    marginBottom: 16,
+  },
+  carePlanHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  carePlanName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    marginRight: 8,
+  },
+  carePlanDetails: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  carePlanDetail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  carePlanLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  carePlanValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  carePlanDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
   },
 });
 

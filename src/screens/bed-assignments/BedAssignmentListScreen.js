@@ -8,34 +8,70 @@ import {
   Alert,
   RefreshControl,
   StatusBar,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { Card, Chip, Searchbar, Button, ActivityIndicator, Appbar } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
+import bedService from '../../api/services/bedService';
+import residentService from '../../api/services/residentService';
+import roomTypeService from '../../api/services/roomTypeService';
 
 const BedListScreen = ({ navigation }) => {
   const [bedAssignments, setBedAssignments] = useState([]);
-  const [filteredBedAssignments, setFilteredBedAssignments] = useState([]);
+  const [availableBeds, setAvailableBeds] = useState([]);
+  const [allBeds, setAllBeds] = useState([]);
+  const [filteredBeds, setFilteredBeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [showResidentModal, setShowResidentModal] = useState(false);
+  const [selectedBed, setSelectedBed] = useState(null);
+  const [unassignedResidents, setUnassignedResidents] = useState([]);
+  const [loadingResidents, setLoadingResidents] = useState(false);
+  const [assigningBed, setAssigningBed] = useState(false);
+  const [unassigningBed, setUnassigningBed] = useState(false);
+  const [roomTypes, setRoomTypes] = useState([]);
 
   const loadBedAssignments = async () => {
     try {
       setLoading(true);
-      const response = await bedAssignmentService.getAllBedAssignments();
-      if (response.success) {
-        setBedAssignments(response.data || []);
-        setFilteredBedAssignments(response.data || []);
+      
+      // Lấy tất cả giường (bao gồm cả trống và đã phân)
+      const bedsResponse = await bedService.getAllBeds();
+      console.log('All beds response:', bedsResponse);
+      
+      // Lấy danh sách room types để map type_name
+      const roomTypesResponse = await roomTypeService.getAllRoomTypes();
+      if (roomTypesResponse.success) {
+        setRoomTypes(roomTypesResponse.data || []);
+        console.log('Room types loaded:', roomTypesResponse.data?.length);
+      }
+      
+      if (bedsResponse.success) {
+        const beds = bedsResponse.data || [];
+        setAllBeds(beds);
+        setFilteredBeds(beds);
+        
+        // Phân chia giường trống và đã phân
+        const occupied = beds.filter(bed => bed.status === 'occupied' || bed.is_assigned);
+        const available = beds.filter(bed => bed.status === 'available' && !bed.is_assigned);
+        
+        console.log('Occupied beds:', occupied.length);
+        console.log('Available beds:', available.length);
+        
+        setBedAssignments(occupied);
+        setAvailableBeds(available);
       } else {
-        throw new Error('Không thể tải danh sách phân công giường');
+        throw new Error('Không thể tải danh sách giường');
       }
     } catch (error) {
-      console.error('Error loading bed assignments:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách phân công giường');
+      console.error('Error loading beds:', error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách giường');
     } finally {
       setLoading(false);
     }
@@ -51,47 +87,51 @@ const BedListScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const filterBedAssignments = () => {
-    let filtered = bedAssignments;
+  const filterBeds = () => {
+    let filtered = [];
+
+    if (selectedFilter === 'all') {
+      filtered = allBeds;
+    } else if (selectedFilter === 'occupied') {
+      filtered = allBeds.filter(bed => bed.status === 'occupied' || bed.is_assigned);
+    } else if (selectedFilter === 'available') {
+      filtered = allBeds.filter(bed => bed.status === 'available' && !bed.is_assigned);
+    }
 
     // Filter by search query
     if (searchQuery) {
-      filtered = filtered.filter(assignment => 
-        assignment.resident_id?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assignment.bed_id?.bed_number?.toString().includes(searchQuery) ||
-        assignment.bed_id?.room_id?.room_number?.toString().includes(searchQuery)
+      filtered = filtered.filter(bed => 
+        bed.resident_id?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bed.bed_number?.toString().includes(searchQuery) ||
+        bed.room_id?.room_number?.toString().includes(searchQuery)
       );
     }
 
-    // Filter by status
-    if (selectedFilter !== 'all') {
-      filtered = filtered.filter(assignment => {
-        if (selectedFilter === 'occupied') {
-          return !assignment.unassigned_date;
-        } else if (selectedFilter === 'available') {
-          return assignment.unassigned_date;
-        }
-        return true;
-      });
-    }
-
-    setFilteredBedAssignments(filtered);
+    setFilteredBeds(filtered);
   };
 
   useEffect(() => {
-    filterBedAssignments();
-  }, [bedAssignments, searchQuery, selectedFilter]);
+    filterBeds();
+  }, [allBeds, searchQuery, selectedFilter]);
 
-  const getStatusColor = (assignment) => {
-    if (assignment.unassigned_date) {
+  const getStatusColor = (bed) => {
+    if (bed.status === 'available' && !bed.is_assigned) {
       return COLORS.success; // Available
+    } else if (bed.is_assigned && !bed.unassigned_date) {
+      return COLORS.primary; // Occupied
+    } else if (bed.unassigned_date) {
+      return '#e74c3c'; // Left
     }
-    return COLORS.primary; // Occupied
+    return COLORS.primary; // Default
   };
 
-  const getStatusText = (assignment) => {
-    if (assignment.unassigned_date) {
+  const getStatusText = (bed) => {
+    if (bed.status === 'available' && !bed.is_assigned) {
       return 'Trống';
+    } else if (bed.is_assigned && !bed.unassigned_date) {
+      return 'Đang ở';
+    } else if (bed.unassigned_date) {
+      return 'Đã rời giường';
     }
     return 'Đã phân công';
   };
@@ -106,64 +146,309 @@ const BedListScreen = ({ navigation }) => {
     }
   };
 
-  const renderBedItem = ({ item }) => (
-    <Card style={styles.bedCard}>
-      <Card.Content>
-        <View style={styles.bedHeader}>
-          <View style={styles.bedInfo}>
-            <Text style={styles.bedNumber}>Giường {item.bed_id?.bed_number}</Text>
-            <Chip
-              mode="outlined"
-              textStyle={{ color: getStatusColor(item) }}
-              style={[styles.statusChip, { borderColor: getStatusColor(item) }]}
-            >
-              {getStatusText(item)}
-            </Chip>
-          </View>
-          <TouchableOpacity
-            onPress={() => {
-              // Assuming navigation is available from props or context
-              // navigation.navigate('BedDetail', { bedId: item._id });
-            }}
-            style={styles.menuButton}
-          >
-            <MaterialIcons name="more-vert" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
+  // Lấy type_name từ room_type
+  const getRoomTypeName = (roomTypeCode) => {
+    if (!roomTypeCode || !roomTypes.length) return roomTypeCode || 'Chưa xác định';
+    
+    const roomType = roomTypes.find(rt => rt.room_type === roomTypeCode);
+    return roomType?.type_name || roomTypeCode || 'Chưa xác định';
+  };
 
-        <View style={styles.bedDetails}>
-          <View style={styles.detailRow}>
-            <MaterialIcons name="bed" size={16} color="#666" />
-            <Text style={styles.detailText}>
-              Loại: {getBedTypeText(item.bed_id?.bed_type)}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <MaterialIcons name="room" size={16} color="#666" />
-            <Text style={styles.detailText}>
-              Phòng: {item.bed_id?.room_id?.room_number}
-            </Text>
-          </View>
-          {item.resident_id && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="person" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                Cư dân: {item.resident_id.full_name}
-              </Text>
+  // Tính tuổi từ date_of_birth
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'Chưa có thông tin';
+    
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return age.toString();
+    } catch (error) {
+      console.error('Error calculating age:', error);
+      return 'Chưa có thông tin';
+    }
+  };
+
+  // Xử lý khi bấm vào giường trống để phân giường
+  const handleAvailableBedPress = async (bed) => {
+    setSelectedBed(bed);
+    setLoadingResidents(true);
+    setShowResidentModal(true);
+    
+    try {
+      // Lấy tất cả residents
+      const residentsResponse = await residentService.getAllResidents();
+      
+      // Lấy tất cả bed assignments (cả active và inactive)
+      const bedAssignmentsResponse = await bedAssignmentService.getAllBedAssignmentsIncludingInactive();
+      
+      if (residentsResponse.success && bedAssignmentsResponse.success) {
+        const allResidents = residentsResponse.data || [];
+        const allBedAssignments = bedAssignmentsResponse.data || [];
+        
+        // Lọc ra những residents chưa có giường hoặc đã rời giường
+        const unassignedResidents = allResidents.filter(resident => {
+          // Tìm bed assignment của resident này
+          const assignment = allBedAssignments.find(ba => 
+            ba.resident_id === resident._id || 
+            ba.resident_id?._id === resident._id
+          );
+          
+          // Resident chưa phân giường hoặc đã rời giường (có unassigned_date)
+          const isUnassigned = !assignment || assignment.unassigned_date !== null;
+          
+          // Kiểm tra điều kiện phòng nếu có thông tin room
+          if (bed.room_id && isUnassigned) {
+            const roomGender = bed.room_id.gender;
+            const roomMainCarePlanId = bed.room_id.main_care_plan_id;
+            
+            // Kiểm tra giới tính khớp
+            if (roomGender && resident.gender) {
+              if (roomGender !== resident.gender) {
+                return false;
+              }
+            }
+            
+            // TODO: Kiểm tra main_care_plan_id khớp (cần implement care plan assignment check)
+            // Hiện tại skip check này vì cần logic phức tạp hơn
+          }
+          
+          return isUnassigned;
+        });
+        
+        console.log('All residents:', allResidents.length);
+        console.log('All bed assignments:', allBedAssignments.length);
+        console.log('Unassigned residents:', unassignedResidents.length);
+        
+        setUnassignedResidents(unassignedResidents);
+      } else {
+        Alert.alert('Lỗi', 'Không thể lấy danh sách cư dân chưa phân giường');
+        setShowResidentModal(false);
+      }
+    } catch (error) {
+      console.error('Error loading unassigned residents:', error);
+      Alert.alert('Lỗi', 'Không thể lấy danh sách cư dân chưa phân giường');
+      setShowResidentModal(false);
+    } finally {
+      setLoadingResidents(false);
+    }
+  };
+
+  // Xử lý phân giường cho resident
+  const handleAssignBed = async (resident) => {
+    if (!selectedBed || !resident) return;
+    
+    setAssigningBed(true);
+    try {
+      const assignmentData = {
+        resident_id: resident._id,
+        bed_id: selectedBed._id,
+        assigned_date: new Date().toISOString(),
+      };
+      
+      const response = await bedAssignmentService.createBedAssignment(assignmentData);
+      if (response.success) {
+        Alert.alert(
+          'Thành công', 
+          `Đã phân giường ${selectedBed.bed_number} cho ${resident.full_name}`,
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              setShowResidentModal(false);
+              loadBedAssignments(); // Reload data
+            }
+          }]
+        );
+      } else {
+        Alert.alert('Lỗi', response.error || 'Không thể phân giường');
+      }
+    } catch (error) {
+      console.error('Error assigning bed:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi phân giường');
+    } finally {
+      setAssigningBed(false);
+    }
+  };
+
+  // Xử lý hủy phân giường
+  const handleUnassignBed = async (bed) => {
+    if (!bed.assignment_id) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin phân giường');
+      return;
+    }
+
+    Alert.alert(
+      'Xác nhận hủy phân giường',
+      `Bạn có chắc chắn muốn hủy phân giường ${bed.bed_number} cho ${bed.resident_id?.full_name || 'cư dân này'}?`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xác nhận',
+          style: 'destructive',
+          onPress: async () => {
+            setUnassigningBed(true);
+            try {
+              const response = await bedAssignmentService.unassignBed(bed.assignment_id);
+              if (response.success) {
+                Alert.alert(
+                  'Thành công',
+                  `Đã hủy phân giường ${bed.bed_number}`,
+                  [{ 
+                    text: 'OK', 
+                    onPress: () => {
+                      loadBedAssignments(); // Reload data
+                    }
+                  }]
+                );
+              } else {
+                Alert.alert('Lỗi', response.error || 'Không thể hủy phân giường');
+              }
+            } catch (error) {
+              console.error('Error unassigning bed:', error);
+              Alert.alert('Lỗi', 'Có lỗi xảy ra khi hủy phân giường');
+            } finally {
+              setUnassigningBed(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderBedItem = ({ item }) => {
+    const isAvailable = item.status === 'available' && !item.is_assigned;
+    const isOccupied = item.is_assigned && !item.unassigned_date;
+    
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          if (isAvailable) {
+            handleAvailableBedPress(item);
+          }
+        }}
+        disabled={!isAvailable}
+      >
+        <Card style={[
+          styles.bedCard,
+          isAvailable && styles.availableBedCard
+        ]}>
+          <Card.Content>
+            <View style={styles.bedHeader}>
+              <View style={styles.bedInfo}>
+                <Text style={styles.bedNumber}>Giường {item.bed_number}</Text>
+                <Chip
+                  mode="outlined"
+                  textStyle={{ color: getStatusColor(item) }}
+                  style={[styles.statusChip, { borderColor: getStatusColor(item) }]}
+                >
+                  {getStatusText(item)}
+                </Chip>
+              </View>
+              {isAvailable && (
+                <TouchableOpacity
+                  onPress={() => handleAvailableBedPress(item)}
+                  style={styles.assignButton}
+                >
+                  <MaterialIcons name="person-add" size={24} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
+              {isOccupied && (
+                <TouchableOpacity
+                  onPress={() => handleUnassignBed(item)}
+                  style={styles.unassignButton}
+                  disabled={unassigningBed}
+                >
+                  {unassigningBed ? (
+                    <ActivityIndicator size="small" color="#e74c3c" />
+                  ) : (
+                    <MaterialIcons name="close" size={24} color="#e74c3c" />
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
-          )}
-          {item.assigned_date && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="calendar-today" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                Ngày phân công: {new Date(item.assigned_date).toLocaleDateString('vi-VN')}
-              </Text>
+
+            <View style={styles.bedDetails}>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="bed" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Loại: {getBedTypeText(item.bed_type)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="room" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Phòng: {item.room_id?.room_number || 'Chưa có phòng'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="home" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Loại phòng: {getRoomTypeName(item.room_id?.room_type)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="stairs" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Tầng: {item.room_id?.floor || 'Chưa xác định'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="people" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Giới tính: {item.room_id?.gender === 'male' ? 'Nam' : item.room_id?.gender === 'female' ? 'Nữ' : 'Chưa xác định'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="hotel" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Số giường: {item.room_id?.bed_count || 'Chưa xác định'}
+                </Text>
+              </View>
+              {item.resident_id && (
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="person" size={16} color="#666" />
+                  <Text style={styles.detailText}>
+                    Cư dân: {item.resident_id.full_name}
+                  </Text>
+                </View>
+              )}
+              {item.assigned_date && (
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="calendar-today" size={16} color="#666" />
+                  <Text style={styles.detailText}>
+                    Ngày phân công: {new Date(item.assigned_date).toLocaleDateString('vi-VN')}
+                  </Text>
+                </View>
+              )}
+              {item.unassigned_date && (
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="event-busy" size={16} color="#e74c3c" />
+                  <Text style={[styles.detailText, { color: '#e74c3c' }]}>
+                    Ngày rời giường: {new Date(item.unassigned_date).toLocaleDateString('vi-VN')}
+                  </Text>
+                </View>
+              )}
+              {isAvailable && (
+                <View style={styles.availableIndicator}>
+                  <MaterialIcons name="touch-app" size={16} color={COLORS.primary} />
+                  <Text style={styles.availableText}>Nhấn để phân giường</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-      </Card.Content>
-    </Card>
-  );
+          </Card.Content>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -188,7 +473,7 @@ const BedListScreen = ({ navigation }) => {
           placeholder="Tìm kiếm giường..."
           onChangeText={setSearchQuery}
           value={searchQuery}
-          onSubmitEditing={filterBedAssignments}
+          onSubmitEditing={filterBeds}
           style={styles.searchBar}
           icon="magnify"
         />
@@ -209,7 +494,7 @@ const BedListScreen = ({ navigation }) => {
             selected={selectedFilter === 'occupied'}
             style={styles.filterChip}
           >
-            Đã phân công
+            Đang ở
           </Chip>
           <Chip
             mode="outlined"
@@ -250,7 +535,7 @@ const BedListScreen = ({ navigation }) => {
           <ActivityIndicator size="large" style={styles.loadingIndicator} />
         ) : (
           <FlatList
-            data={filteredBedAssignments}
+            data={filteredBeds}
             renderItem={renderBedItem}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContainer}
@@ -262,6 +547,78 @@ const BedListScreen = ({ navigation }) => {
           />
         )}
       </View>
+
+      {/* Modal để chọn resident */}
+      <Modal
+        visible={showResidentModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowResidentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Chọn cư dân cho giường {selectedBed?.bed_number}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowResidentModal(false)}
+                style={styles.closeButton}
+              >
+                <MaterialIcons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingResidents ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách cư dân...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.modalContent}>
+                {unassignedResidents.length === 0 ? (
+                  <View style={styles.emptyResidents}>
+                    <MaterialIcons name="person-off" size={64} color="#ccc" />
+                    <Text style={styles.emptyResidentsText}>
+                      Không có cư dân nào chưa được phân giường
+                    </Text>
+                  </View>
+                ) : (
+                  unassignedResidents.map((resident) => (
+                    <TouchableOpacity
+                      key={resident._id}
+                      style={styles.residentItem}
+                      onPress={() => handleAssignBed(resident)}
+                      disabled={assigningBed}
+                    >
+                      <View style={styles.residentInfo}>
+                        <MaterialIcons name="person" size={20} color={COLORS.primary} />
+                        <View style={styles.residentDetails}>
+                          <Text style={styles.residentName}>{resident.full_name}</Text>
+                          <Text style={styles.residentAge}>
+                            Tuổi: {calculateAge(resident.date_of_birth)}
+                          </Text>
+                          <Text style={styles.residentGender}>
+                            Giới tính: {resident.gender === 'male' ? 'Nam' : 'Nữ'}
+                          </Text>
+                        </View>
+                      </View>
+                      <MaterialIcons name="chevron-right" size={24} color="#666" />
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            )}
+
+            {assigningBed && (
+              <View style={styles.assigningOverlay}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.assigningText}>Đang phân giường...</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -340,7 +697,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   statusChip: {
-    height: 24,
+    height: 32,
   },
   menuButton: {
     padding: 4,
@@ -377,6 +734,145 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  availableBedCard: {
+    borderColor: COLORS.success,
+    borderWidth: 2,
+  },
+  assignButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary + '20',
+  },
+  unassignButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#e74c3c20',
+  },
+  availableIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: COLORS.primary + '10',
+    borderRadius: 4,
+  },
+  availableText: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: COLORS.primary,
+    fontStyle: 'italic',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: '90%',
+    maxHeight: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  modalContent: {
+    maxHeight: 400,
+    padding: 16,
+  },
+  emptyResidents: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyResidentsText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  residentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+    elevation: 1,
+  },
+  residentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  residentDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  residentName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  residentAge: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  residentGender: {
+    fontSize: 14,
+    color: '#666',
+  },
+  assigningOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  assigningText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
 });
 
