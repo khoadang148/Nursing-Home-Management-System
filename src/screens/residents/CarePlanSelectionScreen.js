@@ -231,7 +231,10 @@ const CarePlanSelectionScreen = () => {
     setShowEndDatePicker(false);
     if (selectedDate) {
       setSelectedEndDate(selectedDate);
-      setEndDate(selectedDate.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+      // Set end date to end of day in local timezone, then convert to UTC for DB storage
+      const localEndOfDay = new Date(selectedDate);
+      localEndOfDay.setHours(23, 59, 59, 999); // Set to end of day
+      setEndDate(localEndOfDay.toISOString()); // Convert to UTC for DB storage
     }
   };
 
@@ -284,6 +287,8 @@ const CarePlanSelectionScreen = () => {
         room_monthly_cost: costCalculation.roomCost,
         care_plans_monthly_cost: costCalculation.carePlansCost,
         start_date: new Date().toISOString(),
+        end_date: endDate,
+        end_date_local: selectedEndDate.toLocaleDateString('vi-VN'),
         status: 'active'
       });
 
@@ -630,7 +635,7 @@ const CarePlanSelectionScreen = () => {
             <View style={styles.datePickerContent}>
               <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
               <Text style={styles.datePickerText}>
-                {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc *'}
+                {endDate ? selectedEndDate.toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc *'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
