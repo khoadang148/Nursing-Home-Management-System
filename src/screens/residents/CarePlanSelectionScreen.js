@@ -265,6 +265,11 @@ const CarePlanSelectionScreen = () => {
       return;
     }
 
+    if (!endDate) {
+      Alert.alert('Lỗi', 'Vui lòng chọn ngày kết thúc dịch vụ');
+      return;
+    }
+
     try {
       const selectedPlans = [selectedMainPlan, ...selectedSupplementaryPlans];
       const costCalculation = carePlanService.calculateTotalCost(selectedPlans, selectedRoomType, roomTypes);
@@ -616,8 +621,8 @@ const CarePlanSelectionScreen = () => {
 
         {/* Ngày kết thúc dịch vụ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Ngày Kết Thúc Dịch Vụ (Tùy chọn)</Text>
-          <Text style={styles.sectionSubtitle}>Chọn ngày kết thúc dịch vụ nếu có</Text>
+          <Text style={styles.sectionTitle}>7. Ngày Kết Thúc Dịch Vụ (Bắt buộc)</Text>
+          <Text style={styles.sectionSubtitle}>Chọn ngày kết thúc dịch vụ</Text>
           <TouchableOpacity
             style={styles.datePickerButton}
             onPress={showEndDatePickerModal}
@@ -625,21 +630,24 @@ const CarePlanSelectionScreen = () => {
             <View style={styles.datePickerContent}>
               <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
               <Text style={styles.datePickerText}>
-                {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc'}
+                {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc *'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          {endDate && (
-            <TouchableOpacity
-              style={styles.clearDateButton}
-              onPress={() => {
-                setEndDate('');
-                setSelectedEndDate(new Date());
-              }}
-            >
-              <Text style={styles.clearDateText}>Xóa ngày kết thúc</Text>
-            </TouchableOpacity>
+          
+          {/* Date Picker hiển thị ngay dưới ô chọn ngày */}
+          {showEndDatePicker && (
+            <View style={styles.datePickerContainer}>
+              <DateTimePicker
+                value={selectedEndDate}
+                mode="date"
+                display="default"
+                onChange={onChangeEndDate}
+                minimumDate={new Date()} // Không cho chọn ngày trong quá khứ
+                style={styles.datePicker}
+              />
+            </View>
           )}
         </View>
 
@@ -684,25 +692,16 @@ const CarePlanSelectionScreen = () => {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed) && styles.disabledButton
+            (!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed || !endDate) && styles.disabledButton
           ]}
           onPress={handleSubmit}
-          disabled={!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed}
+          disabled={!selectedResident || !selectedMainPlan || !selectedRoomType || !selectedRoom || !selectedBed || !endDate}
         >
           <Text style={styles.submitButtonText}>Đăng Ký Gói Dịch Vụ</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Date Picker Modal */}
-      {showEndDatePicker && (
-        <DateTimePicker
-          value={selectedEndDate}
-          mode="date"
-          display="default"
-          onChange={onChangeEndDate}
-          minimumDate={new Date()} // Không cho chọn ngày trong quá khứ
-        />
-      )}
+
     </SafeAreaView>
   );
 };
@@ -946,6 +945,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+
   datePickerContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -956,17 +956,17 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginLeft: 10,
   },
-  clearDateButton: {
-    backgroundColor: COLORS.error + '10',
-    padding: 10,
-    borderRadius: 8,
+
+  datePickerContainer: {
     marginTop: 10,
-    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 10,
   },
-  clearDateText: {
-    color: COLORS.error,
-    fontSize: 14,
-    fontWeight: '500',
+  datePicker: {
+    width: '100%',
   },
 });
 
