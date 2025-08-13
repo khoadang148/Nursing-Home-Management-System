@@ -8,6 +8,7 @@ import { LogBox, View, Text } from 'react-native';
 import { store } from './src/redux/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import { NotificationProvider } from './src/components/NotificationSystem';
+import { MessageProvider } from './src/contexts/MessageContext';
 
 // Ignore specific warnings that don't affect functionality
 LogBox.ignoreLogs([
@@ -83,10 +84,12 @@ export default function App() {
           <SafeAreaProvider style={{ flex: 1 }}>
             <ReduxProvider store={store}>
               <PaperProvider theme={theme}>
-                <NotificationProvider>
-                  <StatusBar style="auto" />
-                  <AppNavigator />
-                </NotificationProvider>
+                <MessageProvider>
+                  <NotificationProvider>
+                    <StatusBar style="auto" />
+                    <AppNavigator />
+                  </NotificationProvider>
+                </MessageProvider>
               </PaperProvider>
             </ReduxProvider>
           </SafeAreaProvider>

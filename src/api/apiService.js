@@ -1,11 +1,10 @@
 import axios from 'axios';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_CONFIG } from '../config/appConfig';
 
-// Cấu hình API base URL - thay đổi theo môi trường
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:5000/api' // Development URL
-  : 'https://api.nhms.com/api';  // Production URL
+// Cấu hình API base URL từ appConfig
+const API_BASE_URL = `${API_CONFIG.BASE_URL}/api`;
 
 /**
  * Axios instance với cấu hình chung

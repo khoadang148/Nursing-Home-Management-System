@@ -28,6 +28,7 @@ import * as ImagePicker from 'expo-image-picker';
 import userService from '../../api/services/userService';
 import authService from '../../api/services/authService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import CommonAvatar from '../../components/CommonAvatar';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
 
@@ -275,9 +276,10 @@ const FamilyProfileScreen = ({ navigation }) => {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Avatar.Image
-              source={{ uri: getAvatarUri(userData.avatar) }}
+            <CommonAvatar
+              source={userData.avatar}
               size={100}
+              name={userData.full_name}
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.editAvatarButton} onPress={handleChangeAvatar}>

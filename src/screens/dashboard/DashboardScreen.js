@@ -11,14 +11,15 @@ import {
 import { Card, IconButton, Avatar, Badge } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import residentService from '../../api/services/residentService';
 import activityService from '../../api/services/activityService';
 import activityParticipationService from '../../api/services/activityParticipationService';
 import { getApiBaseUrl, getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri } from '../../utils/avatarUtils';
-
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+import { updateProfile } from '../../redux/slices/authSlice';
+import authService from '../../api/services/authService';
+import CommonAvatar from '../../components/CommonAvatar';
 
 // Mock data - In a real app, this would come from an API
 const mockDashboardData = {
@@ -91,9 +92,11 @@ const upcomingShifts = [
 ];
 
 const DashboardScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
   const [residentCount, setResidentCount] = useState(0);
   const [activityCount, setActivityCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [avatarKey, setAvatarKey] = useState(0);
   const user = useSelector((state) => state.auth.user);
 
   const fetchDashboardData = async () => {
@@ -132,15 +135,49 @@ const DashboardScreen = ({ navigation }) => {
     }
   }, [user?.id]);
 
-  // Lấy thông tin user, fallback nếu chưa đăng nhập
-  const getUserData = () => {
-    if (user && user.full_name) return user;
-    return {
-      full_name: 'Nguyễn Văn A',
-      avatar: user?.avatar || user?.profile_picture || DEFAULT_AVATAR,
+  // Fetch profile after login to get complete user data including avatar
+  useEffect(() => {
+    const fetchProfileIfNeeded = async () => {
+      if (user?.id && !user.avatar) {
+        try {
+          console.log('Fetching profile for user:', user.id);
+          const profileRes = await authService.getProfile();
+          if (profileRes.success && profileRes.data) {
+            console.log('Profile fetched successfully:', profileRes.data);
+            // Update user data in Redux
+            dispatch(updateProfile(profileRes.data));
+            // Force re-render avatar
+            setAvatarKey(prev => prev + 1);
+          }
+        } catch (error) {
+          console.log('Error fetching profile:', error);
+        }
+      }
     };
+    
+    fetchProfileIfNeeded();
+  }, [user?.id]); // Remove user?.avatar dependency to prevent loop
+
+  // Force re-render avatar when user avatar changes
+  useEffect(() => {
+    if (user?.avatar || user?.profile_picture) {
+      console.log('Avatar changed, forcing re-render');
+      setAvatarKey(prev => prev + 1);
+    }
+  }, [user?.avatar, user?.profile_picture]);
+
+  // Lấy thông tin user
+  const getUserData = () => {
+    return user || { full_name: 'Đang tải...' };
   };
-  const userData = getUserData();
+    const userData = getUserData();
+
+  // Debug user data
+  console.log('Dashboard - User data:', user);
+  console.log('Dashboard - User avatar:', user?.avatar);
+  console.log('Dashboard - User profile_picture:', user?.profile_picture);
+  console.log('Dashboard - Final avatar URI:', getAvatarUri(user?.avatar || user?.profile_picture));
+  console.log('Dashboard - Avatar source:', { uri: getAvatarUri(user?.avatar || user?.profile_picture) });
 
   // Chào hỏi theo thời gian
   const getGreeting = () => {
@@ -168,9 +205,11 @@ const DashboardScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('HoSo')}
           style={styles.profileButton}
         >
-          <Avatar.Image
+          <CommonAvatar
+            source={user?.avatar || user?.profile_picture}
             size={40}
-            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) }}
+            name={user?.full_name}
+            style={styles.avatar}
           />
         </TouchableOpacity>
       </View>
@@ -412,6 +451,12 @@ const styles = StyleSheet.create({
   profileButton: {
     borderRadius: 25,
     ...SHADOWS.small,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#dee2e6',
   },
   scrollView: {
     flex: 1,

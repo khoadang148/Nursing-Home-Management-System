@@ -11,7 +11,7 @@ export const API_CONFIG = {
   // BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
   // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
   // BASE_URL: 'http://10.1.143.234:8000', // IP WiFi thực tế từ log trên trường student
-  BASE_URL: 'http://192.168.2.1:8000', // IP WiFi thực tế từ log
+  BASE_URL: 'http://192.168.1.7:8000', // IP WiFi thực tế từ log
   
   // Các IP khác cho các môi trường khác nhau (uncomment để sử dụng)
   // BASE_URL: 'http://192.168.56.1:8000', // IP VirtualBox/Hyper-V
@@ -87,6 +87,14 @@ export const API_CONFIG = {
       UPDATE: '/notification/:id',
       DELETE: '/notification/:id',
       MARK_READ: '/notification/:id/read',
+    },
+    MESSAGES: {
+      CREATE: '/messages',
+      CONVERSATIONS: '/messages/conversations',
+      CONVERSATION: '/messages/conversation/:partnerId',
+      UNREAD_COUNT: '/messages/unread-count',
+      MARK_READ: '/messages/:id/read',
+      DELETE: '/messages/:id',
     },
   },
   

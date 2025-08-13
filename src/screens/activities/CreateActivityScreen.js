@@ -124,6 +124,24 @@ const CreateActivityScreen = () => {
     return residents.filter(resident => !selectedResidents.includes(resident._id));
   };
 
+  // Helper function to calculate age
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age > 0 ? age : null;
+    } catch (error) {
+      console.error('Error calculating age:', error);
+      return null;
+    }
+  };
+
   // Load residents from API
   useEffect(() => {
     loadResidents();
@@ -135,29 +153,44 @@ const CreateActivityScreen = () => {
       const response = await residentService.getAllResidents();
       if (response.success) {
         const residentsData = response.data || [];
+        console.log('DEBUG - API Response residents:', residentsData.map(r => ({
+          name: r.full_name,
+          date_of_birth: r.date_of_birth,
+          has_date_of_birth: !!r.date_of_birth
+        })));
         
-        // Fetch bed assignments for each resident
         const residentsWithBedInfo = await Promise.all(
           residentsData.map(async (resident) => {
             try {
-              // Calculate age from birth date
-              let age = 'N/A';
-              if (resident.birth_date) {
-                const birthDate = new Date(resident.birth_date);
-                const today = new Date();
-                age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                  age--;
-                }
+              // Calculate age using local function with multiple fallbacks
+              let age = calculateAge(resident.date_of_birth);
+              
+              // Fallback: nếu không có date_of_birth, thử tính từ birth_date
+              if (!age && resident.birth_date) {
+                age = calculateAge(resident.birth_date);
               }
               
-              // Fetch bed assignment
+              // Fallback: nếu vẫn không có, thử tính từ admission_date (ước tính tuổi)
+              if (!age && resident.admission_date) {
+                const admissionDate = new Date(resident.admission_date);
+                const today = new Date();
+                age = today.getFullYear() - admissionDate.getFullYear() + 65; // Ước tính tuổi trung bình
+              }
+              
+              console.log(`DEBUG - Resident ${resident.full_name}:`, {
+                date_of_birth: resident.date_of_birth,
+                birth_date: resident.birth_date,
+                admission_date: resident.admission_date,
+                calculated_age: age,
+                has_date_of_birth: !!resident.date_of_birth,
+                has_birth_date: !!resident.birth_date
+              });
+              
               let bedInfo = null;
               try {
                 const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(resident._id);
                 if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
-                  bedInfo = bedResponse.data[0]; // Take the first assignment
+                  bedInfo = bedResponse.data[0];
                 }
               } catch (bedError) {
                 console.log(`No bed assignment found for resident ${resident._id}:`, bedError.message);
@@ -165,7 +198,7 @@ const CreateActivityScreen = () => {
               
               return {
                 ...resident,
-                age: age,
+                age: age || 'N/A',
                 bed_info: bedInfo
               };
             } catch (error) {
@@ -201,7 +234,6 @@ const CreateActivityScreen = () => {
   const residentsItems = () => {
     const availableResidents = getAvailableResidents();
     return availableResidents.map(resident => {
-      // Get bed and room information
       let bedRoomInfo = 'Chưa phân công';
       if (resident.bed_info) {
         if (resident.bed_info.room_id) {
@@ -215,8 +247,9 @@ const CreateActivityScreen = () => {
         }
       }
       
+      const ageDisplay = resident.age && resident.age !== 'N/A' ? `${resident.age} tuổi` : 'Tuổi N/A';
       return {
-        label: `${resident.full_name} (${bedRoomInfo} • ${resident.age} tuổi)`,
+        label: `${resident.full_name} (${bedRoomInfo} • ${ageDisplay})`,
         value: resident._id,
         resident: resident
       };

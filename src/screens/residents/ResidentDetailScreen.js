@@ -29,6 +29,7 @@ import vitalSignsService from '../../api/services/vitalSignsService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri, getImageUriHelper } from '../../utils/avatarUtils';
+import CommonAvatar from '../../components/CommonAvatar';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
 
@@ -146,9 +147,15 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       }
 
       // Fetch assessments
+      console.log('🔄 Fetching assessments for resident:', residentId);
       const assessmentResponse = await assessmentService.getAssessmentsByResidentId(residentId);
+      console.log('📊 Assessment response:', assessmentResponse);
       if (assessmentResponse.success) {
+        console.log('✅ Assessments fetched successfully:', assessmentResponse.data);
+        console.log('📋 Assessments count:', assessmentResponse.data?.length || 0);
         setResident(prev => ({ ...prev, assessments: assessmentResponse.data }));
+      } else {
+        console.log('❌ Failed to fetch assessments:', assessmentResponse.error);
       }
 
       // Fetch vital signs
@@ -603,7 +610,14 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   };
 
   // Tab Đánh Giá Chung (Assessment)
-  const renderAssessmentTab = () => (
+  const renderAssessmentTab = () => {
+    console.log('🎯 Rendering assessment tab');
+    console.log('📋 Resident assessments:', resident.assessments);
+    console.log('📋 Assessments length:', resident.assessments?.length);
+    console.log('📋 Resident ID:', resident._id);
+    console.log('📋 Resident name:', resident.full_name);
+    
+    return (
     <>
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
@@ -671,7 +685,8 @@ const ResidentDetailScreen = ({ route, navigation }) => {
         )}
       </View>
     </>
-  );
+    );
+  };
 
   const renderMedicationsTab = () => (
     <>
@@ -892,7 +907,12 @@ const ResidentDetailScreen = ({ route, navigation }) => {
         }
       >
         <View style={styles.profileContainer}>
-          <Image source={{ uri: getAvatarUri(resident.photo || resident.avatar) }} style={styles.profileImage} />
+          <CommonAvatar 
+            source={resident.photo || resident.avatar}
+            size={120}
+            name={resident.full_name}
+            style={styles.profileImage}
+          />
           <View style={styles.profileInfo}>
             <View style={styles.nameContainer}>
               <Text style={styles.name}>{resident.full_name || 'Không có tên'}</Text>

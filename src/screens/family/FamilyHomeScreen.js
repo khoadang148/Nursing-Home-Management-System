@@ -6,7 +6,6 @@ import {
   ScrollView, 
   TouchableOpacity,
   RefreshControl,
-  Image,
   SafeAreaView,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
@@ -15,15 +14,10 @@ import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@
 
 // Import constants
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+// Removed getImageUri and APP_CONFIG - now using CommonAvatar component
+import CommonAvatar from '../../components/CommonAvatar';
 
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  const uri = getImageUri(avatar, 'avatar');
-  return uri || DEFAULT_AVATAR;
-};
+// Removed DEFAULT_AVATAR and getAvatarUri - now using CommonAvatar component
 
 // Import Redux actions
 import { fetchResidentsByFamilyMember, setCurrentResident } from '../../redux/slices/residentSlice';
@@ -144,6 +138,7 @@ const FamilyHomeScreen = ({ navigation }) => {
   useEffect(() => {
     if (sortedFamilyResidents.length > 0 && !selectedResident) {
       const firstResident = sortedFamilyResidents[0];
+      console.log('🔄 Setting first resident as selected:', firstResident.full_name, 'Avatar:', firstResident.avatar);
       setSelectedResident(firstResident);
       dispatch(setCurrentResident(firstResident));
     }
@@ -152,6 +147,7 @@ const FamilyHomeScreen = ({ navigation }) => {
   // Load bed info when selected resident changes
   useEffect(() => {
     if (selectedResident?._id) {
+      console.log('🔄 Loading bed info for resident:', selectedResident.full_name, 'ID:', selectedResident._id);
       loadResidentBedInfo(selectedResident._id);
     }
   }, [selectedResident?._id]); // Only depend on selected resident ID
@@ -406,8 +402,11 @@ const FamilyHomeScreen = ({ navigation }) => {
             <Text style={styles.name}>{userData.full_name || 'Trần Lê Chi Bảo'}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('HoSo')}>
-            <Image 
-              source={{ uri: getAvatarUri(userData.avatar) }}
+            <CommonAvatar 
+              key={`user-${userData.id || userData._id}-${userData.avatar}`}
+              source={userData.avatar}
+              size={48}
+              name={userData.full_name}
               style={styles.avatar}
             />
           </TouchableOpacity>
@@ -429,7 +428,10 @@ const FamilyHomeScreen = ({ navigation }) => {
                         key={resident._id}
                         mode={selectedResident?._id === resident._id ? 'flat' : 'outlined'}
                         selected={selectedResident?._id === resident._id}
-                        onPress={() => setSelectedResident(resident)}
+                        onPress={() => {
+                          console.log('🔄 Selecting resident:', resident.full_name, 'Avatar:', resident.avatar);
+                          setSelectedResident(resident);
+                        }}
                         style={[
                           styles.residentChip,
                           selectedResident?._id === resident._id && styles.selectedChip
@@ -450,9 +452,12 @@ const FamilyHomeScreen = ({ navigation }) => {
               {selectedResident && (
                 <View style={styles.selectedResidentInfo}>
                   <View style={styles.residentCardContent}>
-              <Image 
-                      source={{ uri: selectedResident.avatar || DEFAULT_AVATAR }}
-                style={styles.residentPhoto}
+              <CommonAvatar 
+                      key={`resident-${selectedResident._id}-${selectedResident.avatar}`}
+                      source={selectedResident.avatar}
+                      size={80}
+                      name={selectedResident.full_name}
+                      style={styles.residentPhoto}
               />
               <View style={styles.residentInfo}>
                       <Text style={styles.residentName}>

@@ -84,6 +84,13 @@ const EditActivityScreen = () => {
   const { activityId } = route.params;
   const user = useSelector((state) => state.auth.user);
   
+  // Debug user object
+  useEffect(() => {
+    console.log('DEBUG - User object in EditActivityScreen:', user);
+    console.log('DEBUG - User _id:', user?._id);
+    console.log('DEBUG - User id:', user?.id);
+  }, [user]);
+  
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [activityType, setActivityType] = useState('Thể thao');
@@ -113,6 +120,24 @@ const EditActivityScreen = () => {
 
   const getAvailableResidents = () => {
     return residents.filter(resident => !selectedResidents.includes(resident._id));
+  };
+
+  // Helper function to calculate age
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age > 0 ? age : null;
+    } catch (error) {
+      console.error('Error calculating age:', error);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -184,20 +209,38 @@ const EditActivityScreen = () => {
       const response = await residentService.getAllResidents();
       if (response.success) {
         const residentsData = response.data || [];
+        console.log('DEBUG - API Response residents:', residentsData.map(r => ({
+          name: r.full_name,
+          date_of_birth: r.date_of_birth,
+          has_date_of_birth: !!r.date_of_birth
+        })));
         
         const residentsWithBedInfo = await Promise.all(
           residentsData.map(async (resident) => {
             try {
-              let age = 'N/A';
-              if (resident.birth_date) {
-                const birthDate = new Date(resident.birth_date);
-                const today = new Date();
-                age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                  age--;
-                }
+              // Calculate age using local function with multiple fallbacks
+              let age = calculateAge(resident.date_of_birth);
+              
+              // Fallback: nếu không có date_of_birth, thử tính từ birth_date
+              if (!age && resident.birth_date) {
+                age = calculateAge(resident.birth_date);
               }
+              
+              // Fallback: nếu vẫn không có, thử tính từ admission_date (ước tính tuổi)
+              if (!age && resident.admission_date) {
+                const admissionDate = new Date(resident.admission_date);
+                const today = new Date();
+                age = today.getFullYear() - admissionDate.getFullYear() + 65; // Ước tính tuổi trung bình
+              }
+              
+              console.log(`DEBUG - Resident ${resident.full_name}:`, {
+                date_of_birth: resident.date_of_birth,
+                birth_date: resident.birth_date,
+                admission_date: resident.admission_date,
+                calculated_age: age,
+                has_date_of_birth: !!resident.date_of_birth,
+                has_birth_date: !!resident.birth_date
+              });
               
               let bedInfo = null;
               try {
@@ -211,7 +254,7 @@ const EditActivityScreen = () => {
               
               return {
                 ...resident,
-                age: age,
+                age: age || 'N/A',
                 bed_info: bedInfo
               };
             } catch (error) {
@@ -259,8 +302,9 @@ const EditActivityScreen = () => {
         }
       }
       
+      const ageDisplay = resident.age && resident.age !== 'N/A' ? `${resident.age} tuổi` : 'Tuổi N/A';
       return {
-        label: `${resident.full_name} (${bedRoomInfo} • ${resident.age} tuổi)`,
+        label: `${resident.full_name} (${bedRoomInfo} • ${ageDisplay})`,
         value: resident._id,
         resident: resident
       };
@@ -382,13 +426,26 @@ const EditActivityScreen = () => {
       }
       
       if (residentsToAdd.length > 0) {
+        // Debug user object
+        console.log('DEBUG - User object:', user);
+        console.log('DEBUG - User _id:', user?._id);
+        console.log('DEBUG - User id:', user?.id);
+        
+        // Check for both _id and id fields
+        const userId = user?._id || user?.id;
+        if (!userId) {
+          throw new Error('Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.');
+        }
+        
         const participationDataList = residentsToAdd.map(residentId => ({
-          staff_id: user._id,
+          staff_id: userId,
           activity_id: activityId,
           resident_id: residentId,
           date: activityDate,
           attendance_status: 'pending'
         }));
+        
+        console.log('DEBUG - Participation data list:', participationDataList);
         
         const participationResponse = await activityParticipationService.createMultipleActivityParticipations(participationDataList);
         if (!participationResponse.success) {

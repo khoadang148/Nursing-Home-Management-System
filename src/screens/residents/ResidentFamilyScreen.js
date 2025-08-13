@@ -20,6 +20,7 @@ import {
 } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
+import CommonAvatar from '../../components/CommonAvatar';
 
 // Mock data for family contacts
 const mockFamilyData = [
@@ -97,9 +98,10 @@ const ResidentFamilyScreen = ({ navigation, route }) => {
       <Card.Content>
         <View style={styles.contactHeader}>
           <View style={styles.contactInfo}>
-            <Avatar.Image 
+            <CommonAvatar 
               size={60} 
-              source={{ uri: contact.photo }}
+              source={contact.photo}
+              name={contact.name}
               style={styles.avatar}
             />
             <View style={styles.contactDetails}>

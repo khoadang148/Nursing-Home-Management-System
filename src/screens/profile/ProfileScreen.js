@@ -30,6 +30,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS } from '../../constants/theme';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri } from '../../utils/avatarUtils';
+import CommonAvatar from '../../components/CommonAvatar';
 import dateUtils, { formatDateFromBackend } from '../../utils/dateUtils';
 import authService from '../../api/services/authService';
 import userService from '../../api/services/userService';
@@ -313,9 +314,10 @@ const ProfileScreen = () => {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Avatar.Image
-              source={{ uri: getAvatarUri(userData.avatar || userData.profile_picture) }}
+            <CommonAvatar
+              source={userData.avatar || userData.profile_picture}
               size={100}
+              name={userData.full_name || userData.name || userData.username}
               style={styles.avatar}
             />
         <TouchableOpacity 

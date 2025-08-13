@@ -26,6 +26,7 @@ import {
 } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import CommonAvatar from '../../components/CommonAvatar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
@@ -500,11 +501,12 @@ const AddResidentScreen = ({ navigation }) => {
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.photoContainer}>
-            {avatarUri ? (
-              <Avatar.Image size={100} source={{ uri: avatarUri }} style={styles.avatar} />
-            ) : (
-              <Avatar.Icon size={100} icon="account" style={styles.avatar} color={COLORS.surface} />
-            )}
+            <CommonAvatar 
+              size={100} 
+              source={avatarUri}
+              name={fullName}
+              style={styles.avatar}
+            />
             <Button
               mode="contained"
               onPress={pickAvatar}

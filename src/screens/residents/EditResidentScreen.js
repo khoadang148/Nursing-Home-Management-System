@@ -28,6 +28,7 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import residentService from '../../api/services/residentService';
 import * as ImagePicker from 'expo-image-picker';
 import { getAvatarUri } from '../../utils/avatarUtils';
+import CommonAvatar from '../../components/CommonAvatar';
 
 const EditResidentScreen = () => {
   const navigation = useNavigation();
@@ -362,11 +363,12 @@ const EditResidentScreen = () => {
             <Text style={styles.sectionTitle}>Ảnh Đại Diện</Text>
             
             <View style={styles.photoContainer}>
-              {avatarUri ? (
-                <Avatar.Image size={100} source={{ uri: avatarUri }} style={styles.avatar} />
-              ) : (
-                <Avatar.Icon size={100} icon="account" style={styles.avatar} color={COLORS.surface} />
-              )}
+              <CommonAvatar 
+                size={100} 
+                source={avatarUri}
+                name={fullName}
+                style={styles.avatar}
+              />
               {hasImageChanged && (
                 <Text style={styles.changeIndicator}>* Ảnh đã được thay đổi</Text>
               )}

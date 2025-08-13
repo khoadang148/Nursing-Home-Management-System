@@ -30,14 +30,9 @@ import vitalSignsService from '../../api/services/vitalSignsService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import authService from '../../api/services/authService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
+import CommonAvatar from '../../components/CommonAvatar';
 
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  const uri = getImageUri(avatar, 'avatar');
-  return uri || DEFAULT_AVATAR;
-};
+// Removed DEFAULT_AVATAR and getAvatarUri - now using CommonAvatar component
 
 const { width } = Dimensions.get('window');
 
@@ -367,9 +362,11 @@ const FamilyResidentScreen = ({ navigation }) => {
         disabled={isMockId}
     >
       <View style={styles.cardHeader}>
-        <Image 
-                        source={{ uri: getAvatarUri(resident.avatar) }}
-          style={styles.residentPhoto}
+        <CommonAvatar 
+                        source={resident.avatar}
+                        size={60}
+                        name={resident.full_name}
+                        style={styles.residentPhoto}
         />
         <View style={styles.residentInfo}>
           <Text style={styles.residentName}>{resident.full_name || 'Không có tên'}</Text>

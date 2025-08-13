@@ -60,15 +60,32 @@ const EditVitalsScreen = () => {
     
     setLoading(true);
     try {
-      const vitalSignData = {
-        temperature: vitals.temperature ? parseFloat(vitals.temperature.replace(',', '.')) : undefined,
-        heart_rate: vitals.heartRate ? parseInt(vitals.heartRate.replace(',', '.')) : undefined,
-        blood_pressure: vitals.bloodPressure || undefined,
-        respiratory_rate: vitals.respiratoryRate ? parseInt(vitals.respiratoryRate.replace(',', '.')) : undefined,
-        oxygen_level: vitals.oxygenSaturation ? parseFloat(vitals.oxygenSaturation.replace(',', '.')) : undefined,
-        weight: vitals.weight ? parseFloat(vitals.weight.replace(',', '.')) : undefined,
-        notes: vitals.notes || undefined
-      };
+      // Only include fields that have valid values
+      const vitalSignData = {};
+      
+      if (vitals.temperature && vitals.temperature.trim() !== '') {
+        vitalSignData.temperature = parseFloat(vitals.temperature.replace(',', '.'));
+      }
+      if (vitals.heartRate && vitals.heartRate.trim() !== '') {
+        vitalSignData.heart_rate = parseInt(vitals.heartRate.replace(',', '.'));
+      }
+      if (vitals.bloodPressure && vitals.bloodPressure.trim() !== '') {
+        vitalSignData.blood_pressure = vitals.bloodPressure.trim();
+      }
+      if (vitals.respiratoryRate && vitals.respiratoryRate.trim() !== '') {
+        vitalSignData.respiratory_rate = parseInt(vitals.respiratoryRate.replace(',', '.'));
+      }
+      if (vitals.oxygenSaturation && vitals.oxygenSaturation.trim() !== '') {
+        vitalSignData.oxygen_level = parseFloat(vitals.oxygenSaturation.replace(',', '.'));
+      }
+      if (vitals.weight && vitals.weight.trim() !== '') {
+        vitalSignData.weight = parseFloat(vitals.weight.replace(',', '.'));
+      }
+      if (vitals.notes && vitals.notes.trim() !== '') {
+        vitalSignData.notes = vitals.notes.trim();
+      }
+
+      console.log('📤 Sending vital sign data to API:', JSON.stringify(vitalSignData, null, 2));
 
       const response = await vitalSignsService.updateVitalSign(vitalId, vitalSignData);
       

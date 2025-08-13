@@ -19,6 +19,7 @@ import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri } from '../../utils/avatarUtils';
+import CommonAvatar from '../../components/CommonAvatar';
 import { formatDateFromBackend } from '../../utils/dateUtils';
 
 const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
@@ -167,9 +168,10 @@ const ResidentListScreen = ({ navigation }) => {
         onPress={() => navigation.navigate('ResidentDetails', { residentId: item._id })}
       >
         <View style={styles.cardHeader}>
-          <Avatar.Image
-            source={{ uri: getAvatarUri(item.photo || item.avatar) }}
+          <CommonAvatar
+            source={item.photo || item.avatar}
             size={60}
+            name={item.full_name}
             style={styles.avatar}
           />
           <View style={styles.nameContainer}>
@@ -273,9 +275,10 @@ const ResidentListScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('HoSo')}
           style={styles.profileButton}
         >
-          <Avatar.Image
+          <CommonAvatar
             size={40}
-            source={{ uri: getAvatarUri(user?.avatar || user?.profile_picture) }}
+            source={user?.avatar || user?.profile_picture}
+            name={user?.full_name}
           />
         </TouchableOpacity>
       </View>

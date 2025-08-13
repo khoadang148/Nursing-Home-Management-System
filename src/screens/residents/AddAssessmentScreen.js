@@ -132,7 +132,7 @@ const AddAssessmentScreen = ({ route, navigation }) => {
         assessmentData.conducted_by = user._id || user.id;
       }
 
-      console.log('Sending assessment data:', assessmentData);
+      console.log('📤 Sending assessment data to API:', JSON.stringify(assessmentData, null, 2));
 
       const response = await assessmentService.createAssessment(assessmentData);
       

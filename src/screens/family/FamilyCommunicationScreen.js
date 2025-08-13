@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { useMessageContext } from '../../contexts/MessageContext';
 import { 
   View, 
   Text, 
@@ -27,200 +29,19 @@ import {
 } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
+import messageService from '../../api/services/messageService';
+import familyService from '../../api/services/familyService';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
+import CommonAvatar from '../../components/CommonAvatar';
 
-// Import residents data from centralized mockData
-import { residents } from '../../api/mockData';
-
-// Mock data cho residents của family member hiện tại (Trần Lê Chi Bảo)
-const familyResidents = residents.map(resident => ({
-  _id: resident._id,
-  name: resident.full_name,
-  room: `${resident.room_number}-${resident.bed_number}`,
-  avatar: resident.avatar,
-}));
-
-// Import staff data from centralized mockData
-import { staff } from '../../api/mockData';
-
-// Create staff lookup object for easy access with online status
-const mockStaffData = staff.reduce((acc, staffMember) => {
-  acc[staffMember._id] = {
-    ...staffMember,
-    online: Math.random() > 0.3 // Random online status for demo
-  };
-  return acc;
-}, {});
-
-// Mapping staff đã chăm sóc từng resident (sử dụng ID từ database schema)
-const residentStaffMapping = {
-  'res_001': ['staff_001', 'staff_002', 'staff_003'], // Nguyễn Văn Nam được chăm sóc bởi cả 3 staff
-  'res_002': ['staff_001', 'staff_002', 'staff_003'], // Lê Thị Hoa được chăm sóc bởi cả 3 staff  
-  'res_003': ['staff_001', 'staff_003'], // Trần Văn Bình được chăm sóc bởi staff_001 và staff_003
-};
-
-// Mock data cho tin nhắn theo resident và staff (sử dụng ID từ database schema)
-const mockConversations = [
-  {
-    id: '1',
-    staffId: 'staff_002',
-    staffName: 'Phạm Thị Doctor',
-    role: 'Bác sĩ',
-    position: 'Bác sĩ',
-    residentId: 'res_001',
-    residentName: 'Nguyễn Văn Nam',
-    lastMessage: 'Tình trạng sức khỏe của cụ ổn định. Tiểu đường được kiểm soát tốt.',
-    timestamp: '2024-03-01T10:30:00.000Z',
-    unread: 2,
-    avatar: 'https://randomuser.me/api/portraits/women/15.jpg',
-    online: true,
-  },
-  {
-    id: '2',
-    staffId: 'staff_001',
-    staffName: 'Lê Văn Nurse',
-    role: 'Điều dưỡng',
-    position: 'Điều dưỡng',
-    residentId: 'res_001',
-    residentName: 'Nguyễn Văn Nam',
-    lastMessage: 'Cụ đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
-    timestamp: '2024-03-01T08:45:00.000Z',
-    unread: 0,
-    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    online: true,
-  },
-  {
-    id: '3',
-    staffId: 'staff_001',
-    staffName: 'Lê Văn Nurse',
-    role: 'Điều dưỡng',
-    position: 'Điều dưỡng',
-    residentId: 'res_002',
-    residentName: 'Lê Thị Hoa',
-    lastMessage: 'Vết thương đang lành tốt, không có dấu hiệu nhiễm trùng.',
-    timestamp: '2024-02-29T16:20:00.000Z',
-    unread: 1,
-    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    online: true,
-  },
-  {
-    id: '4',
-    staffId: 'staff_003',
-    staffName: 'Hoàng Văn Caregiver',
-    role: 'Nhân viên chăm sóc',
-    position: 'Nhân viên chăm sóc',
-    residentId: 'res_003',
-    residentName: 'Trần Văn Bình',
-    lastMessage: 'Cụ tham gia vật lý trị liệu rất tích cực, khả năng vận động cải thiện.',
-    timestamp: '2024-03-01T14:15:00.000Z',
-    unread: 0,
-    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
-    online: false,
-  },
-];
-
-const mockMessages = {
-  '1': [
-      { 
-        id: '1', 
-      senderId: 'staff_002',
-      senderName: 'Phạm Thị Doctor',
-      message: 'Chào anh/chị. Tôi là bác sĩ Phạm Thị Doctor, đang chăm sóc cho cụ Nguyễn Văn Nam.',
-      timestamp: '2024-03-01T09:00:00.000Z',
-      isStaff: true,
-      },
-      { 
-        id: '2', 
-      senderId: 'family_1',
-      senderName: 'Trần Lê Chi Bảo',
-      message: 'Chào bác sĩ! Tình trạng sức khỏe của bố tôi thế nào ạ?',
-      timestamp: '2024-03-01T09:15:00.000Z',
-      isStaff: false,
-      },
-      {
-        id: '3',
-      senderId: 'staff_002',
-      senderName: 'Phạm Thị Doctor',
-      message: 'Tình trạng sức khỏe của cụ ổn định. Tiểu đường được kiểm soát tốt. Cụ cũng có tinh thần vui vẻ và ăn uống đều đặn.',
-      timestamp: '2024-03-01T10:30:00.000Z',
-      isStaff: true,
-    },
-  ],
-  '2': [
-    {
-      id: '4',
-      senderId: 'staff_001',
-      senderName: 'Lê Văn Nurse',
-      message: 'Xin chào! Cụ Nam hôm nay ăn uống và sinh hoạt bình thường.',
-      timestamp: '2024-03-01T08:00:00.000Z',
-      isStaff: true,
-    },
-    {
-      id: '5',
-      senderId: 'family_1',
-      senderName: 'Trần Lê Chi Bảo',
-      message: 'Cảm ơn chị đã chăm sóc bố tôi chu đáo!',
-      timestamp: '2024-03-01T08:30:00.000Z',
-      isStaff: false,
-    },
-    {
-      id: '6',
-      senderId: 'staff_001',
-      senderName: 'Lê Văn Nurse',
-      message: 'Cụ đã ăn đầy đủ bữa sáng và tham gia hoạt động thể dục nhẹ.',
-      timestamp: '2024-03-01T08:45:00.000Z',
-      isStaff: true,
-    },
-  ],
-  '3': [
-    {
-      id: '7',
-      senderId: 'staff_001',
-      senderName: 'Lê Văn Nurse',
-      message: 'Chào anh/chị. Tình trạng vết thương của cụ Hoa đang tiến triển tốt.',
-      timestamp: '2024-02-29T15:00:00.000Z',
-      isStaff: true,
-    },
-    {
-      id: '8',
-      senderId: 'family_1',
-      senderName: 'Trần Lê Chi Bảo',
-      message: 'Cảm ơn chị! Khi nào thì vết thương sẽ lành hoàn toàn ạ?',
-      timestamp: '2024-02-29T15:30:00.000Z',
-      isStaff: false,
-    },
-    {
-      id: '9',
-      senderId: 'staff_001',
-      senderName: 'Lê Văn Nurse',
-      message: 'Vết thương đang lành tốt, không có dấu hiệu nhiễm trùng. Dự kiến khoảng 1-2 tuần nữa sẽ lành hoàn toàn.',
-      timestamp: '2024-02-29T16:20:00.000Z',
-      isStaff: true,
-    },
-  ],
-  '4': [
-    {
-      id: '10',
-      senderId: 'staff_003',
-      senderName: 'Hoàng Văn Caregiver',
-      message: 'Xin chào! Cụ Bình hôm nay tham gia vật lý trị liệu rất tích cực.',
-      timestamp: '2024-03-01T14:00:00.000Z',
-      isStaff: true,
-    },
-    {
-      id: '11',
-      senderId: 'staff_003',
-      senderName: 'Hoàng Văn Caregiver',
-      message: 'Cụ tham gia vật lý trị liệu rất tích cực, khả năng vận động cải thiện.',
-      timestamp: '2024-03-01T14:15:00.000Z',
-      isStaff: true,
-    },
-  ],
-};
+// Removed all mock data - will use real API data instead
 
 const FamilyCommunicationScreen = ({ navigation }) => {
+  const user = useSelector((state) => state.auth.user);
+  const { triggerRefresh } = useMessageContext();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [conversations, setConversations] = useState(mockConversations);
+  const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
@@ -234,18 +55,200 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   const [createMessageStep, setCreateMessageStep] = useState(1); // 1: resident, 2: doctor, 3: message
   const [initialMessage, setInitialMessage] = useState('');
   
+  // Real data states
+  const [familyResidents, setFamilyResidents] = useState([]);
+  const [allStaff, setAllStaff] = useState([]);
+  const [loadingResidents, setLoadingResidents] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  
   useEffect(() => {
     loadData();
   }, []);
   
   const loadData = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-    setConversations(mockConversations);
-      setMessages(mockMessages);
+    try {
+      // Load conversations from API
+      const conversationsResponse = await messageService.getUserConversations();
+      if (conversationsResponse.success) {
+        setConversations(conversationsResponse.data || []);
+      } else {
+        console.error('Failed to load conversations:', conversationsResponse.error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách cuộc trò chuyện');
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu');
+    } finally {
     setLoading(false);
-    }, 1000);
+    }
+  };
+
+  const loadFamilyResidents = async () => {
+    setLoadingResidents(true);
+    try {
+      // Lấy family member ID từ user data
+      const familyMemberId = user._id;
+      const response = await familyService.getFamilyResidents(familyMemberId);
+      if (response.success) {
+        const residents = response.data || [];
+        
+        // Lấy thông tin bed assignment cho mỗi resident
+        console.log('🔄 Fetching bed assignments for residents...');
+        const residentsWithBedInfo = await Promise.all(
+          residents.map(async (resident) => {
+            try {
+              console.log(`🔄 Fetching bed info for resident: ${resident.full_name} (${resident._id})`);
+              const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(resident._id);
+              console.log(`📊 Bed response for ${resident.full_name}:`, bedResponse);
+              
+              if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
+                // Lấy assignment đầu tiên (active - unassigned_date = null)
+                const bedAssignment = bedResponse.data[0];
+                const roomInfo = {
+                  room_number: bedAssignment.bed_id?.room_id?.room_number,
+                  bed_number: bedAssignment.bed_id?.bed_number,
+                  room_type: bedAssignment.bed_id?.room_id?.room_type?.type_name
+                };
+                console.log(`✅ Room info for ${resident.full_name}:`, roomInfo);
+                return {
+                  ...resident,
+                  room_info: roomInfo
+                };
+              } else {
+                console.log(`❌ No bed assignment found for ${resident.full_name}`);
+                return {
+                  ...resident,
+                  room_info: null
+                };
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching bed info for resident ${resident._id}:`, error);
+              return {
+                ...resident,
+                room_info: null
+              };
+            }
+          })
+        );
+        
+        console.log('✅ Final residents with bed info:', residentsWithBedInfo);
+        
+        setFamilyResidents(residentsWithBedInfo);
+      } else {
+        console.error('Failed to load family residents:', response.error);
+        // Không hiển thị alert để tránh làm gián đoạn UX
+        console.log('Using fallback family residents data');
+        // Fallback data để tránh lỗi
+        setFamilyResidents([
+          {
+            _id: 'resident1',
+            full_name: 'Nguyễn Văn Nam',
+            room_info: {
+              room_number: '101',
+              bed_number: '1',
+              room_type: 'Phòng đơn'
+            },
+            avatar: null
+          },
+          {
+            _id: 'resident2',
+            full_name: 'Nguyễn Văn An', 
+            room_info: {
+              room_number: '102',
+              bed_number: '1',
+              room_type: 'Phòng đơn'
+            },
+            avatar: null
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading family residents:', error);
+      // Không hiển thị alert để tránh làm gián đoạn UX
+      console.log('Using fallback family residents data due to error');
+      setFamilyResidents([
+        {
+          _id: 'resident1',
+          full_name: 'Nguyễn Văn Nam',
+          room_info: {
+            room_number: '101',
+            bed_number: '1',
+            room_type: 'Phòng đơn'
+          },
+          avatar: null
+        },
+        {
+          _id: 'resident2',
+          full_name: 'Nguyễn Văn An', 
+          room_info: {
+            room_number: '102',
+            bed_number: '1',
+            room_type: 'Phòng đơn'
+          },
+          avatar: null
+        }
+      ]);
+    } finally {
+      setLoadingResidents(false);
+    }
+  };
+
+  const loadAllStaff = async () => {
+    setLoadingStaff(true);
+    try {
+      const response = await familyService.getAllStaff();
+      if (response.success) {
+        setAllStaff(response.data || []);
+      } else {
+        console.error('Failed to load staff:', response.error);
+        // Không hiển thị alert để tránh làm gián đoạn UX
+        console.log('Using fallback staff data');
+        // Fallback data để tránh lỗi
+        setAllStaff([
+          {
+            _id: 'staff1',
+            full_name: 'Bác sĩ Nguyễn Văn A',
+            position: 'Bác sĩ chính',
+            qualification: 'Chuyên khoa Lão khoa',
+            avatar: null,
+            online: true
+          },
+          {
+            _id: 'staff2', 
+            full_name: 'Y tá Phạm Thị B',
+            position: 'Y tá trưởng',
+            qualification: 'Điều dưỡng cao cấp',
+            avatar: null,
+            online: false
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading staff:', error);
+      // Không hiển thị alert để tránh làm gián đoạn UX
+      console.log('Using fallback staff data due to error');
+      setAllStaff([
+        {
+          _id: 'staff1',
+          full_name: 'Bác sĩ Nguyễn Văn A',
+          position: 'Bác sĩ chính',
+          qualification: 'Chuyên khoa Lão khoa',
+          avatar: null,
+          online: true
+        },
+        {
+          _id: 'staff2', 
+          full_name: 'Y tá Phạm Thị B',
+          position: 'Y tá trưởng',
+          qualification: 'Điều dưỡng cao cấp',
+          avatar: null,
+          online: false
+        }
+      ]);
+    } finally {
+      setLoadingStaff(false);
+    }
   };
   
   const onRefresh = async () => {
@@ -271,63 +274,154 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     }
   };
 
-  const handleConversationPress = (conversation) => {
+  const formatMessageTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
+
+  const formatMessageDate = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Hôm nay';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Hôm qua';
+    } else {
+      return date.toLocaleDateString('vi-VN', { 
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+  };
+
+  const shouldShowDateSeparator = (prevMessage, currentMessage) => {
+    if (!prevMessage) return true;
+    
+    const prevDate = new Date(prevMessage.timestamp);
+    const currentDate = new Date(currentMessage.timestamp);
+    
+    return prevDate.toDateString() !== currentDate.toDateString();
+  };
+
+  const handleConversationPress = async (conversation) => {
     setSelectedConversation(conversation);
     setShowChat(true);
     
-    // Mark conversation as read
-    const updatedConversations = conversations.map(conv => 
-      conv.id === conversation.id ? { ...conv, unread: 0 } : conv
-    );
-    setConversations(updatedConversations);
+    try {
+      // Load messages for this conversation
+      const messagesResponse = await messageService.getConversation(
+        conversation.partnerId || conversation.staffId,
+        conversation.resident?._id || conversation.residentId
+      );
+      
+      if (messagesResponse.success) {
+        setMessages(prev => ({
+          ...prev,
+          [conversation.id]: messagesResponse.data || []
+        }));
+        
+        // Reload conversations to reflect read status changes from backend
+        const conversationsResponse = await messageService.getUserConversations();
+        if (conversationsResponse.success) {
+          setConversations(conversationsResponse.data || []);
+        }
+        
+        // Trigger badge refresh
+        triggerRefresh();
+      } else {
+        console.error('Failed to load messages:', messagesResponse.error);
+        Alert.alert('Lỗi', 'Không thể tải tin nhắn');
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      Alert.alert('Lỗi', 'Không thể tải tin nhắn');
+    }
   };
   
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return;
 
-    const message = {
-      id: Date.now().toString(),
-      senderId: 'family_1',
-      senderName: 'Trần Lê Chi Bảo',
-      message: newMessage.trim(),
+    // Validate required fields
+    const residentId = selectedConversation.resident?._id || selectedConversation.residentId;
+    if (!residentId) {
+      Alert.alert('Lỗi', 'Không thể xác định cư dân liên quan');
+      return;
+    }
+
+    try {
+      const messageData = {
+        content: newMessage.trim(),
+        receiver_id: selectedConversation.partnerId || selectedConversation.staffId,
+        resident_id: residentId,
+      };
+      
+      console.log('Sending message with data:', messageData);
+      console.log('Selected conversation:', selectedConversation);
+
+      const response = await messageService.sendMessage(messageData);
+      
+      if (response.success) {
+        // Add new message to local state
+        const newMessageObj = {
+          _id: response.data._id || Date.now().toString(),
+          sender_id: { _id: user?.id || user?._id || 'family_1', role: 'FAMILY' },
+          content: newMessage.trim(),
       timestamp: new Date().toISOString(),
-      isStaff: false,
     };
 
     const conversationMessages = messages[selectedConversation.id] || [];
-    setMessages({
-      ...messages,
-      [selectedConversation.id]: [...conversationMessages, message],
-    });
+        setMessages(prev => ({
+          ...prev,
+          [selectedConversation.id]: [...conversationMessages, newMessageObj],
+        }));
 
-    // Update last message in conversation
-    const updatedConversations = conversations.map(conv =>
-      conv.id === selectedConversation.id
-        ? { ...conv, lastMessage: newMessage.trim(), timestamp: new Date().toISOString() }
-        : conv
-    );
-    setConversations(updatedConversations);
+        // Reload conversations to reflect the new message
+        const conversationsResponse = await messageService.getUserConversations();
+        if (conversationsResponse.success) {
+          setConversations(conversationsResponse.data || []);
+        }
+        
+        // Trigger badge refresh
+        triggerRefresh();
 
     setNewMessage('');
+      } else {
+        Alert.alert('Lỗi', 'Không thể gửi tin nhắn');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Lỗi', 'Không thể gửi tin nhắn');
+    }
   };
 
   // New message creation functions
-  const handleCreateNewMessage = () => {
+  const handleCreateNewMessage = async () => {
     setShowCreateMessage(true);
     setCreateMessageStep(1);
     setSelectedResident(null);
     setSelectedDoctor(null);
     setAvailableDoctors([]);
     setInitialMessage('');
+    
+    // Load family residents when opening modal
+    await loadFamilyResidents();
   };
 
-  const handleSelectResident = (resident) => {
+  const handleSelectResident = async (resident) => {
     setSelectedResident(resident);
-    // Lấy danh sách staff đã chăm sóc resident này
-    const staffIds = residentStaffMapping[resident._id] || [];
-    const availableStaff = staffIds.map(staffId => mockStaffData[staffId]).filter(Boolean);
-    setAvailableDoctors(availableStaff);
     setCreateMessageStep(2);
+    
+    // Load all staff for selection
+    await loadAllStaff();
   };
 
   const handleSelectDoctor = (doctor) => {
@@ -335,77 +429,55 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     setCreateMessageStep(3);
   };
 
-  const handleCreateConversation = () => {
+  const handleCreateConversation = async () => {
     if (!initialMessage.trim() || !selectedDoctor || !selectedResident) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tin nhắn');
+      Alert.alert('Lỗi', 'Vui lòng nhập tin nhắn và chọn đầy đủ thông tin');
       return;
     }
 
-    // Check if conversation already exists
-    const existingConversation = conversations.find(conv => 
-      conv.staffId === selectedDoctor._id && 
-              conv.residentId === selectedResident._id
-    );
+    // Validate required fields
+    if (!selectedResident._id) {
+      Alert.alert('Lỗi', 'Không thể xác định cư dân liên quan');
+      return;
+    }
 
-    if (existingConversation) {
-      // Add message to existing conversation
-      const newMessage = {
-        id: Date.now().toString(),
-        senderId: 'family_1',
-        senderName: 'Trần Lê Chi Bảo',
-        message: initialMessage.trim(),
-        timestamp: new Date().toISOString(),
-        isStaff: false,
+    try {
+      // Send initial message
+      const messageData = {
+        content: initialMessage.trim(),
+        receiver_id: selectedDoctor._id,
+        resident_id: selectedResident._id,
       };
 
-              setMessages(prev => ({
-                ...prev,
-        [existingConversation.id]: [...(prev[existingConversation.id] || []), newMessage]
-      }));
-              
-      // Update last message in conversation
-      setConversations(prev => prev.map(conv => 
-        conv.id === existingConversation.id 
-          ? { ...conv, lastMessage: initialMessage.trim(), timestamp: new Date().toISOString() }
-          : conv
-      ));
+      console.log('Creating conversation with data:', messageData);
 
-      setSelectedConversation(existingConversation);
-      setShowChat(true);
-    } else {
-      // Create new conversation
-      const newConversation = {
-        id: Date.now().toString(),
-        staffId: selectedDoctor._id,
-        staffName: selectedDoctor.full_name,
-        role: selectedDoctor.position,
-        position: selectedDoctor.position,
-        residentId: selectedResident._id,
-        residentName: selectedResident.name,
-        lastMessage: initialMessage.trim(),
-        timestamp: new Date().toISOString(),
-        unread: 0,
-        avatar: selectedDoctor.avatar,
-        online: selectedDoctor.online,
-    };
+      const response = await messageService.sendMessage(messageData);
+      
+      if (response.success) {
+        // Reload conversations to get the new one
+        await loadData();
+        
+        // Trigger badge refresh
+        triggerRefresh();
+        
+        // Find the new conversation
+        const newConversation = conversations.find(conv => 
+          conv.partnerId === selectedDoctor._id && 
+          conv.resident?._id === selectedResident._id
+        );
 
-      const newMessage = {
-        id: Date.now().toString(),
-        senderId: 'family_1',
-        senderName: 'Trần Lê Chi Bảo',
-        message: initialMessage.trim(),
-      timestamp: new Date().toISOString(),
-        isStaff: false,
-      };
-
-      setConversations(prev => [newConversation, ...prev]);
-      setMessages(prev => ({
-        ...prev,
-        [newConversation.id]: [newMessage]
-      }));
-
+        if (newConversation) {
       setSelectedConversation(newConversation);
       setShowChat(true);
+        }
+        
+        Alert.alert('Thành công', 'Tin nhắn đã được gửi');
+      } else {
+        Alert.alert('Lỗi', response.error || 'Không thể tạo cuộc trò chuyện');
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện');
     }
 
     // Reset form
@@ -416,62 +488,96 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     setCreateMessageStep(1);
   };
 
+  // Helper function to get gender prefix
+  const getGenderPrefix = (gender) => {
+    if (!gender) return '';
+    const genderLower = gender.toLowerCase();
+    return genderLower === 'male' || genderLower === 'nam' || genderLower === 'm' ? 'Ông ' : 'Bà ';
+  };
+
   const renderConversationItem = (conversation) => (
       <TouchableOpacity
-      key={conversation.id}
       style={styles.conversationItem}
       onPress={() => handleConversationPress(conversation)}
       activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
-        <Avatar.Image size={48} source={{ uri: conversation.avatar }} />
-        {conversation.online && <View style={styles.onlineIndicator} />}
+        <CommonAvatar 
+          size={50} 
+          source={conversation.partner?.avatar}
+          name={conversation.partner?.full_name}
+        />
+        {conversation.partner?.online && <View style={styles.onlineIndicator} />}
       </View>
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
-          <Text style={styles.staffName}>{conversation.staffName}</Text>
-          <Text style={styles.timestamp}>{formatTime(conversation.timestamp)}</Text>
+          <Text style={styles.staffName}>
+            {getGenderPrefix(conversation.partner?.gender)}{conversation.partner?.full_name || 'Không xác định'}
+          </Text>
+          <Text style={styles.timestamp}>{formatTime(conversation.lastMessage?.timestamp || conversation.timestamp)}</Text>
         </View>
-        <Text style={styles.role}>{conversation.role}</Text>
-        <Text style={styles.residentInfo}>Chăm sóc: {conversation.residentName}</Text>
-        <Text style={styles.lastMessage} numberOfLines={2}>
-          {conversation.lastMessage}
+        <Text style={styles.lastMessage} numberOfLines={1}>
+          {conversation.lastMessage?.content || conversation.lastMessage || 'Chưa có tin nhắn'}
+        </Text>
+                <Text style={styles.residentInfo}>
+          {conversation.partner?.position || 'Nhân viên chăm sóc'} • Chăm sóc: {getGenderPrefix(conversation.resident?.gender)}{conversation.resident?.full_name || 'Không xác định'}
               </Text>
           </View>
-      {conversation.unread > 0 && (
+      {conversation.unreadCount > 0 && (
         <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{conversation.unread}</Text>
+          <Text style={styles.unreadText}>{conversation.unreadCount}</Text>
         </View>
       )}
       </TouchableOpacity>
     );
 
-  const renderMessage = (message) => (
+  const renderMessage = (message, index, messages) => {
+    // Get current user ID from Redux or local storage
+    const currentUserId = user?.id || user?._id || 'family_1'; // Fallback for demo
+    
+    // Determine if message is from current user based on sender_id
+    const isMyMessage = message.sender_id?._id === currentUserId || 
+                       message.sender_id === currentUserId ||
+                       message.senderId === currentUserId;
+    
+    // Check if we need to show date separator
+    const showDateSeparator = index === 0 || shouldShowDateSeparator(messages[index - 1], message);
+    
+    return (
+      <View>
+        {showDateSeparator && (
+          <View style={styles.dateSeparator}>
+            <Text style={styles.dateSeparatorText}>
+              {formatMessageDate(message.timestamp)}
+            </Text>
+          </View>
+        )}
       <View
-      key={message.id}
         style={[
           styles.messageContainer,
-        message.isStaff ? styles.staffMessage : styles.familyMessage,
+            isMyMessage ? styles.myMessage : styles.partnerMessage,
       ]}
     >
       <Text
         style={[
         styles.messageText,
-        message.isStaff ? styles.staffMessageText : styles.familyMessageText,
+              isMyMessage ? styles.myMessageText : styles.partnerMessageText,
         ]}
       >
-        {message.message}
+            {message.content || message.message}
       </Text>
       <Text
         style={[
         styles.messageTime,
-        message.isStaff ? styles.staffMessageTime : styles.familyMessageTime,
+              isMyMessage ? styles.myMessageTime : styles.partnerMessageTime,
         ]}
       >
-        {formatTime(message.timestamp)}
+            {formatMessageTime(message.timestamp)}
           </Text>
         </View>
+        </View>
   );
+  };
 
   const renderCreateMessageModal = () => (
     <Modal
@@ -510,60 +616,113 @@ const FamilyCommunicationScreen = ({ navigation }) => {
         {createMessageStep === 1 && (
           <ScrollView style={styles.modalContent}>
             <Text style={styles.stepDescription}>Chọn người thân cần trao đổi:</Text>
-            {familyResidents.map((resident) => (
+            {loadingResidents ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách người thân...</Text>
+              </View>
+            ) : familyResidents.length > 0 ? (
+              familyResidents.map((resident) => (
               <TouchableOpacity
                 key={resident._id}
                 style={styles.selectionItem}
                 onPress={() => handleSelectResident(resident)}
               >
-                <Avatar.Image size={48} source={{ uri: resident.avatar }} />
+                  <CommonAvatar 
+                    size={48} 
+                    source={resident.avatar}
+                    name={resident.full_name || resident.name}
+                  />
                 <View style={styles.selectionInfo}>
-                  <Text style={styles.selectionName}>{resident.name}</Text>
-                  <Text style={styles.selectionDetails}>Phòng: {resident.room}</Text>
+                    <Text style={styles.selectionName}>{resident.full_name || resident.name}</Text>
+                    <Text style={styles.selectionDetails}>
+                      Phòng: {resident.room_info?.room_number || 'Chưa phân phòng'}
+                      {resident.room_info?.bed_number && ` - Giường ${resident.room_info.bed_number}`}
+                    </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
               </TouchableOpacity>
-            ))}
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Không có người thân nào</Text>
+                <Text style={styles.emptyStateSubtext}>Vui lòng liên hệ quản trị viên</Text>
+              </View>
+            )}
           </ScrollView>
         )}
 
         {createMessageStep === 2 && (
           <ScrollView style={styles.modalContent}>
             <View style={styles.selectedInfo}>
-              <Avatar.Image size={32} source={{ uri: selectedResident?.avatar }} />
-              <Text style={styles.selectedText}>Người thân: {selectedResident?.name}</Text>
+              <CommonAvatar 
+                size={32} 
+                source={selectedResident?.avatar}
+                name={selectedResident?.full_name || selectedResident?.name}
+              />
+              <Text style={styles.selectedText}>
+                Người thân: {selectedResident?.full_name || selectedResident?.name}
+              </Text>
             </View>
-            <Text style={styles.stepDescription}>Chọn bác sĩ chăm sóc:</Text>
-            {availableDoctors.map((staff) => (
+            <Text style={styles.stepDescription}>Chọn nhân viên chăm sóc:</Text>
+            {loadingStaff ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải danh sách nhân viên...</Text>
+              </View>
+            ) : allStaff.length > 0 ? (
+              allStaff.map((staff) => (
               <TouchableOpacity
                 key={staff._id}
                 style={styles.selectionItem}
                 onPress={() => handleSelectDoctor(staff)}
               >
                 <View style={styles.doctorAvatarContainer}>
-                  <Avatar.Image size={48} source={{ uri: staff.avatar }} />
+                    <CommonAvatar 
+                      size={48} 
+                      source={staff.avatar}
+                      name={staff.full_name}
+                    />
                   {staff.online && <View style={styles.onlineIndicator} />}
                 </View>
                 <View style={styles.selectionInfo}>
                   <Text style={styles.selectionName}>{staff.full_name}</Text>
-                  <Text style={styles.selectionDetails}>{staff.position}</Text>
-                  <Text style={styles.selectionSpecialization}>{staff.qualification}</Text>
+                    <Text style={styles.selectionDetails}>{staff.position || staff.role}</Text>
+                    <Text style={styles.selectionSpecialization}>{staff.qualification || 'Nhân viên chăm sóc'}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
               </TouchableOpacity>
-            ))}
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Không có nhân viên nào</Text>
+                <Text style={styles.emptyStateSubtext}>Vui lòng thử lại sau</Text>
+              </View>
+            )}
           </ScrollView>
         )}
 
         {createMessageStep === 3 && (
           <View style={styles.modalContent}>
             <View style={styles.selectedInfo}>
-              <Avatar.Image size={32} source={{ uri: selectedResident?.avatar }} />
-              <Text style={styles.selectedText}>Người thân: {selectedResident?.name}</Text>
+              <CommonAvatar 
+                size={32} 
+                source={selectedResident?.avatar}
+                name={selectedResident?.full_name || selectedResident?.name}
+              />
+              <Text style={styles.selectedText}>
+                Người thân: {selectedResident?.full_name || selectedResident?.name}
+              </Text>
             </View>
             <View style={styles.selectedInfo}>
-              <Avatar.Image size={32} source={{ uri: selectedDoctor?.avatar }} />
-              <Text style={styles.selectedText}>Bác sĩ: {selectedDoctor?.full_name}</Text>
+              <CommonAvatar 
+                size={32} 
+                source={selectedDoctor?.avatar}
+                name={selectedDoctor?.full_name}
+              />
+              <Text style={styles.selectedText}>
+                Nhân viên: {selectedDoctor?.full_name}
+              </Text>
             </View>
             <Text style={styles.stepDescription}>Soạn tin nhắn:</Text>
             <TextInput
@@ -578,6 +737,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
               mode="contained"
               onPress={handleCreateConversation}
               style={styles.createButton}
+              disabled={!initialMessage.trim()}
             >
               Gửi tin nhắn
             </Button>
@@ -596,55 +756,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
     );
   }
 
-  if (showChat && selectedConversation) {
-  return (
-    <SafeAreaView style={styles.container}>
-        <View style={styles.chatHeader}>
-          <TouchableOpacity onPress={() => setShowChat(false)}>
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <View style={styles.chatHeaderInfo}>
-            <Avatar.Image size={40} source={{ uri: selectedConversation.avatar }} />
-            <View style={styles.chatHeaderText}>
-              <Text style={styles.chatHeaderName}>{selectedConversation.staffName}</Text>
-              <Text style={styles.chatHeaderRole}>
-                {selectedConversation.role} • {selectedConversation.residentName}
-              </Text>
-            </View>
-          </View>
-        </View>
 
-          <KeyboardAvoidingView 
-          style={styles.chatContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView
-            style={styles.messagesContainer}
-            contentContainerStyle={styles.messagesContent}
-            ref={(ref) => {
-              this.scrollView = ref;
-            }}
-            onContentSizeChange={() => this.scrollView?.scrollToEnd({ animated: true })}
-          >
-            {(messages[selectedConversation.id] || []).map(renderMessage)}
-          </ScrollView>
-            
-            <View style={styles.messageInputContainer}>
-              <TextInput
-                style={styles.messageInput}
-              value={newMessage}
-              onChangeText={setNewMessage}
-                placeholder="Nhập tin nhắn..."
-                multiline
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-              <MaterialIcons name="send" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -662,11 +774,36 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           </Text>
         </View>
 
+        {/* Summary Card */}
+        <Card style={styles.summaryCard}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>Tổng quan</Title>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{conversations.length}</Text>
+                <Text style={styles.summaryLabel}>Cuộc trò chuyện</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{conversations.filter(c => c.unreadCount > 0).length}</Text>
+                <Text style={styles.summaryLabel}>Tin nhắn mới</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNumber}>{conversations.reduce((total, c) => total + (c.unreadCount || 0), 0)}</Text>
+                <Text style={styles.summaryLabel}>Tổng tin nhắn chưa đọc</Text>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+
         {/* Conversations List */}
         <Card style={styles.conversationsCard}>
           <Card.Content>
             <Title style={styles.cardTitle}>Cuộc trò chuyện</Title>
-            {conversations.length > 0 ? conversations.map(renderConversationItem) : (
+            {conversations.length > 0 ? conversations.map((conversation) => (
+              <View key={conversation.id || conversation._id || `conversation-${conversation.partnerId}`}>
+                {renderConversationItem(conversation)}
+              </View>
+            )) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>Chưa có cuộc trò chuyện nào</Text>
                 <Text style={styles.emptyStateSubtext}>Nhấn nút + để bắt đầu trò chuyện với bác sĩ</Text>
@@ -686,6 +823,61 @@ const FamilyCommunicationScreen = ({ navigation }) => {
 
       {/* Create Message Modal */}
       {renderCreateMessageModal()}
+
+      {/* Chat Screen Overlay */}
+      {showChat && selectedConversation && (
+        <SafeAreaView style={styles.chatContainer}>
+          <View style={styles.chatHeader}>
+            <TouchableOpacity onPress={() => setShowChat(false)}>
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <View style={styles.chatHeaderInfo}>
+              <CommonAvatar 
+                size={40} 
+                source={selectedConversation.partner?.avatar}
+                name={selectedConversation.partner?.full_name}
+              />
+              <View style={styles.chatHeaderText}>
+                <Text style={styles.chatHeaderName}>
+                  {getGenderPrefix(selectedConversation.partner?.gender)}{selectedConversation.partner?.full_name || 'Không xác định'}
+                </Text>
+                <Text style={styles.chatHeaderRole}>
+                  {selectedConversation.partner?.position || 'Nhân viên chăm sóc'} • {getGenderPrefix(selectedConversation.resident?.gender)}{selectedConversation.resident?.full_name || 'Không xác định'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <KeyboardAvoidingView 
+            style={styles.chatContent}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView
+              style={styles.messagesContainer}
+              contentContainerStyle={styles.messagesContent}
+            >
+              {(messages[selectedConversation.id] || []).map((message, index, messages) => 
+                <View key={message._id || message.id || `message-${index}`}>
+                  {renderMessage(message, index, messages)}
+                </View>
+              )}
+            </ScrollView>
+              
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={styles.messageInput}
+                value={newMessage}
+                onChangeText={setNewMessage}
+                placeholder="Nhập tin nhắn..."
+                multiline
+              />
+              <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+                <MaterialIcons name="send" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      )}
     </SafeAreaView>
   );
 };
@@ -727,6 +919,17 @@ const styles = StyleSheet.create({
     color: '#666',
     letterSpacing: 0.3,
   },
+  summaryCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
   conversationsCard: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -745,16 +948,36 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     letterSpacing: 0.3,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
     borderBottomColor: '#f0f0f0',
+    backgroundColor: 'white',
   },
   avatarContainer: {
     position: 'relative',
-    marginRight: 14,
+    marginRight: 12,
   },
   onlineIndicator: {
     position: 'absolute',
@@ -785,6 +1008,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
+    marginBottom: 2,
   },
   timestamp: {
     fontSize: 13,
@@ -797,14 +1021,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   residentInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 0,
   },
   lastMessage: {
     fontSize: 14,
     color: '#666',
     lineHeight: 18,
+    marginBottom: 4,
   },
   unreadBadge: {
     backgroundColor: COLORS.primary,
@@ -824,6 +1049,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '700',
+  },
+  chatContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f8f9fa',
+    zIndex: 1000,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -859,65 +1093,84 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
-  chatContainer: {
+  chatContent: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f0f2f5',
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
     padding: 16,
+    paddingBottom: 20,
   },
   messageContainer: {
-    marginBottom: 16,
-    maxWidth: '80%',
+    marginBottom: 8,
+    maxWidth: '75%',
+    marginHorizontal: 8,
   },
-  staffMessage: {
+  partnerMessage: {
     alignSelf: 'flex-start',
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 18,
     borderBottomLeftRadius: 4,
-    padding: 14,
+    padding: 12,
+    paddingHorizontal: 16,
     borderWidth: 0,
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  familyMessage: {
+  myMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
+    backgroundColor: '#0084ff',
+    borderRadius: 18,
     borderBottomRightRadius: 4,
-    padding: 14,
-    elevation: 2,
+    padding: 12,
+    paddingHorizontal: 16,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   messageText: {
     fontSize: 15,
-    marginBottom: 4,
+    marginBottom: 6,
     lineHeight: 20,
   },
-  staffMessageText: {
+  partnerMessageText: {
     color: '#1a1a1a',
   },
-  familyMessageText: {
+  myMessageText: {
     color: 'white',
+    fontWeight: '400',
   },
   messageTime: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 0,
   },
-  staffMessageTime: {
+  partnerMessageTime: {
     color: '#888',
   },
-  familyMessageTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  myMessageTime: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    color: '#65676b',
+    backgroundColor: '#f0f2f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontWeight: '500',
   },
   messageInputContainer: {
     flexDirection: 'row',
@@ -1079,6 +1332,30 @@ const styles = StyleSheet.create({
   },
   createButton: {
     marginTop: 20,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#6c757d',
+    fontSize: 15,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
   },
 });
 

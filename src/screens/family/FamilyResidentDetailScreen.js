@@ -22,6 +22,7 @@ import {
 } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
+import CommonAvatar from '../../components/CommonAvatar';
 import { useSelector, useDispatch } from 'react-redux';
 import { cacheResidentDetails, clearResidentDetailsCache } from '../../redux/slices/residentSlice';
 
@@ -758,8 +759,10 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
         </TouchableOpacity>
         
         <View style={styles.headerInfo}>
-          <Image
-            source={{ uri: residentData.avatar }}
+          <CommonAvatar
+            source={residentData.avatar}
+            size={48}
+            name={residentData.full_name}
             style={styles.avatar}
           />
           <View style={styles.headerText}>

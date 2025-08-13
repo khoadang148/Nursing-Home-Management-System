@@ -11,14 +11,18 @@ const assessmentService = {
    */
   getAssessmentsByResidentId: async (residentId) => {
     try {
+      console.log('🔄 Fetching assessments for resident:', residentId);
       const response = await apiClient.get(`/assessments?resident_id=${residentId}`);
+      console.log('📊 Assessment response:', response.data);
+      console.log('📊 Assessment count:', response.data?.length || 0);
       return {
         success: true,
         data: response.data,
         message: 'Lấy danh sách đánh giá thành công'
       };
     } catch (error) {
-      console.log('Get assessments by resident ID error:', error);
+      console.error('❌ Get assessments by resident ID error:', error);
+      console.error('❌ Error response:', error.response?.data);
       return {
         success: false,
         error: error.response?.data || error.message || 'Lấy danh sách đánh giá thất bại'
@@ -80,18 +84,20 @@ const assessmentService = {
    */
   createAssessment: async (assessmentData) => {
     try {
-      console.log('Creating assessment with data:', assessmentData);
+      console.log('🔄 Creating assessment with data:', assessmentData);
       
       // Validate required fields
       if (!assessmentData.resident_id) {
+        console.error('❌ Missing resident_id in assessment data');
         return {
           success: false,
           error: 'Resident ID là bắt buộc'
         };
       }
 
+      console.log('📤 Sending POST request to /assessments');
       const response = await apiClient.post('/assessments', assessmentData);
-      console.log('Assessment created successfully:', response.data);
+      console.log('✅ Assessment created successfully:', response.data);
       
       return {
         success: true,

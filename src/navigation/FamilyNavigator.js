@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { FontAwesome, FontAwesome5, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useResponsive from '../hooks/useResponsive';
+import useUnreadMessages from '../hooks/useUnreadMessages';
 import { COLORS } from '../constants/theme';
 import { scale, normalize } from '../constants/dimensions';
 
@@ -199,7 +200,8 @@ const FamilyNotificationsStack = () => (
 
 // Family Tab Navigator
 const FamilyTabNavigator = () => {
-  const unreadCount = useSelector((state) => state.notifications.unreadCount);
+  const notificationUnreadCount = useSelector((state) => state.notifications.unreadCount);
+  const { unreadCount: messageUnreadCount } = useUnreadMessages();
   const insets = useSafeAreaInsets();
   const { isTablet } = useResponsive();
   
@@ -258,6 +260,8 @@ const FamilyTabNavigator = () => {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="message-text" size={size} color={color} />
           ),
+          tabBarBadge: messageUnreadCount > 0 ? messageUnreadCount : null,
+          tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
       />
       <Tab.Screen
@@ -268,7 +272,7 @@ const FamilyTabNavigator = () => {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size} color={color} />
           ),
-          tabBarBadge: unreadCount > 0 ? unreadCount : null,
+          tabBarBadge: notificationUnreadCount > 0 ? notificationUnreadCount : null,
           tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
       />
