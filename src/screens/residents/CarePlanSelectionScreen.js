@@ -41,6 +41,7 @@ const CarePlanSelectionScreen = () => {
   const [endDate, setEndDate] = useState('');
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [selectedEndDate, setSelectedEndDate] = useState(new Date());
+  const [selectedDuration, setSelectedDuration] = useState('custom'); // 'custom', '6months', '1year'
   const [familyPreferences, setFamilyPreferences] = useState({
     preferredRoomGender: '',
     preferredFloor: '',
@@ -227,10 +228,56 @@ const CarePlanSelectionScreen = () => {
     }
   }, [bedDropdownValue, availableBeds]);
 
+  const calculateEndDate = (duration) => {
+    const today = new Date();
+    let endDate = new Date(today);
+    
+    switch (duration) {
+      case '6months':
+        // Tính 6 tháng sau
+        endDate.setMonth(today.getMonth() + 6);
+        // Đặt về ngày cuối tháng
+        endDate.setMonth(endDate.getMonth() + 1, 0);
+        break;
+      case '1year':
+        // Tính 1 năm sau
+        endDate.setFullYear(today.getFullYear() + 1);
+        // Đặt về ngày cuối tháng
+        endDate.setMonth(endDate.getMonth() + 1, 0);
+        break;
+      default:
+        return null;
+    }
+    
+    // Set to end of day
+    endDate.setHours(23, 59, 59, 999);
+    return endDate;
+  };
+
+  const handleDurationSelect = (duration) => {
+    setSelectedDuration(duration);
+    setShowEndDatePicker(false); // Ẩn date picker khi chuyển sang option khác
+    
+    if (duration === 'custom') {
+      // Keep current selected date if any, don't show date picker automatically
+      if (!endDate) {
+        // Không tự động hiển thị date picker, chỉ khi user bấm "Thay đổi"
+      }
+    } else {
+      // Calculate and set end date automatically
+      const calculatedEndDate = calculateEndDate(duration);
+      if (calculatedEndDate) {
+        setSelectedEndDate(calculatedEndDate);
+        setEndDate(calculatedEndDate.toISOString());
+      }
+    }
+  };
+
   const onChangeEndDate = (event, selectedDate) => {
     setShowEndDatePicker(false);
     if (selectedDate) {
       setSelectedEndDate(selectedDate);
+      setSelectedDuration('custom'); // Mark as custom selection
       // Set end date to end of day in local timezone, then convert to UTC for DB storage
       const localEndOfDay = new Date(selectedDate);
       localEndOfDay.setHours(23, 59, 59, 999); // Set to end of day
@@ -364,10 +411,7 @@ const CarePlanSelectionScreen = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
+    return new Intl.NumberFormat('vi-VN').format(price);
   };
 
   const totalCost = useMemo(() => {
@@ -466,7 +510,10 @@ const CarePlanSelectionScreen = () => {
 
         {/* Chọn gói dịch vụ chính */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Gói Dịch Vụ Chính (Bắt buộc)</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>2. Gói Dịch Vụ Chính (Bắt buộc)</Text>
+            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+          </View>
           <Text style={styles.sectionSubtitle}>Chọn 1 gói dịch vụ chính</Text>
           {mainCarePlans.filter(Boolean).map((plan) => {
             return (
@@ -496,7 +543,10 @@ const CarePlanSelectionScreen = () => {
 
         {/* Chọn gói dịch vụ phụ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Gói Dịch Vụ Phụ (Tùy chọn)</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>3. Gói Dịch Vụ Phụ (Tùy chọn)</Text>
+            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+          </View>
           <Text style={styles.sectionSubtitle}>Có thể chọn nhiều gói</Text>
           {supplementaryCarePlans.filter(Boolean).map((plan) => {
             const isSelected = selectedSupplementaryPlans.find(p => p?._id === plan?._id);
@@ -526,7 +576,10 @@ const CarePlanSelectionScreen = () => {
 
         {/* Chọn loại phòng */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Chọn Loại Phòng</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>4. Chọn Loại Phòng</Text>
+            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+          </View>
           <Text style={styles.sectionSubtitle}>Chọn loại phòng phù hợp</Text>
           {roomTypes.filter(Boolean).map((roomType) => (
             <TouchableOpacity
@@ -627,22 +680,109 @@ const CarePlanSelectionScreen = () => {
         {/* Ngày kết thúc dịch vụ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>7. Ngày Kết Thúc Dịch Vụ (Bắt buộc)</Text>
-          <Text style={styles.sectionSubtitle}>Chọn ngày kết thúc dịch vụ</Text>
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={showEndDatePickerModal}
-          >
-            <View style={styles.datePickerContent}>
-              <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.datePickerText}>
-                {endDate ? selectedEndDate.toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc *'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-          </TouchableOpacity>
+          <Text style={styles.sectionSubtitle}>Chọn thời hạn dịch vụ hoặc ngày kết thúc tùy chỉnh</Text>
           
-          {/* Date Picker hiển thị ngay dưới ô chọn ngày */}
-          {showEndDatePicker && (
+          {/* Duration Options */}
+          <View style={styles.durationOptionsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.durationOption,
+                selectedDuration === '6months' && styles.selectedDurationOption
+              ]}
+              onPress={() => handleDurationSelect('6months')}
+            >
+              <Ionicons 
+                name="time-outline" 
+                size={20} 
+                color={selectedDuration === '6months' ? COLORS.white : COLORS.primary} 
+              />
+              <Text style={[
+                styles.durationOptionText,
+                selectedDuration === '6months' && styles.selectedDurationOptionText
+              ]}>
+                6 tháng
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.durationOption,
+                selectedDuration === '1year' && styles.selectedDurationOption
+              ]}
+              onPress={() => handleDurationSelect('1year')}
+            >
+              <Ionicons 
+                name="calendar-outline" 
+                size={20} 
+                color={selectedDuration === '1year' ? COLORS.white : COLORS.primary} 
+              />
+              <Text style={[
+                styles.durationOptionText,
+                selectedDuration === '1year' && styles.selectedDurationOptionText
+              ]}>
+                1 năm
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.durationOption,
+                selectedDuration === 'custom' && styles.selectedDurationOption
+              ]}
+              onPress={() => handleDurationSelect('custom')}
+            >
+              <Ionicons 
+                name="create-outline" 
+                size={20} 
+                color={selectedDuration === 'custom' ? COLORS.white : COLORS.primary} 
+              />
+              <Text style={[
+                styles.durationOptionText,
+                selectedDuration === 'custom' && styles.selectedDurationOptionText
+              ]}>
+                Tùy chỉnh
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Selected Date Display */}
+          {endDate && (
+            <View style={styles.selectedDateContainer}>
+              <View style={styles.selectedDateContent}>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                <Text style={styles.selectedDateText}>
+                  Ngày kết thúc: {selectedEndDate.toLocaleDateString('vi-VN')}
+                </Text>
+              </View>
+              {selectedDuration === 'custom' && (
+                <TouchableOpacity
+                  style={styles.changeDateButton}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text style={styles.changeDateButtonText}>Thay đổi</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          
+          {/* Custom Date Picker - chỉ hiển thị khi chưa có ngày được chọn */}
+          {selectedDuration === 'custom' && !endDate && (
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowEndDatePicker(true)}
+            >
+              <View style={styles.datePickerContent}>
+                <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.datePickerText}>
+                  Chọn ngày kết thúc tùy chỉnh *
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          )}
+          
+          {/* Date Picker Modal - chỉ hiển thị khi showEndDatePicker = true */}
+          {showEndDatePicker && selectedDuration === 'custom' && (
             <View style={styles.datePickerContainer}>
               <DateTimePicker
                 value={selectedEndDate}
@@ -654,11 +794,16 @@ const CarePlanSelectionScreen = () => {
               />
             </View>
           )}
+          
+
         </View>
 
         {/* Tổng chi phí */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>8. Tổng Chi Phí</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>8. Tổng Chi Phí</Text>
+            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+          </View>
           <View style={styles.costCard}>
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Gói dịch vụ chính:</Text>
@@ -768,11 +913,26 @@ const styles = StyleSheet.create({
   section: {
     marginVertical: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 8,
+    flex: 1,
+  },
+  unitLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -972,6 +1132,71 @@ const styles = StyleSheet.create({
   },
   datePicker: {
     width: '100%',
+  },
+  // Duration Options Styles
+  durationOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 10,
+  },
+  durationOption: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  selectedDurationOption: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  durationOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  selectedDurationOptionText: {
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  selectedDateContainer: {
+    backgroundColor: COLORS.success + '15',
+    borderWidth: 1,
+    borderColor: COLORS.success,
+    borderRadius: 10,
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectedDateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  selectedDateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  changeDateButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  changeDateButtonText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

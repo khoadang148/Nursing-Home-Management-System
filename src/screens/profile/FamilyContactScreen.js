@@ -14,8 +14,9 @@ import {
   FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useMessageContext } from '../../contexts/MessageContext';
+import { setUnreadMessageCount } from '../../redux/slices/messageSlice';
 import { 
   MaterialIcons, 
   FontAwesome5, 
@@ -43,6 +44,7 @@ import CommonAvatar from '../../components/CommonAvatar';
 
 const FamilyContactScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const { triggerRefresh } = useMessageContext();
   const [familyContacts, setFamilyContacts] = useState([]);
@@ -51,6 +53,7 @@ const FamilyContactScreen = () => {
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
+  const messagesListRef = React.useRef(null);
   
   // New message creation states
   const [showCreateMessage, setShowCreateMessage] = useState(false);
@@ -61,6 +64,13 @@ const FamilyContactScreen = () => {
 
   useEffect(() => {
     loadFamilyContacts();
+    
+    // Thiết lập auto-refresh mỗi 30 giây để cập nhật message count
+    const interval = setInterval(() => {
+      loadFamilyContacts();
+    }, 30000); // 30 giây
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadFamilyContacts = async () => {
@@ -74,15 +84,23 @@ const FamilyContactScreen = () => {
           conversation.partner?.role === 'family'
         );
         setFamilyContacts(familyConversations);
+        
+        // Tính toán số tin nhắn chưa đọc và cập nhật Redux
+        const totalUnreadCount = familyConversations.reduce((total, conversation) => {
+          return total + (conversation.unreadCount || 0);
+        }, 0);
+        dispatch(setUnreadMessageCount(totalUnreadCount));
       } else {
         console.error('Failed to load conversations:', response.error);
         Alert.alert('Lỗi', response.error || 'Không thể tải danh sách cuộc trò chuyện');
         setFamilyContacts([]);
+        dispatch(setUnreadMessageCount(0));
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
       Alert.alert('Lỗi', 'Không thể kết nối đến máy chủ');
       setFamilyContacts([]);
+      dispatch(setUnreadMessageCount(0));
     } finally {
       setLoading(false);
     }
@@ -167,6 +185,13 @@ const FamilyContactScreen = () => {
           ...prev,
           [partnerId]: messagesResponse.data || []
         }));
+
+        // Auto scroll to bottom after messages are loaded
+        setTimeout(() => {
+          if (messagesListRef.current?.scrollToEnd) {
+            messagesListRef.current.scrollToEnd({ animated: false });
+          }
+        }, 0);
         
         // Reload conversations to reflect read status changes from backend
         const conversationsResponse = await messageService.getUserConversations();
@@ -175,6 +200,12 @@ const FamilyContactScreen = () => {
             conversation.partner?.role === 'family'
           );
           setFamilyContacts(familyConversations);
+          
+          // Cập nhật Redux với số tin nhắn chưa đọc mới
+          const totalUnreadCount = familyConversations.reduce((total, conversation) => {
+            return total + (conversation.unreadCount || 0);
+          }, 0);
+          dispatch(setUnreadMessageCount(totalUnreadCount));
         }
         
         // Trigger badge refresh
@@ -281,6 +312,13 @@ const FamilyContactScreen = () => {
           ...prev,
           [partnerId]: [...contactMessages, newMessageObj],
         }));
+
+        // Scroll to bottom after adding a new message
+        setTimeout(() => {
+          if (messagesListRef.current?.scrollToEnd) {
+            messagesListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 0);
 
         // Reload conversations to reflect the new message
         const conversationsResponse = await messageService.getUserConversations();
@@ -636,54 +674,57 @@ const FamilyContactScreen = () => {
             <ScrollView
               style={styles.messagesContainer}
               contentContainerStyle={styles.messagesContent}
+              ref={messagesListRef}
+              onContentSizeChange={() => messagesListRef.current?.scrollToEnd?.({ animated: false })}
+              onLayout={() => messagesListRef.current?.scrollToEnd?.({ animated: false })}
             >
                              {(messages[selectedContact.partner?._id || selectedContact.partner?.id] || []).map((message, index, messages) => {
-                 // Get current user ID from Redux
-                 const currentUserId = user?.id || user?._id || 'staff_1'; // Fallback for demo
-                 
-                 // Determine if message is from current user based on sender_id
-                 const isMyMessage = message.sender_id?._id === currentUserId || 
-                                    message.sender_id === currentUserId ||
-                                    message.senderId === currentUserId;
-                 
-                 // Check if we need to show date separator
-                 const showDateSeparator = index === 0 || shouldShowDateSeparator(messages[index - 1], message);
-                 
-                 return (
-                   <View key={message._id || message.id}>
-                     {showDateSeparator && (
-                       <View style={styles.dateSeparator}>
-                         <Text style={styles.dateSeparatorText}>
-                           {formatMessageDate(message.createdAt || message.timestamp)}
-                         </Text>
-                       </View>
-                     )}
-                     <View
-                       style={[
-                         styles.messageContainer,
-                         isMyMessage ? styles.myMessage : styles.partnerMessage,
-                       ]}
-                     >
-                       <Text
-                         style={[
-                           styles.messageText,
-                           isMyMessage ? styles.myMessageText : styles.partnerMessageText,
-                         ]}
-                       >
-                         {message.content || message.message}
-                       </Text>
-                       <Text
-                         style={[
-                           styles.messageTime,
-                           isMyMessage ? styles.myMessageTime : styles.partnerMessageTime,
-                         ]}
-                       >
-                         {formatMessageTime(message.createdAt || message.timestamp)}
-                       </Text>
-                     </View>
-                   </View>
-                 );
-               })}
+                // Get current user ID from Redux
+                const currentUserId = user?.id || user?._id || 'staff_1'; // Fallback for demo
+                
+                // Determine if message is from current user based on sender_id
+                const isMyMessage = message.sender_id?._id === currentUserId || 
+                                   message.sender_id === currentUserId ||
+                                   message.senderId === currentUserId;
+                
+                // Check if we need to show date separator
+                const showDateSeparator = index === 0 || shouldShowDateSeparator(messages[index - 1], message);
+                
+                return (
+                  <View key={message._id || message.id}>
+                    {showDateSeparator && (
+                      <View style={styles.dateSeparator}>
+                        <Text style={styles.dateSeparatorText}>
+                          {formatMessageDate(message.createdAt || message.timestamp)}
+                        </Text>
+                      </View>
+                    )}
+                    <View
+                      style={[
+                        styles.messageContainer,
+                        isMyMessage ? styles.myMessage : styles.partnerMessage,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.messageText,
+                          isMyMessage ? styles.myMessageText : styles.partnerMessageText,
+                        ]}
+                      >
+                        {message.content || message.message}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.messageTime,
+                          isMyMessage ? styles.myMessageTime : styles.partnerMessageTime,
+                        ]}
+                      >
+                        {formatMessageTime(message.createdAt || message.timestamp)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
             </ScrollView>
             
             <View style={styles.messageInputContainer}>

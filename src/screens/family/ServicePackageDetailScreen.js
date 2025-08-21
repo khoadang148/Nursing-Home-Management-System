@@ -80,11 +80,9 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
   }, [packageData, packageType]);
 
   const formatCurrency = (amount) => {
-    if (!amount) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
+    if (!amount) return '0 × 10,000 VNĐ';
+    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
+    return `${formattedAmount} × 10,000 VNĐ`;
   };
 
   const formatDate = (dateString) => {

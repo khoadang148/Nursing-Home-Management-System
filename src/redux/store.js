@@ -7,6 +7,7 @@ import notificationReducer from './slices/notificationSlice';
 import inventoryReducer from './slices/inventorySlice';
 import medicationReducer from './slices/medicationSlice';
 import bedReducer from './slices/bedSlice';
+import messageReducer from './slices/messageSlice';
 
 // Configure redux store
 export const store = configureStore({
@@ -19,6 +20,7 @@ export const store = configureStore({
     inventory: inventoryReducer,
     medications: medicationReducer,
     beds: bedReducer,
+    messages: messageReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

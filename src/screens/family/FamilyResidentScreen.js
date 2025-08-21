@@ -300,10 +300,8 @@ const FamilyResidentScreen = ({ navigation }) => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount || 0);
+    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount || 0);
+    return `${formattedAmount} × 10,000 VNĐ`;
   };
 
   const handleResidentPress = (resident) => {

@@ -46,6 +46,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const messagesListRef = React.useRef(null);
   
   // New message creation states
   const [showCreateMessage, setShowCreateMessage] = useState(false);
@@ -193,7 +194,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
       setLoadingResidents(false);
     }
   };
-
+  
   const loadAllStaff = async () => {
     setLoadingStaff(true);
     try {
@@ -329,6 +330,13 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           [conversation.id]: messagesResponse.data || []
         }));
         
+        // Auto scroll to bottom after messages are loaded
+        setTimeout(() => {
+          if (messagesListRef.current?.scrollToEnd) {
+            messagesListRef.current.scrollToEnd({ animated: false });
+          }
+        }, 0);
+        
         // Reload conversations to reflect read status changes from backend
         const conversationsResponse = await messageService.getUserConversations();
         if (conversationsResponse.success) {
@@ -383,6 +391,13 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           ...prev,
           [selectedConversation.id]: [...conversationMessages, newMessageObj],
         }));
+
+        // Scroll to bottom after adding a new message
+        setTimeout(() => {
+          if (messagesListRef.current?.scrollToEnd) {
+            messagesListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 0);
 
         // Reload conversations to reflect the new message
         const conversationsResponse = await messageService.getUserConversations();
@@ -512,7 +527,8 @@ const FamilyCommunicationScreen = ({ navigation }) => {
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
           <Text style={styles.staffName}>
-            {getGenderPrefix(conversation.partner?.gender)}{conversation.partner?.full_name || 'Không xác định'}
+            {(conversation.partner?.position || 'Nhân viên chăm sóc') + ' '}
+            {conversation.partner?.full_name || 'Không xác định'}
           </Text>
           <Text style={styles.timestamp}>{formatTime(conversation.lastMessage?.timestamp || conversation.timestamp)}</Text>
         </View>
@@ -839,7 +855,7 @@ const FamilyCommunicationScreen = ({ navigation }) => {
               />
               <View style={styles.chatHeaderText}>
                 <Text style={styles.chatHeaderName}>
-                  {getGenderPrefix(selectedConversation.partner?.gender)}{selectedConversation.partner?.full_name || 'Không xác định'}
+                  {selectedConversation.partner?.full_name || 'Không xác định'}
                 </Text>
                 <Text style={styles.chatHeaderRole}>
                   {selectedConversation.partner?.position || 'Nhân viên chăm sóc'} • {getGenderPrefix(selectedConversation.resident?.gender)}{selectedConversation.resident?.full_name || 'Không xác định'}
@@ -855,6 +871,9 @@ const FamilyCommunicationScreen = ({ navigation }) => {
             <ScrollView
               style={styles.messagesContainer}
               contentContainerStyle={styles.messagesContent}
+              ref={messagesListRef}
+              onContentSizeChange={() => messagesListRef.current?.scrollToEnd?.({ animated: false })}
+              onLayout={() => messagesListRef.current?.scrollToEnd?.({ animated: false })}
             >
               {(messages[selectedConversation.id] || []).map((message, index, messages) => 
                 <View key={message._id || message.id || `message-${index}`}>

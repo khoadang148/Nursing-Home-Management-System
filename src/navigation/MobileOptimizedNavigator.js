@@ -52,7 +52,8 @@ const NotificationsStack = () => (
 
 // Staff Tab Navigator
 const MobileStaffTabs = () => {
-  const unreadCount = useSelector((state) => state.notifications.unreadCount);
+  const unreadNotificationCount = useSelector((state) => state.messages?.unreadNotificationCount || 0);
+  const unreadMessageCount = useSelector((state) => state.messages?.unreadMessageCount || 0);
   const insets = useSafeAreaInsets();
   const { isTablet } = useResponsive();
   return (
@@ -113,6 +114,18 @@ const MobileStaffTabs = () => {
         }}
       />
       <Tab.Screen
+        name="TinNhan"
+        component={FamilyContactScreen}
+        options={{
+          tabBarLabel: 'Tin Nhắn',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses" size={size} color={color} />
+          ),
+          tabBarBadge: unreadMessageCount > 0 ? unreadMessageCount : null,
+          tabBarBadgeStyle: { backgroundColor: COLORS.error },
+        }}
+      />
+      <Tab.Screen
         name="ThongBao"
         component={NotificationsStack}
         options={{
@@ -120,7 +133,7 @@ const MobileStaffTabs = () => {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size} color={color} />
           ),
-          tabBarBadge: unreadCount > 0 ? unreadCount : null,
+          tabBarBadge: unreadNotificationCount > 0 ? unreadNotificationCount : null,
           tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
       />

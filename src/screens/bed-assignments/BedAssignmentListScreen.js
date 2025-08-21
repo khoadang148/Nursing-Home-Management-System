@@ -19,6 +19,8 @@ import bedAssignmentService from '../../api/services/bedAssignmentService';
 import bedService from '../../api/services/bedService';
 import residentService from '../../api/services/residentService';
 import roomTypeService from '../../api/services/roomTypeService';
+import carePlanService from '../../api/services/carePlanService';
+import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 
 const BedListScreen = ({ navigation }) => {
   const [bedAssignments, setBedAssignments] = useState([]);
@@ -36,6 +38,7 @@ const BedListScreen = ({ navigation }) => {
   const [assigningBed, setAssigningBed] = useState(false);
   const [unassigningBed, setUnassigningBed] = useState(false);
   const [roomTypes, setRoomTypes] = useState([]);
+  const [carePlans, setCarePlans] = useState([]);
 
   const loadBedAssignments = async () => {
     try {
@@ -50,6 +53,13 @@ const BedListScreen = ({ navigation }) => {
       if (roomTypesResponse.success) {
         setRoomTypes(roomTypesResponse.data || []);
         console.log('Room types loaded:', roomTypesResponse.data?.length);
+      }
+      
+      // Lấy danh sách care plans để hiển thị plan_name
+      const carePlansResponse = await carePlanService.getCarePlans();
+      if (carePlansResponse && Array.isArray(carePlansResponse)) {
+        setCarePlans(carePlansResponse);
+        console.log('Care plans loaded:', carePlansResponse.length);
       }
       
       if (bedsResponse.success) {
@@ -154,6 +164,14 @@ const BedListScreen = ({ navigation }) => {
     return roomType?.type_name || roomTypeCode || 'Chưa xác định';
   };
 
+  // Lấy plan_name từ main_care_plan_id
+  const getMainCarePlanName = (mainCarePlanId) => {
+    if (!mainCarePlanId || !carePlans.length) return 'Chưa xác định';
+    
+    const carePlan = carePlans.find(cp => cp._id === mainCarePlanId);
+    return carePlan?.plan_name || 'Chưa xác định';
+  };
+
   // Tính tuổi từ date_of_birth
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return 'Chưa có thông tin';
@@ -188,25 +206,37 @@ const BedListScreen = ({ navigation }) => {
       // Lấy tất cả bed assignments (cả active và inactive)
       const bedAssignmentsResponse = await bedAssignmentService.getAllBedAssignmentsIncludingInactive();
       
+      // Lấy tất cả care plan assignments để kiểm tra điều kiện
+      const carePlanAssignmentsResponse = await carePlanAssignmentService.getAllCarePlanAssignments();
+      
       if (residentsResponse.success && bedAssignmentsResponse.success) {
         const allResidents = residentsResponse.data || [];
         const allBedAssignments = bedAssignmentsResponse.data || [];
+        const allCarePlanAssignments = carePlanAssignmentsResponse?.data || carePlanAssignmentsResponse || [];
         
-        // Lọc ra những residents chưa có giường hoặc đã rời giường
+        // Lọc ra những residents chưa có giường hoặc đã rời giường và thỏa điều kiện
         const unassignedResidents = allResidents.filter(resident => {
           // Tìm bed assignment của resident này
-          const assignment = allBedAssignments.find(ba => 
+          const bedAssignment = allBedAssignments.find(ba => 
             ba.resident_id === resident._id || 
             ba.resident_id?._id === resident._id
           );
           
           // Resident chưa phân giường hoặc đã rời giường (có unassigned_date)
-          const isUnassigned = !assignment || assignment.unassigned_date !== null;
+          const isUnassigned = !bedAssignment || bedAssignment.unassigned_date !== null;
+          
+          if (!isUnassigned) return false;
           
           // Kiểm tra điều kiện phòng nếu có thông tin room
-          if (bed.room_id && isUnassigned) {
+          if (bed.room_id) {
             const roomGender = bed.room_id.gender;
             const roomMainCarePlanId = bed.room_id.main_care_plan_id;
+            const roomType = bed.room_id.room_type;
+            
+            // Tìm care plan assignment của resident
+            const residentCarePlanAssignment = allCarePlanAssignments.find(cpa =>
+              cpa.resident_id === resident._id || cpa.resident_id?._id === resident._id
+            );
             
             // Kiểm tra giới tính khớp
             if (roomGender && resident.gender) {
@@ -215,11 +245,32 @@ const BedListScreen = ({ navigation }) => {
               }
             }
             
-            // TODO: Kiểm tra main_care_plan_id khớp (cần implement care plan assignment check)
-            // Hiện tại skip check này vì cần logic phức tạp hơn
+            // Kiểm tra loại phòng khớp
+            if (roomType && residentCarePlanAssignment?.selected_room_type) {
+              if (roomType !== residentCarePlanAssignment.selected_room_type) {
+                return false;
+              }
+            }
+            
+            // Kiểm tra dịch vụ chính khớp
+            if (roomMainCarePlanId && residentCarePlanAssignment?.care_plan_ids) {
+              const carePlanIds = Array.isArray(residentCarePlanAssignment.care_plan_ids)
+                ? residentCarePlanAssignment.care_plan_ids
+                : [residentCarePlanAssignment.care_plan_ids];
+              
+              // Kiểm tra xem có care plan nào có category 'main' và khớp với main_care_plan_id không
+              const hasMatchingMainCarePlan = carePlanIds.some(cpId => {
+                const carePlan = carePlans.find(cp => cp._id === cpId || cp._id === cpId._id);
+                return carePlan && carePlan.category === 'main' && carePlan._id === roomMainCarePlanId;
+              });
+              
+              if (!hasMatchingMainCarePlan) {
+                return false;
+              }
+            }
           }
           
-          return isUnassigned;
+          return true;
         });
         
         console.log('All residents:', allResidents.length);
@@ -411,6 +462,12 @@ const BedListScreen = ({ navigation }) => {
                 <MaterialIcons name="hotel" size={16} color="#666" />
                 <Text style={styles.detailText}>
                   Số giường: {item.room_id?.bed_count || 'Chưa xác định'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MaterialIcons name="medical-services" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  Dịch vụ chính: {getMainCarePlanName(item.room_id?.main_care_plan_id)}
                 </Text>
               </View>
               {item.resident_id && (

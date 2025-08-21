@@ -10,6 +10,7 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
@@ -19,6 +20,14 @@ import NativeButton from '../../components/NativeButton';
 
 // Import constants
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
+
+// Import services
+import residentPhotosService from '../../api/services/residentPhotosService';
+import vitalSignsService from '../../api/services/vitalSignsService';
+import assessmentService from '../../api/services/assessmentService';
+import activityParticipationService from '../../api/services/activityParticipationService';
+import billsService from '../../api/services/billsService';
+import { setUnreadNotificationCount } from '../../redux/slices/messageSlice';
 
 // Mock notifications data - filtered for family members only
 const mockNotifications = [
@@ -147,23 +156,255 @@ const getNotificationCounts = (notifications) => {
   };
 };
 
+const DELETED_NOTIFICATIONS_KEY = 'DELETED_FAMILY_NOTIFICATIONS';
+
 const FamilyNotificationsScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [deletedNotificationIds, setDeletedNotificationIds] = useState(new Set());
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+  const familyResidents = useSelector((state) => state.residents.familyResidents);
 
   useEffect(() => {
-    loadNotifications();
+    const initializeNotifications = async () => {
+      await loadDeletedNotifications();
+      loadNotifications();
+    };
+    
+    initializeNotifications();
+    
+    // Thiết lập auto-refresh mỗi 60 giây để cập nhật thông báo
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 60000); // 60 giây
+    
+    return () => clearInterval(interval);
   }, []);
+
+  // Update Redux notification count when notifications changes
+  useEffect(() => {
+    const unreadCount = notifications.filter(notif => !notif.read).length;
+    dispatch(setUnreadNotificationCount(unreadCount));
+  }, [notifications, dispatch]);
+
+  // Load danh sách thông báo đã xóa từ AsyncStorage
+  const loadDeletedNotifications = async () => {
+    try {
+      const deletedIds = await AsyncStorage.getItem(DELETED_NOTIFICATIONS_KEY);
+      if (deletedIds) {
+        const parsedIds = new Set(JSON.parse(deletedIds));
+        setDeletedNotificationIds(parsedIds);
+        return parsedIds;
+      }
+      return new Set();
+    } catch (error) {
+      console.error('Error loading deleted notifications:', error);
+      return new Set();
+    }
+  };
+
+  // Save danh sách thông báo đã xóa vào AsyncStorage
+  const saveDeletedNotifications = async (deletedIds) => {
+    try {
+      await AsyncStorage.setItem(DELETED_NOTIFICATIONS_KEY, JSON.stringify([...deletedIds]));
+    } catch (error) {
+      console.error('Error saving deleted notifications:', error);
+    }
+  };
 
   const loadNotifications = async () => {
     setLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Đảm bảo deletedNotificationIds đã được load
+      const currentDeletedIds = deletedNotificationIds.size === 0 
+        ? await loadDeletedNotifications() 
+        : deletedNotificationIds;
+      
+      const realNotifications = [];
+      
+      // Lấy danh sách residents của family
+      const residentIds = familyResidents.map(r => r._id);
+      
+      if (residentIds.length > 0) {
+        // 1. Kiểm tra hình ảnh mới được thêm
+        try {
+          for (const residentId of residentIds) {
+            const photosResponse = await residentPhotosService.getResidentPhotosByResidentId(residentId);
+            if (photosResponse.success && Array.isArray(photosResponse.data)) {
+              const recentPhotos = photosResponse.data
+                .filter(photo => {
+                  const uploadedAt = new Date(photo.uploaded_at || photo.createdAt);
+                  const now = new Date();
+                  const daysDiff = (now - uploadedAt) / (1000 * 60 * 60 * 24);
+                  return daysDiff <= 7; // Photos uploaded in last 7 days
+                })
+                .slice(0, 3);
+              
+              recentPhotos.forEach(photo => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realNotifications.push({
+                  id: `photo_${photo._id}`,
+                  title: 'Ảnh Mới Được Tải Lên',
+                  message: `Có ảnh mới của ${resident?.full_name || 'người thân'} được tải lên từ hoạt động: ${photo.related_activity_id?.activity_name || 'Không rõ'}`,
+                  type: 'photo_upload',
+                  date: photo.uploaded_at || photo.createdAt || new Date().toISOString(),
+                  read: false,
+                  priority: 'normal'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching photos:', error);
+        }
+        
+        // 2. Kiểm tra chỉ số sinh hiệu mới
+        try {
+          for (const residentId of residentIds) {
+            const vitalsResponse = await vitalSignsService.getVitalSignsByResidentId(residentId);
+            if (vitalsResponse.success && Array.isArray(vitalsResponse.data)) {
+              const recentVitals = vitalsResponse.data
+                .filter(vital => {
+                  const recordedAt = new Date(vital.recorded_at || vital.createdAt);
+                  const now = new Date();
+                  const daysDiff = (now - recordedAt) / (1000 * 60 * 60 * 24);
+                  return daysDiff <= 3; // Vitals recorded in last 3 days
+                })
+                .slice(0, 2);
+              
+              recentVitals.forEach(vital => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realNotifications.push({
+                  id: `vital_${vital._id}`,
+                  title: 'Cập Nhật Chỉ Số Sinh Hiệu',
+                  message: `Chỉ số sinh hiệu mới của ${resident?.full_name || 'người thân'}: Huyết áp ${vital.blood_pressure || 'N/A'}, Nhịp tim ${vital.heart_rate || 'N/A'} BPM, Nhiệt độ ${vital.temperature || 'N/A'}°C`,
+                  type: 'health',
+                  date: vital.recorded_at || vital.createdAt || new Date().toISOString(),
+                  read: false,
+                  priority: vital.blood_pressure && parseInt(vital.blood_pressure.split('/')[0]) > 140 ? 'high' : 'normal'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching vitals:', error);
+        }
+        
+        // 3. Kiểm tra đánh giá sức khỏe mới  
+        try {
+          for (const residentId of residentIds) {
+            const assessmentsResponse = await assessmentService.getAssessmentsByResidentId(residentId);
+            if (assessmentsResponse.success && Array.isArray(assessmentsResponse.data)) {
+              const recentAssessments = assessmentsResponse.data
+                .filter(assessment => {
+                  const createdAt = new Date(assessment.created_at || assessment.createdAt);
+                  const now = new Date();
+                  const daysDiff = (now - createdAt) / (1000 * 60 * 60 * 24);
+                  return daysDiff <= 7; // Assessments created in last 7 days
+                })
+                .slice(0, 2);
+              
+              recentAssessments.forEach(assessment => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realNotifications.push({
+                  id: `assessment_${assessment._id}`,
+                  title: 'Đánh Giá Sức Khỏe Mới',
+                  message: `Đánh giá mới cho ${resident?.full_name || 'người thân'}: ${assessment.notes || assessment.general_notes || 'Đã hoàn thành đánh giá tình trạng sức khỏe'}`,
+                  type: 'health',
+                  date: assessment.created_at || assessment.createdAt || new Date().toISOString(),
+                  read: false,
+                  priority: 'normal'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching assessments:', error);
+        }
+        
+        // 4. Kiểm tra tham gia hoạt động mới
+        try {
+          for (const residentId of residentIds) {
+            const participationsResponse = await activityParticipationService.getParticipationsByResidentId(residentId);
+            if (participationsResponse.success && Array.isArray(participationsResponse.data)) {
+              const recentParticipations = participationsResponse.data
+                .filter(participation => {
+                  const createdAt = new Date(participation.created_at || participation.createdAt);
+                  const now = new Date();
+                  const daysDiff = (now - createdAt) / (1000 * 60 * 60 * 24);
+                  return daysDiff <= 7; // Participations created in last 7 days
+                })
+                .slice(0, 3);
+              
+              recentParticipations.forEach(participation => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realNotifications.push({
+                  id: `activity_${participation._id}`,
+                  title: 'Tham Gia Hoạt Động',
+                  message: `${resident?.full_name || 'Người thân'} đã tham gia hoạt động: ${participation.activity_id?.activity_name || 'Không rõ'}. Mức độ tham gia: ${participation.participation_level || 'Bình thường'}`,
+                  type: 'activity',
+                  date: participation.created_at || participation.createdAt || new Date().toISOString(),
+                  read: false,
+                  priority: 'normal'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching activity participations:', error);
+        }
+      }
+      
+      // 5. Thêm nhắc nhở thanh toán
+      try {
+        if (user?.id) {
+          const billsResponse = await billsService.familyService.getBillsByFamilyMember({ family_member_id: user.id });
+          if (billsResponse.data && Array.isArray(billsResponse.data)) {
+            const upcomingBills = billsResponse.data
+              .filter(bill => {
+                const dueDate = new Date(bill.due_date);
+                const now = new Date();
+                const daysDiff = (dueDate - now) / (1000 * 60 * 60 * 24);
+                return daysDiff <= 7 && daysDiff > 0 && bill.status !== 'paid'; // Bills due in next 7 days
+              })
+              .slice(0, 3);
+            
+            upcomingBills.forEach(bill => {
+              realNotifications.push({
+                id: `bill_${bill._id}`,
+                title: 'Nhắc Nhở Thanh Toán',
+                message: `Hóa đơn "${bill.title}" sẽ đến hạn thanh toán vào ${new Date(bill.due_date).toLocaleDateString('vi-VN')}. Số tiền: ${new Intl.NumberFormat('vi-VN').format(bill.amount)} VNĐ`,
+                type: 'payment',
+                date: bill.created_at || new Date().toISOString(),
+                read: false,
+                priority: 'high'
+              });
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching bills:', error);
+      }
+      
+      // Sắp xếp theo thời gian
+      realNotifications.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Lọc bỏ các thông báo đã bị xóa local
+      const filteredNotifications = realNotifications.filter(notification => 
+        !currentDeletedIds.has(notification.id)
+      );
+      
+      setNotifications(filteredNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      // Fallback to mock data if API fails
+      setNotifications(mockNotifications);
+    }
     
-    setNotifications(mockNotifications);
     setLoading(false);
   };
 
@@ -266,6 +507,32 @@ const FamilyNotificationsScreen = ({ navigation }) => {
     );
   };
 
+  const handleDeleteNotification = (notificationId) => {
+    Alert.alert(
+      'Xóa thông báo',
+      'Bạn có muốn xóa thông báo này? Thông báo sẽ không hiển thị nữa.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            // Thêm vào danh sách đã xóa
+            const newDeletedIds = new Set([...deletedNotificationIds, notificationId]);
+            setDeletedNotificationIds(newDeletedIds);
+            
+            // Lưu vào AsyncStorage
+            await saveDeletedNotifications(newDeletedIds);
+            
+            // Cập nhật danh sách thông báo hiển thị
+            const updatedNotifications = notifications.filter(n => n.id !== notificationId);
+            setNotifications(updatedNotifications);
+          }
+        }
+      ]
+    );
+  };
+
   const filterNotifications = (notifications) => {
     if (activeFilter === 'all') return notifications;
     if (activeFilter === 'unread') return notifications.filter(n => !n.read);
@@ -278,58 +545,69 @@ const FamilyNotificationsScreen = ({ navigation }) => {
     const IconComponent = iconData.library;
 
     return (
-      <TouchableOpacity
-        style={styles.notificationWrapper}
-        onPress={() => handleNotificationPress(item)}
-      >
-        <NativeCard style={[
-          styles.notificationCard,
-          !item.read && styles.unreadCard
-        ]}>
-          <NativeCard.Content style={styles.cardContent}>
-            <View style={styles.notificationHeader}>
-              <View style={[
-                styles.iconContainer,
-                { backgroundColor: iconData.color + '15' }
-              ]}>
-                <IconComponent name={iconData.name} size={20} color={iconData.color} />
-                {!item.read && <View style={styles.unreadDot} />}
-              </View>
-              
-              <View style={styles.contentContainer}>
-                <View style={styles.titleRow}>
-                  <Text style={[
-                    styles.notificationTitle,
-                    !item.read && styles.unreadText
-                  ]}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.notificationTime}>
-                    {formatDate(item.date)}
-                  </Text>
+      <View style={styles.notificationWrapper}>
+        <TouchableOpacity
+          style={styles.notificationTouchable}
+          onPress={() => handleNotificationPress(item)}
+        >
+          <NativeCard style={[
+            styles.notificationCard,
+            !item.read && styles.unreadCard
+          ]}>
+            <NativeCard.Content style={styles.cardContent}>
+              <View style={styles.notificationHeader}>
+                <View style={[
+                  styles.iconContainer,
+                  { backgroundColor: iconData.color + '15' }
+                ]}>
+                  <IconComponent name={iconData.name} size={20} color={iconData.color} />
+                  {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 
-                <Text 
-                  style={[
-                    styles.notificationMessage,
-                    !item.read && styles.unreadMessage
-                  ]}
-                  numberOfLines={3}
-                >
-                  {item.message}
-                </Text>
-                
-                {item.priority === 'high' && (
-                  <View style={styles.priorityBadge}>
-                    <MaterialIcons name="priority-high" size={14} color={COLORS.error} />
-                    <Text style={styles.priorityText}>Ưu tiên cao</Text>
+                <View style={styles.contentContainer}>
+                  <View style={styles.titleRow}>
+                    <Text style={[
+                      styles.notificationTitle,
+                      !item.read && styles.unreadText
+                    ]}>
+                      {item.title}
+                    </Text>
+                    <View style={styles.actionContainer}>
+                      <Text style={styles.notificationTime}>
+                        {formatDate(item.date)}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteNotification(item.id)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <MaterialIcons name="close" size={16} color={COLORS.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                )}
+                  
+                  <Text 
+                    style={[
+                      styles.notificationMessage,
+                      !item.read && styles.unreadMessage
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {item.message}
+                  </Text>
+                  
+                  {item.priority === 'high' && (
+                    <View style={styles.priorityBadge}>
+                      <MaterialIcons name="priority-high" size={14} color={COLORS.error} />
+                      <Text style={styles.priorityText}>Ưu tiên cao</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          </NativeCard.Content>
-        </NativeCard>
-      </TouchableOpacity>
+            </NativeCard.Content>
+          </NativeCard>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -603,6 +881,9 @@ const styles = StyleSheet.create({
   notificationWrapper: {
     marginBottom: 12,
   },
+  notificationTouchable: {
+    flex: 1,
+  },
   notificationCard: {
     backgroundColor: COLORS.surface,
   },
@@ -642,6 +923,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    marginLeft: 8,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: COLORS.background,
   },
   notificationTitle: {
     ...FONTS.body2,

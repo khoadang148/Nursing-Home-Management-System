@@ -13,6 +13,8 @@ import {
   Dimensions,
   ScrollView as RNScrollView,
   RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -104,6 +106,21 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   const [carePlanAssignments, setCarePlanAssignments] = useState([]);
   // Tab mới: overview, activity, meds, vitals, images, assessment
   const [activeTab, setActiveTab] = useState(initialTab);
+  // Filters for Vitals and Assessments
+  const [vitalsFilterMode, setVitalsFilterMode] = useState('all'); // all | day | month | year
+  const [vitalsPeriod, setVitalsPeriod] = useState(new Date());
+  const [assessmentFilterMode, setAssessmentFilterMode] = useState('all'); // all | day | month | year
+  const [assessmentPeriod, setAssessmentPeriod] = useState(new Date());
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState('vitals'); // 'vitals' | 'assessment'
+  const [dateInputDay, setDateInputDay] = useState('');
+  const [dateInputMonth, setDateInputMonth] = useState('');
+  const [dateInputYear, setDateInputYear] = useState('');
+  // Image viewer state
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [imageViewerUri, setImageViewerUri] = useState('');
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [imageViewerPhotos, setImageViewerPhotos] = useState([]);
   
   const fetchData = useCallback(async (isRefreshing = false) => {
     console.log('🔄 fetchData called - isRefreshing:', isRefreshing, 'residentId:', residentId);
@@ -220,6 +237,124 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  // ===== Helpers for date filtering =====
+  const toDate = (value) => {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const isSameMonth = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  const isSameYear = (a, b) => a.getFullYear() === b.getFullYear();
+
+  const adjustPeriod = (date, mode, delta) => {
+    const d = new Date(date);
+    if (mode === 'day') {
+      d.setDate(d.getDate() + delta);
+    } else if (mode === 'month') {
+      d.setMonth(d.getMonth() + delta);
+    } else if (mode === 'year') {
+      d.setFullYear(d.getFullYear() + delta);
+    }
+    return d;
+  };
+
+  const getPeriodLabel = (date, mode) => {
+    if (mode === 'day') {
+      return new Date(date).toLocaleDateString('vi-VN');
+    }
+    if (mode === 'month') {
+      const d = new Date(date);
+      return `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
+    }
+    if (mode === 'year') {
+      return `${new Date(date).getFullYear()}`;
+    }
+    return 'Tất cả';
+  };
+
+  // ===== Format date/time exactly as stored (avoid timezone shift) =====
+  const pad2 = (n) => (n < 10 ? `0${n}` : String(n));
+  const formatDateFromDB = (value) => {
+    if (!value) return 'N/A';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return 'N/A';
+    // Use UTC parts to avoid client TZ shifting
+    return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+  };
+  const formatTimeFromDB = (value) => {
+    if (!value) return 'N/A';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return 'N/A';
+    return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  };
+
+  const openDatePicker = (target) => {
+    setDatePickerTarget(target);
+    const base = target === 'vitals' ? vitalsPeriod : assessmentPeriod;
+    setDateInputDay(String(base.getDate()));
+    setDateInputMonth(String(base.getMonth() + 1));
+    setDateInputYear(String(base.getFullYear()));
+    setDatePickerVisible(true);
+  };
+
+  const applyDatePicker = () => {
+    const d = parseInt(dateInputDay || '1', 10);
+    const m = parseInt(dateInputMonth || '1', 10) - 1;
+    const y = parseInt(dateInputYear || '1970', 10);
+    const candidate = new Date(y, m, d);
+    if (isNaN(candidate.getTime())) {
+      Alert.alert('Ngày không hợp lệ', 'Vui lòng nhập ngày/tháng/năm hợp lệ.');
+      return;
+    }
+    if (datePickerTarget === 'vitals') {
+      setVitalsPeriod(candidate);
+      setVitalsFilterMode('day');
+    } else {
+      setAssessmentPeriod(candidate);
+      setAssessmentFilterMode('day');
+    }
+    setDatePickerVisible(false);
+  };
+
+  // ===== Filtered data =====
+  const filteredVitals = React.useMemo(() => {
+    const list = resident?.vital_signs || [];
+    if (vitalsFilterMode === 'all') {
+      return [...list].sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+    }
+    const period = vitalsPeriod;
+    return list
+      .filter((v) => {
+        const d = toDate(v.date_time);
+        if (!d) return false;
+        if (vitalsFilterMode === 'day') return isSameDay(d, period);
+        if (vitalsFilterMode === 'month') return isSameMonth(d, period);
+        if (vitalsFilterMode === 'year') return isSameYear(d, period);
+        return true;
+      })
+      .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+  }, [resident?.vital_signs, vitalsFilterMode, vitalsPeriod]);
+
+  const filteredAssessments = React.useMemo(() => {
+    const list = resident?.assessments || [];
+    if (assessmentFilterMode === 'all') {
+      return [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+    const period = assessmentPeriod;
+    return list
+      .filter((as) => {
+        const d = toDate(as.date);
+        if (!d) return false;
+        if (assessmentFilterMode === 'day') return isSameDay(d, period);
+        if (assessmentFilterMode === 'month') return isSameMonth(d, period);
+        if (assessmentFilterMode === 'year') return isSameYear(d, period);
+        return true;
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [resident?.assessments, assessmentFilterMode, assessmentPeriod]);
 
   if (loading || !resident) {
     return (
@@ -577,11 +712,17 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             const hasMoreTags = tags.length > 2;
             return (
               <Surface style={[styles.photoCard, { width: cardWidth, marginBottom: cardMargin }] }>
-                <Image
-                  source={{ uri: imgSrc }}
-                  style={styles.photoImage}
-                  resizeMode="cover"
-                />
+                <TouchableOpacity activeOpacity={0.7} onPress={() => { 
+                  setImageViewerPhotos(photos); 
+                  setImageViewerIndex(index); 
+                  setImageViewerVisible(true); 
+                }}>
+                  <Image
+                    source={{ uri: imgSrc }}
+                    style={styles.photoImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
                 <Text style={styles.photoCaption} numberOfLines={2}>{item.caption}</Text>
                 <Text style={styles.photoDate}>Ngày: {item.taken_date ? new Date(item.taken_date).toLocaleDateString('vi-VN') : ''}</Text>
                 <View style={styles.photoTagsRow}>
@@ -638,9 +779,42 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             Ghi Nhận
           </Button>
         </View>
-        {resident.assessments && resident.assessments.length > 0 ? (
-          resident.assessments.map(as => (
-            <Surface key={as._id} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
+
+        {/* Filter controls */}
+        <View style={styles.filterRow}>
+          {['all','day','month','year'].map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.filterChip, assessmentFilterMode === mode && styles.filterChipActive]}
+              onPress={() => setAssessmentFilterMode(mode)}
+            >
+              <Text style={[styles.filterLabel, assessmentFilterMode === mode && { color: COLORS.primary }]}>
+                {mode === 'all' ? 'Tất cả' : mode === 'day' ? 'Ngày' : mode === 'month' ? 'Tháng' : 'Năm'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {assessmentFilterMode !== 'all' && (
+            <View style={styles.periodNav}>
+              <TouchableOpacity onPress={() => setAssessmentPeriod(prev => adjustPeriod(prev, assessmentFilterMode, -1))}>
+                <MaterialIcons name="chevron-left" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <Text style={styles.periodText}>{getPeriodLabel(assessmentPeriod, assessmentFilterMode)}</Text>
+              <TouchableOpacity onPress={() => setAssessmentPeriod(prev => adjustPeriod(prev, assessmentFilterMode, 1))}>
+                <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openDatePicker('assessment')}>
+                <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {filteredAssessments && filteredAssessments.length > 0 ? (
+          <FlatList
+            data={filteredAssessments}
+            keyExtractor={(as) => as._id}
+            renderItem={({ item: as }) => (
+            <Surface style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
               <View style={styles.assessmentHeader}>
                 <View style={styles.assessmentTitleContainer}>
                   <Text style={styles.assessmentType}>{as.assessment_type || 'Không có loại'}</Text>
@@ -668,7 +842,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-              <Text style={styles.assessmentDate}>Ngày: {as.date ? new Date(as.date).toLocaleDateString('vi-VN') : 'N/A'}</Text>
+              <Text style={styles.assessmentDate}>Ngày: {formatDateFromDB(as.date)} • {formatTimeFromDB(as.date)}</Text>
               {as.notes && (
                 <Text style={styles.assessmentNotes}>Ghi chú: {as.notes}</Text>
               )}
@@ -677,7 +851,12 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               )}
               <Text style={styles.assessmentConductedBy}>Thực hiện bởi: {as.conducted_by?.full_name || 'N/A'}</Text>
             </Surface>
-          ))
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 8 }}
+            initialNumToRender={8}
+            windowSize={7}
+          />
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Chưa có đánh giá nào</Text>
@@ -769,7 +948,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     <>
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Dấu Hiệu Sinh Tồn</Text>
+          <Text style={styles.sectionTitle}>Chỉ Số Sinh Hiệu</Text>
           <Button
             mode="contained"
             icon="plus"
@@ -786,14 +965,49 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             Ghi Nhận
           </Button>
         </View>
+
+        {/* Filter controls */}
+        <View style={styles.filterRow}>
+          {['all','day','month','year'].map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.filterChip, vitalsFilterMode === mode && styles.filterChipActive]}
+              onPress={() => setVitalsFilterMode(mode)}
+            >
+              <Text style={[styles.filterLabel, vitalsFilterMode === mode && { color: COLORS.primary }]}>
+                {mode === 'all' ? 'Tất cả' : mode === 'day' ? 'Ngày' : mode === 'month' ? 'Tháng' : 'Năm'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {vitalsFilterMode !== 'all' && (
+            <View style={styles.periodNav}>
+              <TouchableOpacity onPress={() => setVitalsPeriod(prev => adjustPeriod(prev, vitalsFilterMode, -1))}>
+                <MaterialIcons name="chevron-left" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <Text style={styles.periodText}>{getPeriodLabel(vitalsPeriod, vitalsFilterMode)}</Text>
+              <TouchableOpacity onPress={() => setVitalsPeriod(prev => adjustPeriod(prev, vitalsFilterMode, 1))}>
+                <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openDatePicker('vitals')}>
+                <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
         
-        {resident.vital_signs && resident.vital_signs.length > 0 ? (
-          resident.vital_signs.map(vital => (
-            <Surface key={vital._id} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
+        {filteredVitals && filteredVitals.length > 0 ? (
+          <FlatList
+            data={filteredVitals}
+            keyExtractor={(vital) => vital._id}
+            renderItem={({ item: vital }) => (
+            <Surface style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
               <View style={styles.vitalHeader}>
                 <View style={styles.vitalDateContainer}>
                   <Text style={styles.vitalDate}>
-                    Ngày: {vital.date_time ? new Date(vital.date_time).toLocaleDateString('vi-VN') : 'N/A'}
+                    Ngày: {formatDateFromDB(vital.date_time)}
+                  </Text>
+                  <Text style={styles.vitalTime}>
+                    Giờ: {formatTimeFromDB(vital.date_time)}
                   </Text>
                 </View>
                 <View style={styles.vitalActions}>
@@ -849,7 +1063,12 @@ const ResidentDetailScreen = ({ route, navigation }) => {
               )}
               <Text style={styles.vitalRecordedBy}>Ghi nhận bởi: {vital.recorded_by?.full_name || 'N/A'}</Text>
             </Surface>
-          ))
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 8 }}
+            initialNumToRender={8}
+            windowSize={7}
+          />
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Chưa có dấu hiệu sinh tồn được ghi nhận</Text>
@@ -1063,6 +1282,181 @@ const ResidentDetailScreen = ({ route, navigation }) => {
         {activeTab === 'images' && renderImagesTab()}
         {activeTab === 'assessment' && renderAssessmentTab()}
       </ScrollView>
+      {/* Date Picker Modal (simple Y/M/D inputs for broad device support without extra deps) */}
+      <Modal
+        visible={datePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+            <Text style={{ ...FONTS.h4, marginBottom: 12, color: COLORS.text, fontWeight: 'bold' }}>
+              Chọn ngày cụ thể
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ ...FONTS.body3, color: COLORS.textSecondary, marginBottom: 6 }}>Ngày</Text>
+                <TextInput
+                  value={dateInputDay}
+                  onChangeText={setDateInputDay}
+                  placeholder="DD"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 4 }}>
+                <Text style={{ ...FONTS.body3, color: COLORS.textSecondary, marginBottom: 6 }}>Tháng</Text>
+                <TextInput
+                  value={dateInputMonth}
+                  onChangeText={setDateInputMonth}
+                  placeholder="MM"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={{ ...FONTS.body3, color: COLORS.textSecondary, marginBottom: 6 }}>Năm</Text>
+                <TextInput
+                  value={dateInputYear}
+                  onChangeText={setDateInputYear}
+                  placeholder="YYYY"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+              <TouchableOpacity onPress={() => setDatePickerVisible(false)} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Text style={{ ...FONTS.body3, color: COLORS.textSecondary }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={applyDatePicker} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Text style={{ ...FONTS.body3, color: COLORS.primary, fontWeight: 'bold' }}>Áp dụng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Fullscreen Image Viewer with Swipe Navigation */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' }}>
+          {/* Header with close button and image counter */}
+          <View style={{ 
+            position: 'absolute', 
+            top: 40, 
+            left: 20, 
+            right: 20, 
+            zIndex: 2, 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
+            <TouchableOpacity onPress={() => setImageViewerVisible(false)}>
+              <MaterialIcons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>
+              {imageViewerIndex + 1} / {imageViewerPhotos.length}
+            </Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {/* Navigation arrows */}
+          {imageViewerIndex > 0 && (
+            <TouchableOpacity 
+              style={{ 
+                position: 'absolute', 
+                left: 20, 
+                top: '50%', 
+                zIndex: 2,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 25,
+                width: 50,
+                height: 50,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }} 
+              onPress={() => setImageViewerIndex(prev => Math.max(0, prev - 1))}
+            >
+              <MaterialIcons name="chevron-left" size={30} color="#fff" />
+            </TouchableOpacity>
+          )}
+          
+          {imageViewerIndex < imageViewerPhotos.length - 1 && (
+            <TouchableOpacity 
+              style={{ 
+                position: 'absolute', 
+                right: 20, 
+                top: '50%', 
+                zIndex: 2,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 25,
+                width: 50,
+                height: 50,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }} 
+              onPress={() => setImageViewerIndex(prev => Math.min(imageViewerPhotos.length - 1, prev + 1))}
+            >
+              <MaterialIcons name="chevron-right" size={30} color="#fff" />
+            </TouchableOpacity>
+          )}
+
+          {/* Main image */}
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            {imageViewerPhotos.length > 0 && imageViewerPhotos[imageViewerIndex] && (
+              <Image
+                source={{ uri: getImageUriHelper(imageViewerPhotos[imageViewerIndex].file_path) }}
+                style={{ width: '100%', height: '80%' }}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+
+          {/* Image info panel (caption + metadata) */}
+          {imageViewerPhotos.length > 0 && imageViewerPhotos[imageViewerIndex] && (
+            <View style={styles.imageInfoContainer}>
+              {!!imageViewerPhotos[imageViewerIndex].caption && (
+                <Text style={[styles.imageInfoText, { fontWeight: '600' }]} numberOfLines={2}>
+                  {imageViewerPhotos[imageViewerIndex].caption}
+                </Text>
+              )}
+              <Text style={styles.imageInfoText}>
+                Người đăng: {imageViewerPhotos[imageViewerIndex].uploaded_by?.full_name || imageViewerPhotos[imageViewerIndex].uploaded_by?.username || 'Không xác định'}
+              </Text>
+              <Text style={styles.imageInfoText}>
+                Thời gian: {imageViewerPhotos[imageViewerIndex].taken_date ? new Date(imageViewerPhotos[imageViewerIndex].taken_date).toLocaleString('vi-VN') : 'Không xác định'}
+              </Text>
+              <Text style={styles.imageInfoText}>
+                Địa điểm: {imageViewerPhotos[imageViewerIndex].related_activity_id?.location || 'Không xác định'}
+              </Text>
+              <Text style={styles.imageInfoText}>
+                Hoạt động: {imageViewerPhotos[imageViewerIndex].related_activity_id?.activity_name || 'Không xác định'}
+              </Text>
+              {!!imageViewerPhotos[imageViewerIndex].related_activity_id?.description && (
+                <Text style={styles.imageInfoText} numberOfLines={3}>
+                  Mô tả: {imageViewerPhotos[imageViewerIndex].related_activity_id?.description}
+                </Text>
+              )}
+              {!!(imageViewerPhotos[imageViewerIndex].tags && imageViewerPhotos[imageViewerIndex].tags.length) && (
+                <View style={styles.imageTagsRow}>
+                  {imageViewerPhotos[imageViewerIndex].tags.slice(0, 3).map((tag, idx) => (
+                    <View key={idx} style={styles.imageTagChip}>
+                      <Text style={styles.imageTagText} numberOfLines={1}>
+                        {tag}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1197,6 +1591,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    marginRight: 8,
+    marginTop: 4,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary + '20',
+  },
+  filterLabel: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  periodNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  periodText: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    fontWeight: '600',
+    marginHorizontal: 8,
+  },
   addButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 8,
@@ -1314,6 +1741,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: 8,
   },
+  assessmentTime: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    marginTop: -6,
+    marginBottom: 8,
+  },
   assessmentNotes: { 
     ...FONTS.body2, 
     color: COLORS.text,
@@ -1373,6 +1806,12 @@ const styles = StyleSheet.create({
     color: COLORS.primary, 
     marginBottom: 12,
     fontWeight: 'bold',
+  },
+  vitalTime: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    marginTop: -8,
+    marginBottom: 8,
   },
   vitalGrid: {
     flexDirection: 'row',
@@ -1569,6 +2008,38 @@ const styles = StyleSheet.create({
   },
   carePlanDivider: {
     marginVertical: 16,
+  },
+  imageInfoContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 12,
+    borderRadius: 8,
+  },
+  imageInfoText: {
+    color: '#fff',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  imageTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  imageTagChip: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  imageTagText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
 

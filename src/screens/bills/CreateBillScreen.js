@@ -17,9 +17,11 @@ import { useSelector } from 'react-redux';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Menu, Button, TextInput } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { COLORS, FONTS } from '../../constants/theme';
 import billsService from '../../api/services/billsService';
 import carePlanService from '../../api/services/carePlanService';
+import roomTypeService from '../../api/services/roomTypeService';
 
 const CreateBillScreen = () => {
   const navigation = useNavigation();
@@ -102,12 +104,14 @@ const CreateBillScreen = () => {
     try {
       setLoading(true);
       // Lấy residents, assignments, roomTypes song song
-      const [residentsData, assignmentsData, roomTypesData] = await Promise.all([
+      const [residentsData, assignmentsData, roomTypesResponse] = await Promise.all([
         billsService.billingService.getResidents(),
         billsService.getAllCarePlanAssignments(),
-        billsService.billingService.getRoomTypes()
+        roomTypeService.getAllRoomTypes()
       ]);
 
+      // Extract room types data from API response
+      const roomTypesData = roomTypesResponse?.success ? roomTypesResponse.data : [];
       setRoomTypes(roomTypesData || []);
 
       // Lấy danh sách resident_id đã đăng ký dịch vụ
@@ -164,9 +168,10 @@ const CreateBillScreen = () => {
       setLoadingCalculation(true);
       console.log('DEBUG - Loading assignment data for resident:', residentId);
 
-      const [carePlanData, bedAssignmentData] = await Promise.all([
+      const [carePlanData, bedAssignmentData, existingBills] = await Promise.all([
         billsService.billingService.getCarePlanAssignmentByResident(residentId),
-        billsService.billingService.getBedAssignmentByResident(residentId)
+        billsService.billingService.getBedAssignmentByResident(residentId),
+        billsService.getBillsByResident(residentId)
       ]);
 
       setCarePlanAssignment(carePlanData);
@@ -174,16 +179,91 @@ const CreateBillScreen = () => {
 
       console.log('DEBUG - Set care plan assignment:', carePlanData);
       console.log('DEBUG - Set bed assignment:', bedAssignmentData);
+      console.log('DEBUG - Existing bills:', existingBills);
 
-      // Calculate amount - chỉ sử dụng care plan data
-      const calculatedAmount = billsService.calculateBillAmount(
-        carePlanData,
-        null, // Không sử dụng bed assignment cho tính toán
-        roomTypes
-      );
+      // Kiểm tra xem resident đã có hóa đơn trước đó chưa
+      const isFirstBill = !existingBills || existingBills.length === 0;
+      
+      // Tính toán số tiền dựa trên việc có phải lần đầu hay không
+      let calculatedAmount;
+      let calculatedTitle;
+      let calculatedNotes = '';
+      let calculatedDueDate;
+      
+      const carePlan = Array.isArray(carePlanData) ? carePlanData[0] : carePlanData;
+      const totalMonthlyCost = carePlan?.total_monthly_cost || 0;
+      
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      const currentDay = now.getDate();
+      
+      if (isFirstBill) {
+        // Lần đầu đăng ký
+        // Tính số ngày còn lại trong tháng hiện tại
+        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const remainingDays = daysInMonth - currentDay + 1;
+        
+        // Tiền tháng hiện tại (theo tỷ lệ ngày còn lại) + tiền cọc 1 tháng
+        const dailyRate = totalMonthlyCost / 30;
+        const partialMonthAmount = dailyRate * remainingDays;
+        const depositAmount = totalMonthlyCost;
+        
+        calculatedAmount = Math.round(partialMonthAmount + depositAmount);
+        calculatedTitle = `Hóa đơn thanh toán tháng ${currentMonth.toString().padStart(2, '0')}/${currentYear}`;
+        calculatedNotes = 'Hóa đơn đăng ký dịch vụ tháng đầu + tiền cọc 1 tháng';
+        
+        // Hạn thanh toán: cuối tháng hiện tại
+        const lastDayOfMonth = new Date(currentYear, currentMonth, 0);
+        calculatedDueDate = formatDateForDisplay(lastDayOfMonth);
+        
+        console.log('DEBUG - First bill calculation:', {
+          daysInMonth,
+          remainingDays,
+          dailyRate,
+          partialMonthAmount,
+          depositAmount,
+          totalAmount: calculatedAmount
+        });
+      } else {
+        // Đã có hóa đơn trước đó
+        calculatedAmount = totalMonthlyCost;
+        
+        // Tiêu đề cho tháng kế tiếp
+        let nextMonth = currentMonth + 1;
+        let nextYear = currentYear;
+        if (nextMonth > 12) {
+          nextMonth = 1;
+          nextYear += 1;
+        }
+        
+        calculatedTitle = `Hóa đơn thanh toán tháng ${nextMonth.toString().padStart(2, '0')}/${nextYear}`;
+        calculatedNotes = '';
+        
+        // Hạn thanh toán: ngày 5 của tháng kế tiếp
+        const fifthOfNextMonth = new Date(nextYear, nextMonth - 1, 5);
+        calculatedDueDate = formatDateForDisplay(fifthOfNextMonth);
+        
+        console.log('DEBUG - Regular bill calculation:', {
+          totalAmount: calculatedAmount,
+          nextMonth,
+          nextYear
+        });
+      }
 
+      // Set các giá trị tính toán được
       setAmount(calculatedAmount.toString());
-      console.log('DEBUG - Calculated amount:', calculatedAmount);
+      setTitle(calculatedTitle);
+      setNotes(calculatedNotes);
+      setDueDate(calculatedDueDate);
+
+      console.log('DEBUG - Final calculated values:', {
+        amount: calculatedAmount,
+        title: calculatedTitle,
+        notes: calculatedNotes,
+        dueDate: calculatedDueDate,
+        isFirstBill
+      });
 
     } catch (error) {
       console.error('Error loading assignment data:', error);
@@ -207,6 +287,9 @@ const CreateBillScreen = () => {
       setCarePlanAssignment(null);
       setBedAssignment(null);
       setAmount('');
+      setTitle('');
+      setNotes('');
+      setDueDate('');
     } finally {
       setLoadingCalculation(false);
     }
@@ -250,7 +333,7 @@ const CreateBillScreen = () => {
         care_plan_assignment_id: carePlan._id,
         staff_id: currentUser._id,
         amount: parseFloat(amount),
-        due_date: new Date(dueDate).toISOString(),
+        due_date: new Date(convertDisplayDateToUTC(dueDate)).toISOString(),
         title: title.trim(),
         notes: notes.trim() || undefined
       };
@@ -283,10 +366,36 @@ const CreateBillScreen = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
+    const formattedPrice = new Intl.NumberFormat('vi-VN').format(price);
+    return `${formattedPrice} VNĐ`;
+  };
+
+  // Get room type name from room_type code
+  const getRoomTypeName = (roomTypeCode) => {
+    if (!roomTypeCode || !roomTypes.length) return roomTypeCode || 'Chưa xác định';
+    
+    const roomType = roomTypes.find(rt => rt.room_type === roomTypeCode);
+    return roomType?.type_name || roomTypeCode || 'Chưa xác định';
+  };
+
+  // Format date for display in Vietnam timezone (UTC+7) - DD/MM/YYYY
+  const formatDateForDisplay = (date) => {
+    // Create a new date adjusted to Vietnam timezone
+    const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    const day = vietnamTime.getUTCDate().toString().padStart(2, '0');
+    const month = (vietnamTime.getUTCMonth() + 1).toString().padStart(2, '0');
+    const year = vietnamTime.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Convert display date back to UTC for saving to DB
+  const convertDisplayDateToUTC = (displayDate) => {
+    if (!displayDate) return '';
+    const [day, month, year] = displayDate.split('/');
+    // Create date in Vietnam timezone then convert to UTC
+    const vietnamDate = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone edge cases
+    const utcDate = new Date(vietnamDate.getTime() - (7 * 60 * 60 * 1000));
+    return utcDate.toISOString().split('T')[0];
   };
 
   // Get selected resident info
@@ -351,45 +460,31 @@ const CreateBillScreen = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Chọn Người Cao Tuổi</Text>
             <Text style={styles.sectionSubtitle}>Chọn người cần tạo hóa đơn</Text>
-            
-            <Menu
-              visible={residentDropdownOpen}
-              onDismiss={() => setResidentDropdownOpen(false)}
-              anchor={
-                <Button
-                  icon="account-circle"
-                  mode="outlined"
-                  onPress={() => setResidentDropdownOpen(true)}
-                  style={styles.dropdown}
-                  contentStyle={styles.dropdownContentStyle}
-                  labelStyle={styles.dropdownLabelStyle}
-                  textAlign="center"
-                >
-                  {residentDropdownValue ? getSelectedResidentName : 'Chọn người cao tuổi...'}
-                </Button>
-              }
-              style={styles.dropdownContainer}
-              contentStyle={styles.dropdownContentStyle}
-              listMode="SCROLLVIEW"
-              scrollViewProps={{
-                nestedScrollEnabled: true,
-              }}
-            >
-              {residentDropdownItems.map(item => (
-                <Menu.Item
-                  key={item.value}
-                  onPress={() => {
-                    setResidentDropdownValue(item.value);
-                    setResidentDropdownOpen(false);
-                    // Tự động điền tiêu đề hóa đơn nếu chưa có
-                    if (!title.trim()) {
-                      setTitle(getNextMonthTitle());
-                    }
-                  }}
-                  title={item.label}
-                />
-              ))}
-            </Menu>
+            <View style={[styles.dropdownWrapper, residentDropdownOpen && styles.dropdownSpacer]}>
+              <DropDownPicker
+                open={residentDropdownOpen}
+                value={residentDropdownValue}
+                items={residentDropdownItems}
+                setOpen={setResidentDropdownOpen}
+                setValue={setResidentDropdownValue}
+                setItems={setResidentDropdownItems}
+                placeholder="Chọn người cao tuổi..."
+                listMode="SCROLLVIEW"
+                maxHeight={320}
+                dropDownDirection="BOTTOM"
+                zIndex={6000}
+                zIndexInverse={1000}
+                style={styles.dropdown}
+                dropDownContainerStyle={[styles.dropdownContainer, styles.dropdownOverlay]}
+                scrollViewProps={{ nestedScrollEnabled: true, keyboardShouldPersistTaps: 'handled' }}
+                listItemLabelStyle={styles.dropdownLabelStyle}
+                onChangeValue={(val) => {
+                  // Không tự động điền tiêu đề nữa vì sẽ được tính toán trong loadAssignmentData
+                }}
+                closeAfterSelecting={true}
+                closeOnBackPressed={true}
+              />
+            </View>
           </View>
 
           {/* Thông tin gói dịch vụ */}
@@ -452,7 +547,7 @@ const CreateBillScreen = () => {
                     <View style={styles.infoCard}>
                       <Text style={styles.infoLabel}>Loại phòng:</Text>
                       <Text style={styles.infoValue}>
-                        {bedAssign?.bed_id?.room_id?.room_type || 'Chưa có thông tin'}
+                        {getRoomTypeName(bedAssign?.bed_id?.room_id?.room_type)}
                       </Text>
                     </View>
                   </>
@@ -509,13 +604,13 @@ const CreateBillScreen = () => {
               </TouchableOpacity>
               {showDatePicker && (
                 <DateTimePicker
-                  value={dueDate ? new Date(dueDate) : new Date()}
+                  value={dueDate ? new Date(convertDisplayDateToUTC(dueDate)) : new Date()}
                   mode="date"
                   display="spinner"
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
-                      const formattedDate = selectedDate.toISOString().split('T')[0];
+                      const formattedDate = formatDateForDisplay(selectedDate);
                       setDueDate(formattedDate);
                     }
                   }}
@@ -647,9 +742,23 @@ const styles = StyleSheet.create({
     alignItems: 'center', // Center horizontally
     paddingHorizontal: 15,
   },
+  dropdownWrapper: {
+    zIndex: 6000,
+  },
   dropdownContainer: {
     minWidth: 250,
     maxWidth: 350,
+    zIndex: 6000,
+  },
+  dropdownOverlay: {
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  dropdownSpacer: {
+    paddingBottom: 320, // reserve space for dropdown to avoid overlaying next sections
   },
   dropdownContentStyle: {
     backgroundColor: COLORS.white,

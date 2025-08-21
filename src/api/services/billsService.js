@@ -875,4 +875,22 @@ const API_ENDPOINTS = {
   CARE_PLAN_ASSIGNMENTS: '/care-plan-assignments',
 };
 
+// Get bills by resident ID
+billsService.getBillsByResident = async (residentId) => {
+  try {
+    console.log('Getting bills for resident:', residentId);
+    const response = await apiClient.get('/bills/by-resident', {
+      params: { resident_id: residentId }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting bills by resident:', error);
+    if (error.response?.status === 404) {
+      // No bills found - return empty array
+      return [];
+    }
+    throw error;
+  }
+};
+
 export default billsService; 

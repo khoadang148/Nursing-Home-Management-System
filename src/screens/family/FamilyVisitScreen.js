@@ -30,54 +30,7 @@ import apiService from '../../api/apiService';
 import { addNotification } from '../../redux/slices/notificationSlice';
 import visitsService from '../../api/services/visitsService';
 
-// Update mockVisits to match updated MongoDB schema structure (removed resident_id)
-const mockVisits = [
-  {
-    id: '1',
-    family_member_id: 'family1Id', // Will be replaced with actual ID from API
-    visit_date: new Date('2023-11-15'),
-    visit_time: '14:00',
-    duration: 90,
-    status: 'completed', // Updated to match new schema
-    purpose: 'Thăm hỏi sức khỏe và mang quà',
-    numberOfVisitors: 2,
-    notes: 'Sẽ mang theo album ảnh'
-  },
-  {
-    id: '2',
-    family_member_id: 'family1Id',
-    visit_date: new Date('2025-07-07'), // 7 days from now
-    visit_time: '15:30',
-    duration: 60,
-    status: 'completed',
-    purpose: 'Chúc mừng sinh nhật',
-    numberOfVisitors: 3,
-    notes: 'Mang theo bánh sinh nhật'
-  },
-  {
-    id: '3',
-    family_member_id: 'family1Id',
-    visit_date: new Date('2023-10-30'),
-    visit_time: '10:00',
-    duration: 45,
-    status: 'completed',
-    purpose: 'Trao đổi với bác sĩ',
-    numberOfVisitors: 1,
-    notes: 'Đã ăn trưa cùng nhau'
-  },
-  // Add a future visit for testing upcoming visits section
-  {
-    id: '4',
-    family_member_id: 'family1Id',
-    visit_date: new Date('2025-07-07'), // Future date
-    visit_time: '14:00',
-    duration: 60,
-    status: 'completed',
-    purpose: 'Thăm định kỳ',
-    numberOfVisitors: 2,
-    notes: 'Lịch thăm định kỳ hàng tháng'
-  }
-];
+
 
 const FamilyVisitScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
@@ -127,6 +80,8 @@ const FamilyVisitScreen = ({ navigation }) => {
   }, [user]);
   
   // Add API integration functions
+
+
   // Function to fetch visits from API (real API)
   const fetchVisits = async () => {
     setLoading(true);
@@ -137,30 +92,35 @@ const FamilyVisitScreen = ({ navigation }) => {
         setLoading(false);
         return;
       }
+      
+      console.log('Fetching visits for user ID:', user.id);
       const response = await visitsService.getVisitsByFamilyMemberId(user.id);
+      console.log('API Response:', response);
+      
       if (response.success && Array.isArray(response.data)) {
+        console.log('Response data is array with length:', response.data.length);
         // Convert string date/time to Date object for easier handling
         const now = new Date();
-        const visitsData = response.data.map(v => ({
-          ...v,
-          visit_date: new Date(v.visit_date),
-        }));
-        // Chỉ lấy các lịch thăm sắp tới (visit_date + visit_time > hiện tại)
-        const upcoming = visitsData.filter(v => {
-          // Nếu visit_time là chuỗi '14:00', gộp vào visit_date
-          const [h, m] = (v.visit_time || '00:00').split(':');
-          const visitDateTime = new Date(v.visit_date);
-          visitDateTime.setHours(Number(h), Number(m), 0, 0);
-          return visitDateTime > now;
+        const visitsData = response.data.map((v, index) => {
+          console.log(`Processing visit ${index}:`, v);
+          return {
+            ...v,
+            visit_date: new Date(v.visit_date),
+            // Ensure all required fields are present
+            id: v._id || v.id,
+            _id: v._id || v.id,
+          };
         });
-        setVisits(upcoming);
+        
+        console.log('Processed visits data:', visitsData);
+        
+        // Lấy tất cả lịch thăm (không lọc theo thời gian để debug)
+        setVisits(visitsData);
+        
         // Marked dates cho calendar
         const marked = {};
-        upcoming.forEach(visit => {
-          const [h, m] = (visit.visit_time || '00:00').split(':');
-          const visitDate = new Date(visit.visit_date);
-          visitDate.setHours(Number(h), Number(m), 0, 0);
-          const key = visitDate.toISOString().split('T')[0];
+        visitsData.forEach(visit => {
+          const key = visit.visit_date.toISOString().split('T')[0];
           marked[key] = {
             selected: true,
             marked: true,
@@ -168,12 +128,19 @@ const FamilyVisitScreen = ({ navigation }) => {
           };
         });
         setMarkedDates(marked);
+        
+        console.log('Marked dates:', marked);
       } else {
+        console.log('No visits data or invalid response:', response);
+        console.log('Response success:', response.success);
+        console.log('Response data type:', typeof response.data);
+        console.log('Response data:', response.data);
         setVisits([]);
         setMarkedDates({});
       }
     } catch (error) {
       console.error('Error fetching visits:', error);
+      console.error('Error details:', error.response?.data || error.message);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu lịch thăm. Vui lòng thử lại sau.');
       setVisits([]);
       setMarkedDates({});
@@ -224,6 +191,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   
   // Replace loadData with fetchVisits
   const loadData = async () => {
+    console.log('Loading data for user:', user);
     await fetchVisits();
   };
   
@@ -273,21 +241,30 @@ const FamilyVisitScreen = ({ navigation }) => {
   // Update getVisitsForSelectedDate to sort by time
   const getVisitsForSelectedDate = () => {
     if (!selectedDate) return [];
-    return visits
-      .filter(visit => visit.visit_date.toISOString().split('T')[0] === selectedDate)
-      .sort((a, b) => {
-        // Sort by time (earlier times first)
-        const timeA = a.visit_time.split(':').map(Number);
-        const timeB = b.visit_time.split(':').map(Number);
-        
-        // Compare hours first
-        if (timeA[0] !== timeB[0]) {
-          return timeA[0] - timeB[0];
-        }
-        
-        // If hours are the same, compare minutes
-        return timeA[1] - timeB[1];
-      });
+    console.log('Getting visits for selected date:', selectedDate);
+    console.log('Available visits:', visits);
+    
+    const filteredVisits = visits.filter(visit => {
+      const visitDateString = visit.visit_date.toISOString().split('T')[0];
+      console.log('Comparing:', visitDateString, 'with', selectedDate);
+      return visitDateString === selectedDate;
+    });
+    
+    console.log('Filtered visits:', filteredVisits);
+    
+    return filteredVisits.sort((a, b) => {
+      // Sort by time (earlier times first)
+      const timeA = a.visit_time.split(':').map(Number);
+      const timeB = b.visit_time.split(':').map(Number);
+      
+      // Compare hours first
+      if (timeA[0] !== timeB[0]) {
+        return timeA[0] - timeB[0];
+      }
+      
+      // If hours are the same, compare minutes
+      return timeA[1] - timeB[1];
+    });
   };
   
   const handleDateSelect = (day) => {
@@ -372,16 +349,15 @@ const FamilyVisitScreen = ({ navigation }) => {
       return;
     }
     
-    // Prepare data for API call - matches updated MongoDB schema (no resident_id)
+    // Prepare data for API call - matches backend schema
     const newVisitData = {
-      family_member_id: user.id, // Current user ID
-      visit_date: visitDate,
+      visit_date: visitDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
       visit_time: visitTime,
       duration: 60, // Fixed 1 hour duration
       status: 'completed', // Auto-completed, no approval needed
       purpose: finalPurpose,
       numberOfVisitors: parseInt(visitorCount, 10),
-      notes: visitNotes
+      notes: visitNotes || null
     };
     
     try {
@@ -461,12 +437,28 @@ const FamilyVisitScreen = ({ navigation }) => {
   
   // Add this useEffect to log upcoming visits for debugging
   useEffect(() => {
+    console.log('Total visits loaded:', visits.length);
+    console.log('All visits:', visits);
+    
+    if (visits.length > 0) {
+      visits.forEach((visit, index) => {
+        console.log(`Visit ${index}:`, {
+          id: visit._id || visit.id,
+          date: visit.visit_date,
+          time: visit.visit_time,
+          purpose: visit.purpose,
+          status: visit.status
+        });
+      });
+    }
+    
     // Log upcoming visits for debugging
     const upcomingVisits = visits.filter(visit => {
+      const now = new Date();
       const visitDate = new Date(visit.visit_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return visitDate >= today;
+      const [hours, minutes] = (visit.visit_time || '00:00').split(':').map(Number);
+      visitDate.setHours(hours, minutes, 0, 0);
+      return visitDate > now;
     });
     
     console.log('Upcoming visits:', upcomingVisits.length);
@@ -705,35 +697,42 @@ const FamilyVisitScreen = ({ navigation }) => {
         <NativeCard style={styles.card}>
           <NativeCard.Content>
             <Text style={styles.cardTitle}>Lịch thăm sắp tới</Text>
-            {visits
-              .filter(visit => {
-                // Only show visits with dates in the future
-                const visitDate = new Date(visit.visit_date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
-                return visitDate >= today;
-              })
-              .sort((a, b) => {
-                // First compare dates
-                const dateComparison = new Date(a.visit_date) - new Date(b.visit_date);
-                if (dateComparison !== 0) {
-                  return dateComparison; // If dates are different, sort by date
-                }
-                
-                // If dates are the same, compare times
-                const timeA = a.visit_time.split(':').map(Number);
-                const timeB = b.visit_time.split(':').map(Number);
-                
-                // Compare hours first
-                if (timeA[0] !== timeB[0]) {
-                  return timeA[0] - timeB[0];
-                }
-                
-                // If hours are the same, compare minutes
-                return timeA[1] - timeB[1];
-              })
-              .slice(0, 3)
-              .map((visit, idx) => (
+            {visits.length > 0 ? (
+              visits
+                .filter(visit => {
+                  // Only show visits with date and time in the future
+                  const now = new Date();
+                  const visitDate = new Date(visit.visit_date);
+                  
+                  // Parse visit time (e.g., "14:00" -> hours and minutes)
+                  const [hours, minutes] = (visit.visit_time || '00:00').split(':').map(Number);
+                  visitDate.setHours(hours, minutes, 0, 0);
+                  
+                  const isFuture = visitDate > now;
+                  console.log(`Visit datetime: ${visitDate.toLocaleString()}, Now: ${now.toLocaleString()}, Is future: ${isFuture}`);
+                  return isFuture;
+                })
+                .sort((a, b) => {
+                  // First compare dates
+                  const dateComparison = new Date(a.visit_date) - new Date(b.visit_date);
+                  if (dateComparison !== 0) {
+                    return dateComparison; // If dates are different, sort by date
+                  }
+                  
+                  // If dates are the same, compare times
+                  const timeA = a.visit_time.split(':').map(Number);
+                  const timeB = b.visit_time.split(':').map(Number);
+                  
+                  // Compare hours first
+                  if (timeA[0] !== timeB[0]) {
+                    return timeA[0] - timeB[0];
+                  }
+                  
+                  // If hours are the same, compare minutes
+                  return timeA[1] - timeB[1];
+                })
+                .slice(0, 3)
+                .map((visit, idx) => (
                 <View key={visit._id || visit.id || idx} style={[styles.upcomingVisitItem, { position: 'relative' }]}> 
                   {/* Nút xóa ở góc phải trên */}
                   <TouchableOpacity
@@ -793,18 +792,22 @@ const FamilyVisitScreen = ({ navigation }) => {
                           </Text>
                         </View>
                       </View>
-                      <Text style={styles.upcomingVisitPurpose} numberOfLines={1}>
-                        {visit.purpose}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            {visits.filter(visit => {
+                        <Text style={styles.upcomingVisitPurpose} numberOfLines={1}>
+                          {visit.purpose}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                ))
+            ) : (
+              <Text style={styles.noVisitsText}>Không có lịch thăm nào</Text>
+            )}
+            {visits.length > 0 && visits.filter(visit => {
+              const now = new Date();
               const visitDate = new Date(visit.visit_date);
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              return visitDate >= today;
+              const [hours, minutes] = (visit.visit_time || '00:00').split(':').map(Number);
+              visitDate.setHours(hours, minutes, 0, 0);
+              return visitDate > now;
             }).length === 0 && (
               <Text style={styles.noVisitsText}>Không có lịch thăm sắp tới</Text>
             )}

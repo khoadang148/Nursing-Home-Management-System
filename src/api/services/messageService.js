@@ -55,7 +55,7 @@ const messageService = {
       if (residentId) {
         url += `?residentId=${residentId}`;
       }
-      const response = await apiClient.get(url);
+      let response = await apiClient.get(url);
       
       if (response.data && Array.isArray(response.data)) {
         return {
@@ -70,6 +70,17 @@ const messageService = {
       }
     } catch (error) {
       console.error('Error getting conversation:', error);
+      // Fallback: if residentId filter causes issues, retry without residentId
+      try {
+        if (residentId) {
+          const fallbackResp = await apiClient.get(`/messages/conversation/${partnerId}`);
+          if (fallbackResp.data && Array.isArray(fallbackResp.data)) {
+            return { success: true, data: fallbackResp.data };
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback conversation fetch failed:', fallbackErr);
+      }
       return {
         success: false,
         error: error.response?.data?.message || 'Không thể lấy tin nhắn',

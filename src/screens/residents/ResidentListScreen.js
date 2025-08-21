@@ -17,12 +17,11 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
-import { getImageUri, APP_CONFIG } from '../../config/appConfig';
-import { getAvatarUri } from '../../utils/avatarUtils';
+// import { getImageUri } from '../../config/appConfig';
 import CommonAvatar from '../../components/CommonAvatar';
 import { formatDateFromBackend } from '../../utils/dateUtils';
 
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+// Removed DEFAULT_AVATAR to avoid using placeholder images
 
 const ResidentListScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
@@ -303,7 +302,7 @@ const ResidentListScreen = ({ navigation }) => {
           <FlatList
             data={filteredResidents || []}
             renderItem={renderResidentItem}
-            keyExtractor={(item) => item?._id || Math.random().toString()}
+            keyExtractor={(item) => (item?._id ? String(item._id) : (item?.id ? String(item.id) : ''))}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -320,16 +319,12 @@ const ResidentListScreen = ({ navigation }) => {
                 <Text style={styles.emptyText}>Không tìm thấy cư dân</Text>
               </View>
             }
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={10}
-            windowSize={10}
-            initialNumToRender={10}
-            onEndReachedThreshold={0.5}
-            getItemLayout={(data, index) => ({
-              length: 120, // Approximate height of each item
-              offset: 120 * index,
-              index,
-            })}
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            initialNumToRender={8}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={<View style={{ height: 24 }} />}
           />
 
           <FAB

@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import carePlanService from '../../api/services/carePlanService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import { useSelector } from 'react-redux';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatDate } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 import apiClient from '../../api/config/axiosConfig';
 
@@ -37,6 +37,11 @@ const bedTypeToVietnamese = (type) => {
     case 'medical': return 'Y tế';
     default: return type || '';
   }
+};
+
+// Hàm format giá tiền với đơn vị tính riêng
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN').format(price);
 };
 
 const ServicePackageScreen = ({ navigation }) => {
@@ -399,15 +404,27 @@ const ServicePackageScreen = ({ navigation }) => {
         roomNumber = bedAssignment.bed_id.room_id.room_number || '--';
       }
     }
+
+    // Robust care plans monthly: prefer API field, otherwise sum plan.monthly_price
+    const carePlansMonthly = (item.care_plans_monthly_cost != null)
+      ? item.care_plans_monthly_cost
+      : (Array.isArray(item.care_plan_ids)
+          ? item.care_plan_ids.reduce((sum, plan) => sum + (plan?.monthly_price || 0), 0)
+          : 0);
+    const roomMonthly = item.room_monthly_cost || 0;
+
+    // Determine total to display: if no room/bed, show only care plans cost; else show total
+    const hasBed = !!(bedAssignment && bedAssignment.bed_id);
+    const totalMonthly = hasBed
+      ? (item.total_monthly_cost != null ? item.total_monthly_cost : (carePlansMonthly + roomMonthly))
+      : carePlansMonthly;
+
     // Phân loại gói chính/gói phụ từ care_plan_ids
     const mainPlan = (item.care_plan_ids || []).find(plan => plan.category === 'main');
     const supplementaryPlans = (item.care_plan_ids || []).filter(plan => plan.category === 'supplementary');
     return (
       <TouchableOpacity
-        style={[
-          styles.registeredCard,
-          { borderLeftColor: getPackageColor(mainPlan?.plan_type || 'default', 'main') }
-        ]}
+        style={styles.registeredCard}
         onPress={() => handlePackagePress(item)}
         activeOpacity={0.7}
       >
@@ -436,7 +453,7 @@ const ServicePackageScreen = ({ navigation }) => {
           <View style={styles.mainPackage}>
             <Text style={styles.packageTitle}>Gói chính</Text>
             <Text style={styles.packageName}>{mainPlan?.plan_name || 'Không có tên gói'}</Text>
-            <Text style={styles.packagePrice}>{formatCurrency(mainPlan?.monthly_price || 0)}/tháng</Text>
+            <Text style={styles.packagePrice}>{formatPrice(mainPlan?.monthly_price || 0)}/tháng</Text>
           </View>
 
           {supplementaryPlans.length > 0 && (
@@ -445,7 +462,7 @@ const ServicePackageScreen = ({ navigation }) => {
               {supplementaryPlans.map((plan, index) => (
                 <View key={plan._id || index} style={styles.supplementaryItem}>
                   <Text style={styles.supplementaryName}>{plan.plan_name || 'Không có tên'}</Text>
-                  <Text style={styles.supplementaryPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
+                  <Text style={styles.supplementaryPrice}>{formatPrice(plan.monthly_price || 0)}/tháng</Text>
                 </View>
               ))}
             </View>
@@ -453,8 +470,10 @@ const ServicePackageScreen = ({ navigation }) => {
 
           <View style={styles.totalCost}>
             <Text style={styles.totalLabel}>Tổng chi phí hàng tháng:</Text>
-            <Text style={styles.totalAmount}>{formatCurrency(item.care_plans_monthly_cost || 0)}</Text>
+            <Text style={styles.totalAmount}>{formatPrice(totalMonthly)}</Text>
           </View>
+          {/* Unit under total */}
+          <Text style={styles.unitUnderTotal}>× 10,000 VNĐ/tháng</Text>
         </View>
 
         <View style={styles.cardFooter}>
@@ -484,7 +503,7 @@ const ServicePackageScreen = ({ navigation }) => {
         <View style={styles.packageDetails}>
           <Text style={styles.availablePackageName}>{item.plan_name}</Text>
           <Text style={styles.availablePackageDesc}>{item.description}</Text>
-          <Text style={styles.availablePackagePrice}>{formatCurrency(item.monthly_price)}/tháng</Text>
+          <Text style={styles.availablePackagePrice}>{formatPrice(item.monthly_price)}/tháng</Text>
         </View>
         <View style={[styles.categoryBadge, { backgroundColor: item.category === 'main' ? '#2196F3' : '#607D8B' }]}>
           <Text style={styles.categoryText}>
@@ -560,7 +579,7 @@ const ServicePackageScreen = ({ navigation }) => {
                         <Text style={styles.mainPackageDetailName}>{selectedPackage.main_care_plan?.plan_name || 'Không có tên gói'}</Text>
                         <Text style={styles.packageDetailDescription}>{selectedPackage.main_care_plan?.description || 'Gói chăm sóc cơ bản'}</Text>
                       </View>
-                      <Text style={styles.mainPackageDetailPrice}>{formatCurrency(selectedPackage.main_care_plan?.monthly_price || 0)}/tháng</Text>
+                      <Text style={styles.mainPackageDetailPrice}>{formatPrice(selectedPackage.main_care_plan?.monthly_price || 0)}/tháng</Text>
                     </View>
                     
                     {selectedPackage.main_care_plan?.services_included && selectedPackage.main_care_plan.services_included.length > 0 && (
@@ -583,7 +602,7 @@ const ServicePackageScreen = ({ navigation }) => {
                         <View key={index} style={styles.supplementaryDetailCard}>
                           <View style={styles.supplementaryDetailHeader}>
                             <Text style={styles.supplementaryDetailName}>{plan.plan_name || 'Không có tên'}</Text>
-                            <Text style={styles.supplementaryDetailPrice}>{formatCurrency(plan.monthly_price || 0)}/tháng</Text>
+                            <Text style={styles.supplementaryDetailPrice}>{formatPrice(plan.monthly_price || 0)}/tháng</Text>
                           </View>
                           <Text style={styles.supplementaryDescription}>{plan.description || 'Dịch vụ bổ sung'}</Text>
                           
@@ -612,7 +631,7 @@ const ServicePackageScreen = ({ navigation }) => {
                     <View style={styles.paymentInfo}>
                       <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Tổng chi phí hàng tháng:</Text>
-                        <Text style={styles.paymentValue}>{formatCurrency(selectedPackage.total_monthly_cost || 0)}</Text>
+                        <Text style={styles.paymentValue}>{formatPrice(selectedPackage.total_monthly_cost || 0)}</Text>
                       </View>
                       <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Trạng thái thanh toán:</Text>
@@ -648,7 +667,7 @@ const ServicePackageScreen = ({ navigation }) => {
                       />
                     </View>
                     <Text style={styles.packageOverviewName}>{selectedPackage?.plan_name || 'Gói dịch vụ'}</Text>
-                    <Text style={styles.packageOverviewPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
+                    <Text style={styles.packageOverviewPrice}>{formatPrice(selectedPackage?.monthly_price || 0)}/tháng</Text>
                     <Text style={styles.packageOverviewDesc}>{selectedPackage?.description || 'Không có mô tả'}</Text>
                     <View style={[styles.categoryIndicator, { backgroundColor: selectedPackage?.category === 'main' ? '#2196F3' : '#607D8B' }]}>
                       <Text style={styles.categoryIndicatorText}>
@@ -786,7 +805,7 @@ const ServicePackageScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.packageInfoText}>
                   <Text style={styles.packageInfoName}>{selectedPackage?.plan_name}</Text>
-                  <Text style={styles.packageInfoPrice}>{formatCurrency(selectedPackage?.monthly_price || 0)}/tháng</Text>
+                  <Text style={styles.packageInfoPrice}>{formatPrice(selectedPackage?.monthly_price || 0)}/tháng</Text>
                 </View>
               </View>
 
@@ -911,35 +930,37 @@ const ServicePackageScreen = ({ navigation }) => {
       >
         {selectedTab === 'registered' ? (
           <View style={styles.registeredSection}>
-            {registeredPackages.length > 0 ? (
-              <FlatList
-                data={registeredPackages}
-                renderItem={renderRegisteredPackageCard}
-                keyExtractor={(item) => item._id}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="package-outline" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>Chưa có gói dịch vụ nào</Text>
-                <Text style={styles.emptyDesc}>
-                  Bạn chưa đăng ký gói dịch vụ nào cho người thân.{'\n'}
-                  Hãy xem các gói có sẵn để đăng ký.
-                </Text>
-                <TouchableOpacity
-                  style={styles.viewAvailableButton}
-                  onPress={() => setSelectedTab('available')}
-                >
-                  <Text style={styles.viewAvailableButtonText}>Xem gói có sẵn</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        ) : (
+             {registeredPackages.length > 0 ? (
+               <FlatList
+                 data={registeredPackages}
+                 renderItem={renderRegisteredPackageCard}
+                 keyExtractor={(item) => item._id}
+                 scrollEnabled={false}
+                 showsVerticalScrollIndicator={false}
+               />
+             ) : (
+               <View style={styles.emptyState}>
+                 <Ionicons name="package-outline" size={64} color="#ccc" />
+                 <Text style={styles.emptyTitle}>Chưa có gói dịch vụ nào</Text>
+                 <Text style={styles.emptyDesc}>
+                   {`Bạn chưa đăng ký gói dịch vụ nào cho người thân\nHãy xem các gói có sẵn để đăng ký.`}
+                 </Text>
+                 <TouchableOpacity
+                   style={styles.viewAvailableButton}
+                   onPress={() => setSelectedTab('available')}
+                 >
+                   <Text style={styles.viewAvailableButtonText}>Xem gói có sẵn</Text>
+                 </TouchableOpacity>
+               </View>
+             )}
+           </View>
+         ) : (
           <View style={styles.availableSection}>
             <View style={styles.categorySection}>
-              <Text style={styles.categoryTitle}>Gói Chăm Sóc Chính</Text>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>Gói Chăm Sóc Chính</Text>
+                <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+              </View>
               <Text style={styles.categoryDesc}>Gói dịch vụ chăm sóc cơ bản (bắt buộc)</Text>
               <FlatList
                 data={availablePackages.main_packages}
@@ -951,7 +972,10 @@ const ServicePackageScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.categorySection}>
-              <Text style={styles.categoryTitle}>Gói Dịch Vụ Bổ Sung</Text>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>Gói Dịch Vụ Bổ Sung</Text>
+                <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
+              </View>
               <Text style={styles.categoryDesc}>Dịch vụ chuyên khoa theo nhu cầu (tùy chọn)</Text>
               <FlatList
                 data={availablePackages.supplementary_packages}
@@ -1097,9 +1121,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    padding: 20,
   },
   registeredSection: {
     padding: 16,
+  },
+  unitRow: {
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  unitUnderTotal: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+    alignSelf: 'flex-end',
   },
   registeredCard: {
     backgroundColor: 'white',
@@ -1230,11 +1266,26 @@ const styles = StyleSheet.create({
   categorySection: {
     marginBottom: 24,
   },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   categoryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#212529',
-    marginBottom: 4,
+    flex: 1,
+  },
+  unitLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   categoryDesc: {
     fontSize: 14,

@@ -200,7 +200,7 @@ const FamilyNotificationsStack = () => (
 
 // Family Tab Navigator
 const FamilyTabNavigator = () => {
-  const notificationUnreadCount = useSelector((state) => state.notifications.unreadCount);
+  const notificationUnreadCount = useSelector((state) => state.messages?.unreadNotificationCount || 0);
   const { unreadCount: messageUnreadCount } = useUnreadMessages();
   const insets = useSafeAreaInsets();
   const { isTablet } = useResponsive();

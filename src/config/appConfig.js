@@ -9,9 +9,10 @@ export const API_CONFIG = {
   
   // IP thực tế từ log - WiFi network
   // BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
+  BASE_URL: 'http://192.168.2.1:8000', // IP WiFi thực tế từ log trên trường
   // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
   // BASE_URL: 'http://10.1.143.234:8000', // IP WiFi thực tế từ log trên trường student
-  BASE_URL: 'http://192.168.1.7:8000', // IP WiFi thực tế từ log
+  // BASE_URL: 'http://192.168.1.7:8000', // IP WiFi thực tế từ log
   
   // Các IP khác cho các môi trường khác nhau (uncomment để sử dụng)
   // BASE_URL: 'http://192.168.56.1:8000', // IP VirtualBox/Hyper-V
@@ -160,8 +161,19 @@ export const getApiBaseUrl = () => {
 // Helper function để format avatar/image URL
 export const getImageUri = (imagePath, type = 'avatar') => {
   if (!imagePath) {
-    // Trả về default avatar khi không có imagePath
-    return APP_CONFIG.DEFAULT_AVATAR;
+    // Không trả về ảnh mặc định; để UI tự hiển thị initials
+    return null;
+  }
+  
+  // Bỏ qua các giá trị placeholder/mặc định để tránh 404 và vòng lặp tải ảnh
+  const placeholderSet = new Set([
+    '/default-avatar.svg', 'default-avatar.svg',
+    '/default-avatar.png', 'default-avatar.png',
+    '/uploads/default-avatar.svg', '/uploads/default-avatar.png',
+    'avatar-placeholder', 'placeholder', 'null', 'undefined'
+  ]);
+  if (placeholderSet.has(String(imagePath).trim())) {
+    return null;
   }
   
   if (imagePath.startsWith('http') || imagePath.startsWith('https')) {

@@ -186,18 +186,22 @@ const PhotoSearchFilters = ({
 
           {/* Date Range Filter */}
           {renderSection('Thời gian', (
-            <RadioButton.Group onValueChange={handleDateRangeChange} value={filters.dateRange}>
+            <View style={styles.segmentedGroup}>
               {dateRanges.map(range => (
                 <TouchableOpacity
                   key={range.value}
-                  style={styles.radioItem}
+                  style={[
+                    styles.segment,
+                    filters.dateRange === range.value && styles.segmentActive
+                  ]}
                   onPress={() => handleDateRangeChange(range.value)}
                 >
-                  <RadioButton value={range.value} />
-                  <Text style={styles.radioLabel}>{range.label}</Text>
+                  <Text style={[styles.segmentText, filters.dateRange === range.value && styles.segmentTextActive]}>
+                    {range.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
-            </RadioButton.Group>
+            </View>
           ))}
 
           <Divider style={styles.divider} />
@@ -368,6 +372,30 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   chipTextSelected: {
+    color: '#fff',
+  },
+  segmentedGroup: {
+    flexDirection: 'row',
+    backgroundColor: '#f2f3f5',
+    borderRadius: 10,
+    padding: 4,
+    alignSelf: 'flex-start',
+  },
+  segment: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  segmentActive: {
+    backgroundColor: COLORS.primary,
+  },
+  segmentText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  segmentTextActive: {
     color: '#fff',
   },
   footer: {

@@ -704,7 +704,7 @@ const ActivityDetailsScreen = () => {
                       <Image source={{ uri: photo }} style={styles.photo} />
                       <IconButton
                         icon="close"
-                        size={16}
+                        size={12}
                         style={styles.removePhotoButton}
                         onPress={() => removeActivityPhoto(index)}
                       />
@@ -719,10 +719,15 @@ const ActivityDetailsScreen = () => {
           <Card style={styles.detailCard}>
             <Card.Content>
               <View style={styles.attendanceHeader}>
-                <View style={styles.attendanceTitleContainer}>
+                <View style={styles.attendanceLeftSection}>
                   <Text style={styles.sectionTitle}>Điểm danh ({participants.length} người)</Text>
                   {attendedCount > 0 && (
-                    <Badge style={styles.attendanceBadge}>{attendedCount}</Badge>
+                    <View style={styles.attendanceCountContainer}>
+                      <Text style={styles.attendanceCountText}>{attendedCount} người tham gia</Text>
+                      <View style={styles.attendanceBadge}>
+                        <MaterialIcons name="check-circle" size={16} color="#fff" />
+                      </View>
+                    </View>
                   )}
                 </View>
                 <Button
@@ -773,7 +778,7 @@ const ActivityDetailsScreen = () => {
                           >
                             <MaterialIcons 
                               name={isAttended ? "check-box" : "check-box-outline-blank"} 
-                              size={20} 
+                              size={26} 
                               color={isAttended ? COLORS.primary : COLORS.textSecondary} 
                             />
                           </TouchableOpacity>
@@ -816,7 +821,7 @@ const ActivityDetailsScreen = () => {
                             <Image source={{ uri: photo }} style={styles.participantPhoto} />
                             <IconButton
                               icon="close"
-                              size={16}
+                              size={12}
                               style={styles.removeParticipantPhotoButton}
                               onPress={() => {
                                 setParticipantPhotos(prev => ({
@@ -955,21 +960,42 @@ const styles = StyleSheet.create({
   attendanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  attendanceTitleContainer: {
+  attendanceLeftSection: {
+    flex: 1,
+    marginRight: 12,
+  },
+  attendanceCountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: COLORS.success + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  attendanceCountText: {
+    ...FONTS.body3,
+    color: COLORS.success,
+    fontWeight: '600',
+    marginRight: 4,
   },
   attendanceBadge: {
-    marginLeft: 8,
     backgroundColor: COLORS.success,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   attendanceButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 4,
+    alignSelf: 'flex-start',
   },
   attendanceButtonText: {
     fontSize: 14,
@@ -1063,10 +1089,12 @@ const styles = StyleSheet.create({
   },
   removePhotoButton: {
     position: 'absolute',
-    top: -5,
-    right: -5,
+    top: -3,
+    right: -3,
     backgroundColor: COLORS.error,
-    borderRadius: 10,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
   },
   attendedStatus: {
     ...FONTS.body3,

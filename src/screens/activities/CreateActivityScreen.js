@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar, Alert, KeyboardAvoidingView, Platform, FlatList, SafeAreaView } from 'react-native';
+import { View, StyleSheet, ScrollView, StatusBar, Alert, KeyboardAvoidingView, Platform, FlatList, SafeAreaView, TouchableOpacity, Pressable, Keyboard } from 'react-native';
 import { 
   Appbar, 
   TextInput, 
@@ -14,7 +14,8 @@ import {
   Checkbox,
   Card,
   Avatar,
-  ActivityIndicator
+  ActivityIndicator,
+  Searchbar
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -111,9 +112,12 @@ const CreateActivityScreen = () => {
   const [loadingResidents, setLoadingResidents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Dropdown picker states
+  // Filter states for residents
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ageFilter, setAgeFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [showResidentSelector, setShowResidentSelector] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [residentsOpen, setResidentsOpen] = useState(false);
   
   // Helper functions
   const getSelectedResidentsData = () => {
@@ -231,30 +235,52 @@ const CreateActivityScreen = () => {
     []
   );
 
-  const residentsItems = () => {
-    const availableResidents = getAvailableResidents();
-    return availableResidents.map(resident => {
-      let bedRoomInfo = 'Chưa phân công';
-      if (resident.bed_info) {
-        if (resident.bed_info.room_id) {
-          const roomNumber = resident.bed_info.room_id.room_number || 'N/A';
-          const bedNumber = resident.bed_info.bed_number || 'N/A';
-          bedRoomInfo = `P${roomNumber} - G${bedNumber}`;
-        } else if (resident.bed_info.bed_id) {
-          const roomNumber = resident.bed_info.bed_id.room_id?.room_number || 'N/A';
-          const bedNumber = resident.bed_info.bed_id.bed_number || 'N/A';
-          bedRoomInfo = `P${roomNumber} - G${bedNumber}`;
+  // Filter and search residents
+  const filteredResidents = useMemo(() => {
+    let filtered = getAvailableResidents();
+    
+    // Search by name
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(resident => 
+        resident.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Filter by age
+    if (ageFilter !== 'all') {
+      filtered = filtered.filter(resident => {
+        if (!resident.age || resident.age === 'N/A') return false;
+        const age = parseInt(resident.age);
+        switch (ageFilter) {
+          case '60-70':
+            return age >= 60 && age <= 70;
+          case '71-80':
+            return age >= 71 && age <= 80;
+          case '81-90':
+            return age >= 81 && age <= 90;
+          case '90+':
+            return age > 90;
+          default:
+            return true;
         }
-      }
-      
-      const ageDisplay = resident.age && resident.age !== 'N/A' ? `${resident.age} tuổi` : 'Tuổi N/A';
-      return {
-        label: `${resident.full_name} (${bedRoomInfo} • ${ageDisplay})`,
-        value: resident._id,
-        resident: resident
-      };
-    });
-  };
+      });
+    }
+    
+    // Filter by gender
+    if (genderFilter !== 'all') {
+      filtered = filtered.filter(resident => {
+        const residentGender = resident.gender;
+        if (genderFilter === 'Nam') {
+          return residentGender === 'male';
+        } else if (genderFilter === 'Nữ') {
+          return residentGender === 'female';
+        }
+        return false;
+      });
+    }
+    
+    return filtered;
+  }, [residents, selectedResidents, searchQuery, ageFilter, genderFilter]);
 
   // Simple handlers without useCallback to prevent focus issues
   const handleActivityTypeChange = (newType) => {
@@ -262,11 +288,35 @@ const CreateActivityScreen = () => {
     setActivityType(newType);
   };
 
-  const handleResidentSelect = (callback) => {
-    const value = callback(null);
-    if (value && !selectedResidents.includes(value)) {
-      setSelectedResidents(prev => [...prev, value]);
+  const getBedRoomInfo = (resident) => {
+    if (resident.bed_info) {
+      if (resident.bed_info.room_id) {
+        const roomNumber = resident.bed_info.room_id.room_number || 'N/A';
+        const bedNumber = resident.bed_info.bed_number || 'N/A';
+        return `P${roomNumber} - G${bedNumber}`;
+      } else if (resident.bed_info.bed_id) {
+        const roomNumber = resident.bed_info.bed_id.room_id?.room_number || 'N/A';
+        const bedNumber = resident.bed_info.bed_id.bed_number || 'N/A';
+        return `P${roomNumber} - G${bedNumber}`;
+      }
     }
+    return 'Chưa phân công';
+  };
+
+  const handleSearchQueryChange = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleAgeFilterChange = (filter) => {
+    setAgeFilter(filter);
+  };
+
+  const handleGenderFilterChange = (filter) => {
+    setGenderFilter(filter);
+  };
+
+  const toggleResidentSelector = () => {
+    setShowResidentSelector(!showResidentSelector);
   };
 
   const handleRemoveResident = (residentId) => {
@@ -430,9 +480,10 @@ const CreateActivityScreen = () => {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
+          keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
           removeClippedSubviews={false}
+          onScrollBeginDrag={Keyboard.dismiss}
         >
           <View style={styles.scrollContent}>
             <Text style={styles.sectionTitle}>Thông tin hoạt động</Text>
@@ -562,17 +613,17 @@ const CreateActivityScreen = () => {
                 style={styles.dropdownPicker}
                 dropDownContainerStyle={styles.dropdownContainerStyle}
                 placeholder="Chọn địa điểm"
-                zIndex={5000}
+                zIndex={10000}
                 zIndexInverse={1000}
-                listMode="SCROLLVIEW"
-                scrollViewProps={{
-                  nestedScrollEnabled: true,
-                  showsVerticalScrollIndicator: true,
-                }}
-                maxHeight={150}
+                listMode="FLATLIST"
+                maxHeight={300}
                 minHeight={50}
                 listItemContainerStyle={styles.listItemContainer}
                 listItemLabelStyle={styles.listItemLabel}
+                scrollViewProps={{
+                  nestedScrollEnabled: false,
+                  showsVerticalScrollIndicator: true,
+                }}
               />
               <HelperText type="error" visible={!!errors.location}>
                 {errors.location}
@@ -610,35 +661,129 @@ const CreateActivityScreen = () => {
                 <Text style={styles.loadingText}>Đang tải danh sách cư dân...</Text>
               </View>
             ) : (
-              <DropDownPicker
-                open={residentsOpen}
-                value={null}
-                items={residentsItems()}
-                setOpen={setResidentsOpen}
-                setValue={handleResidentSelect}
-                style={styles.dropdownPicker}
-                dropDownContainerStyle={styles.dropdownContainerStyle}
-                placeholder={`${getAvailableResidents().length} cư dân có sẵn`}
-                zIndex={4000}
-                zIndexInverse={2000}
-                multiple={false}
-                searchable={true}
-                searchPlaceholder="Tìm kiếm cư dân..."
-                listMode="SCROLLVIEW"
-                scrollViewProps={{
-                  nestedScrollEnabled: true,
-                  showsVerticalScrollIndicator: true,
-                }}
-                maxHeight={200}
-                minHeight={50}
-                searchTextInputProps={{
-                  style: styles.searchInput,
-                  placeholderTextColor: COLORS.textSecondary,
-                }}
-                searchContainerStyle={styles.searchContainer}
-                listItemContainerStyle={styles.listItemContainer}
-                listItemLabelStyle={styles.listItemLabel}
-              />
+              <View style={styles.residentSelectorContainer}>
+                <Button
+                  mode="outlined"
+                  onPress={toggleResidentSelector}
+                  style={styles.residentSelectorButton}
+                  icon={showResidentSelector ? "chevron-up" : "chevron-down"}
+                >
+                  {showResidentSelector ? 'Ẩn danh sách' : `Chọn cư dân (${filteredResidents.length} có sẵn)`}
+                </Button>
+                
+                {showResidentSelector && (
+                  <View style={styles.residentSelectorContent}>
+                    {/* Search Bar */}
+                    <Searchbar
+                      placeholder="Tìm kiếm cư dân..."
+                      onChangeText={handleSearchQueryChange}
+                      value={searchQuery}
+                      style={styles.searchBar}
+                    />
+                    
+                    {/* Filter Chips */}
+                    <View style={styles.filterContainer}>
+                      <Text style={styles.filterLabel}>Lọc theo độ tuổi:</Text>
+                      <View style={styles.filterChips}>
+                        {[
+                          { label: 'Tất cả', value: 'all' },
+                          { label: '60-70', value: '60-70' },
+                          { label: '71-80', value: '71-80' },
+                          { label: '81-90', value: '81-90' },
+                          { label: '90+', value: '90+' }
+                        ].map((filter) => (
+                          <Chip
+                            key={filter.value}
+                            selected={ageFilter === filter.value}
+                            onPress={() => handleAgeFilterChange(filter.value)}
+                            style={[
+                              styles.filterChip,
+                              ageFilter === filter.value && styles.selectedFilterChip
+                            ]}
+                            textStyle={[
+                              styles.filterChipText,
+                              ageFilter === filter.value && styles.selectedFilterChipText
+                            ]}
+                          >
+                            {filter.label}
+                          </Chip>
+                        ))}
+                      </View>
+                    </View>
+                    
+                    <View style={styles.filterContainer}>
+                      <Text style={styles.filterLabel}>Lọc theo giới tính:</Text>
+                      <View style={styles.filterChips}>
+                        {[
+                          { label: 'Tất cả', value: 'all' },
+                          { label: 'Nam', value: 'Nam' },
+                          { label: 'Nữ', value: 'Nữ' }
+                        ].map((filter) => (
+                          <Chip
+                            key={filter.value}
+                            selected={genderFilter === filter.value}
+                            onPress={() => handleGenderFilterChange(filter.value)}
+                            style={[
+                              styles.filterChip,
+                              genderFilter === filter.value && styles.selectedFilterChip
+                            ]}
+                            textStyle={[
+                              styles.filterChipText,
+                              genderFilter === filter.value && styles.selectedFilterChipText
+                            ]}
+                          >
+                            {filter.label}
+                          </Chip>
+                        ))}
+                      </View>
+                    </View>
+                    
+                    {/* Residents List */}
+                    <View style={styles.residentsListContainer}>
+                      <Text style={styles.residentsListTitle}>
+                        Danh sách cư dân ({filteredResidents.length})
+                      </Text>
+                      <FlatList
+                        data={filteredResidents}
+                        keyExtractor={(item) => item._id}
+                        renderItem={({ item }) => {
+                          const isSelected = selectedResidents.includes(item._id);
+                          const ageDisplay = item.age && item.age !== 'N/A' ? `${item.age} tuổi` : 'Tuổi N/A';
+                          const bedRoomInfo = getBedRoomInfo(item);
+                          
+                          return (
+                            <TouchableOpacity
+                              onPress={() => handleResidentToggle(item._id)}
+                              style={[
+                                styles.residentCard,
+                                isSelected && styles.selectedResidentCard
+                              ]}
+                            >
+                              <View style={styles.residentCardContent}>
+                                <View style={styles.residentInfo}>
+                                  <View style={styles.residentHeader}>
+                                    <Text style={styles.residentName}>{item.full_name}</Text>
+                                    <Checkbox
+                                      status={isSelected ? 'checked' : 'unchecked'}
+                                      onPress={() => handleResidentToggle(item._id)}
+                                    />
+                                  </View>
+                                  <Text style={styles.residentDetails}>
+                                    {bedRoomInfo} • {ageDisplay} • {item.gender === 'male' ? 'Nam' : item.gender === 'female' ? 'Nữ' : 'N/A'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        }}
+                        showsVerticalScrollIndicator={false}
+                        style={styles.residentsList}
+                        contentContainerStyle={styles.residentsListContent}
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
             )}
             
             {selectedResidents.length > 0 && (
@@ -671,7 +816,7 @@ const CreateActivityScreen = () => {
             >
               {submitting ? 'Đang tạo...' : 'Tạo hoạt động'}
             </Button>
-          </View>
+                      </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -794,21 +939,20 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 8,
     marginTop: 8,
-  },
-  searchInput: {
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  searchContainer: {
     backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   listItemContainer: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
+    minHeight: 50,
   },
   listItemLabel: {
     fontSize: 16,
@@ -824,6 +968,104 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: COLORS.textSecondary,
   },
+  // Resident Selector Styles
+  residentSelectorContainer: {
+    marginBottom: 16,
+  },
+  residentSelectorButton: {
+    marginBottom: 8,
+  },
+  residentSelectorContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 16,
+  },
+  searchBar: {
+    backgroundColor: COLORS.background,
+    marginBottom: 16,
+    elevation: 0,
+  },
+  filterContainer: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    ...FONTS.body3,
+    color: COLORS.text,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  selectedFilterChip: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    color: COLORS.text,
+  },
+  selectedFilterChipText: {
+    color: COLORS.surface,
+  },
+  residentsListContainer: {
+    marginTop: 8,
+  },
+  residentsListTitle: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  residentsList: {
+    maxHeight: 300,
+  },
+  residentsListContent: {
+    paddingBottom: 8,
+  },
+  residentCard: {
+    marginBottom: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+  },
+  selectedResidentCard: {
+    backgroundColor: COLORS.primary + '15',
+    borderColor: COLORS.primary,
+  },
+  residentCardContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  residentInfo: {
+    flex: 1,
+  },
+  residentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  residentName: {
+    ...FONTS.body2,
+    color: COLORS.text,
+    fontWeight: '600',
+    flex: 1,
+  },
+  residentDetails: {
+    ...FONTS.body3,
+    color: COLORS.textSecondary,
+  },
+
 });
 
 export default CreateActivityScreen; 

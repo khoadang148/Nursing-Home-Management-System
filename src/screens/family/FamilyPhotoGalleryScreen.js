@@ -44,7 +44,9 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 const { width, height } = Dimensions.get('window');
 const COLUMNS = 2;
 const GRID_SPACING = 8;
-const ITEM_DIMENSION = (width - (GRID_SPACING * (COLUMNS + 1) * 2)) / COLUMNS;
+const SIDE_PADDING = 16;
+// Two columns per row with side paddings and one inter-item gap
+const ITEM_DIMENSION = Math.floor((width - SIDE_PADDING * 2 - GRID_SPACING) / COLUMNS);
 
 // Helper để format image
 const getImageUriHelper = (imagePath) => {
@@ -260,6 +262,15 @@ const groupPhotosByDate = (photos) => {
     }));
 };
 
+// Chunk an array into rows of given size (for grid in SectionList)
+const chunkArray = (arr, size) => {
+  const result = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+};
+
 // =========================
 // 3. MAIN COMPONENT
 // =========================
@@ -292,7 +303,12 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   useEffect(() => {
     const filtered = filterAndSearchPhotos();
     setFilteredPhotos(filtered);
-    setSections(groupPhotosByDate(filtered));
+    const grouped = groupPhotosByDate(filtered);
+    const groupedAsRows = grouped.map(section => ({
+      title: section.title,
+      data: chunkArray(section.data, COLUMNS),
+    }));
+    setSections(groupedAsRows);
   }, [photos, searchQuery, activeFilters]);
   
   const loadData = async () => {
@@ -406,9 +422,9 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     setActiveFilters(filters);
   };
 
-  const handlePhotoPress = (photo, sectionData, photoIndex) => {
+  const handlePhotoPress = (photo) => {
     // Tạo danh sách tất cả ảnh từ tất cả sections để có thể lướt qua toàn bộ
-    const allPhotosFromSections = sections.flatMap(section => section.data);
+    const allPhotosFromSections = sections.flatMap(section => section.data).flat();
     const allImagesForViewing = allPhotosFromSections.map(p => ({
       uri: p.file_path,
       title: p.caption,
@@ -421,6 +437,9 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     setCurrentImageIndex(globalIndex >= 0 ? globalIndex : 0);
     setCurrentPhoto(photo);
     setIsImageViewVisible(true);
+
+    // Prefetch nearby images to reduce lag when swiping
+    prefetchAround(allImagesForViewing, globalIndex >= 0 ? globalIndex : 0, 2);
   };
 
   const handleImageIndexChange = (index) => {
@@ -429,12 +448,36 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     if (allImages[index]) {
       const photoUri = allImages[index].uri;
       // Tìm trong tất cả sections để lấy photo data đầy đủ
-      const allPhotosFromSections = sections.flatMap(section => section.data);
+      const allPhotosFromSections = sections.flatMap(section => section.data).flat();
       const photo = allPhotosFromSections.find(p => p.file_path === photoUri);
       if (photo) {
       setCurrentPhoto(photo);
       }
     }
+
+    // Prefetch neighbors for smoother swipe
+    prefetchAround(allImages, index, 2);
+  };
+  // Prefetch helper around a center index
+  const prefetchAround = (images, centerIndex, radius = 2) => {
+    if (!images || images.length === 0) return;
+    const start = Math.max(0, centerIndex - radius);
+    const end = Math.min(images.length - 1, centerIndex + radius);
+    for (let i = start; i <= end; i++) {
+      const uri = images[i]?.uri;
+      if (uri) {
+        Image.prefetch(uri).catch(() => {});
+      }
+    }
+  };
+
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex(prev => Math.min(allImages.length - 1, prev + 1));
   };
 
   const handleImageViewClose = () => {
@@ -469,54 +512,49 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
 
 
-  const renderPhotoItem = (item, index, sectionData) => {
-    const handlePress = () => {
-      handlePhotoPress(item, sectionData, index);
-    };
-
+  const renderPhotoCard = (photo) => {
+    const handlePress = () => handlePhotoPress(photo);
     const handleInfoPress = (e) => {
       e.stopPropagation();
-      console.log('Info button pressed for photo:', item._id);
-      setCurrentPhoto(item);
+      setCurrentPhoto(photo);
       setShowPhotoDetail(true);
     };
-
     return (
-      <TouchableOpacity
-        style={styles.photoItem}
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
-        <Image
-          source={{ uri: item.file_path }}
-          style={styles.photo}
-          resizeMode="cover"
-          fadeDuration={0}
-        />
-        
-        {/* Time stamp overlay */}
-        <View style={styles.photoTimeStamp}>
-          <Text style={styles.timeStampText}>
-            {item.taken_date 
-              ? new Date(item.taken_date).toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })
-              : '--:--'
-            }
-          </Text>
+      <TouchableOpacity style={styles.photoItem} onPress={handlePress} activeOpacity={0.85}>
+        <View style={styles.photoCard}>
+          <Image
+            source={{ uri: photo.file_path }}
+            style={styles.photoImage}
+            resizeMode="cover"
+            fadeDuration={0}
+          />
+          <View style={styles.photoTimeStamp}>
+            <Text style={styles.timeStampText}>
+              {photo.taken_date
+                ? new Date(photo.taken_date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                : '--:--'}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.photoInfoButton} onPress={handleInfoPress} activeOpacity={0.8}>
+            <MaterialIcons name="info" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
-        
-        {/* Info button overlay */}
-        <TouchableOpacity
-          style={styles.photoInfoButton}
-          onPress={handleInfoPress}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="info" size={16} color="#fff" />
-        </TouchableOpacity>
       </TouchableOpacity>
+    );
+  };
+
+  const renderRow = (row) => {
+    return (
+      <View style={styles.row}> 
+        {(Array.isArray(row) ? row : []).map((photo) => (
+          <View key={photo._id}>
+            {renderPhotoCard(photo)}
+          </View>
+        ))}
+        {Array.isArray(row) && row.length < COLUMNS && Array.from({ length: COLUMNS - row.length }).map((_, idx) => (
+          <View key={`spacer-${idx}`} style={[styles.photoItem, { opacity: 0 }]} />
+        ))}
+      </View>
     );
   };
 
@@ -619,16 +657,18 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         {sections.length > 0 ? (
           <SectionList
             sections={sections}
-            keyExtractor={(item, index) => `section-item-${item._id}-${index}`}
+            keyExtractor={(item, index) => {
+              if (Array.isArray(item)) {
+                const ids = item.map((p, i) => p?._id || `i${i}`).join('_');
+                return `row-${index}-${ids}`;
+              }
+              return `row-${index}`;
+            }}
             renderSectionHeader={renderSectionHeader}
-            renderItem={({ item, index, section }) => renderPhotoItem(item, index, section.data)}
+            renderItem={({ item }) => renderRow(item)}
             stickySectionHeadersEnabled={true}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             showsVerticalScrollIndicator={false}
-            numColumns={COLUMNS}
-            columnWrapperStyle={styles.row}
           />
         ) : (
           // Empty state when no results after filtering
@@ -663,7 +703,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           onImageIndexChange={handleImageIndexChange}
           backgroundColor="rgba(0, 0, 0, 0.95)"
           presentationStyle="overFullScreen"
-          HeaderComponent={({ imageIndex }) => (
+          HeaderComponent={() => (
             <View style={styles.imageViewerHeader}>
               <TouchableOpacity 
                 style={styles.imageViewerCloseButton}
@@ -680,11 +720,75 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
             </View>
           )}
           FooterComponent={({ imageIndex }) => (
-            <View style={styles.imageViewerFooter}>
-              <Text style={styles.imageViewerFooterText}>
-                {imageIndex + 1} / {allImages.length}
-              </Text>
-            </View>
+            <>
+              {/* Fullscreen overlay for centered arrows */}
+              <View style={styles.footerOverlay} pointerEvents="box-none">
+                {imageIndex > 0 && (
+                  <TouchableOpacity 
+                    style={styles.viewerLeftArrow}
+                    onPress={handlePrevImage}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="chevron-left" size={34} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                {imageIndex < allImages.length - 1 && (
+                  <TouchableOpacity 
+                    style={styles.viewerRightArrow}
+                    onPress={handleNextImage}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="chevron-right" size={34} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {/* Footer info */}
+              <View style={styles.imageViewerFooter}>
+                <Text style={styles.imageViewerFooterText}>
+                  {imageIndex + 1} / {allImages.length}
+                </Text>
+                {currentPhoto && (
+                  <View style={styles.viewerInfoBox}>
+                    {!!currentPhoto.caption && (
+                      <Text style={[styles.viewerInfoText, { fontWeight: '600' }]} numberOfLines={2}>
+                        {currentPhoto.caption}
+                      </Text>
+                    )}
+                    <Text style={styles.viewerInfoText}>
+                      Người đăng: {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
+                    </Text>
+                    <Text style={styles.viewerInfoText}>
+                      Thời gian: {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
+                    </Text>
+                    {(() => {
+                      const ra = currentPhoto.related_activity_id;
+                      const location = ra?.location || currentPhoto.location;
+                      const activity = ra?.activity_type || ra?.activity_name || currentPhoto.activity_type;
+                      return (
+                        <>
+                          <Text style={styles.viewerInfoText}>Địa điểm: {location || 'Không xác định'}</Text>
+                          <Text style={styles.viewerInfoText}>Hoạt động: {activity || 'Không xác định'}</Text>
+                        </>
+                      );
+                    })()}
+                    {!!currentPhoto.related_activity_id?.description && (
+                      <Text style={styles.viewerInfoText} numberOfLines={3}>
+                        Mô tả: {currentPhoto.related_activity_id?.description}
+                      </Text>
+                    )}
+                    {currentPhoto.tags && currentPhoto.tags.length > 0 && (
+                      <View style={styles.viewerTagsRow}>
+                        {currentPhoto.tags.slice(0, 3).map((tag, idx) => (
+                          <View key={idx} style={styles.viewerTagChip}>
+                            <Text style={styles.viewerTagText} numberOfLines={1}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </>
           )}
         />
 
@@ -864,7 +968,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     backgroundColor: '#fff',
-    paddingBottom: 8,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -872,7 +976,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: SIDE_PADDING,
     paddingVertical: 12,
   },
   backButton: {
@@ -910,10 +1014,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   searchBar: {
-    marginHorizontal: 16,
+    marginHorizontal: SIDE_PADDING,
     marginTop: 8,
     elevation: 0,
     backgroundColor: '#f5f5f5',
+    borderRadius: 12,
   },
   searchInput: {
     fontSize: 14,
@@ -927,8 +1032,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SIDE_PADDING,
+    paddingVertical: 12,
     backgroundColor: '#fff',
   },
   sectionHeaderText: {
@@ -941,32 +1046,47 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   sectionContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: SIDE_PADDING,
+    paddingBottom: 8,
   },
   gridContainer: {
     paddingBottom: 8,
   },
   row: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: GRID_SPACING,
-    paddingHorizontal: 0,
-    gap: GRID_SPACING,
+    paddingHorizontal: SIDE_PADDING,
   },
 
   // Photo Items
   photoItem: {
     width: ITEM_DIMENSION,
-    height: ITEM_DIMENSION,
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
     position: 'relative',
-    marginBottom: GRID_SPACING,
+  },
+  photoCard: {
+    width: '100%',
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
   },
   photo: {
     width: '100%',
     height: '100%',
+  },
+  photoImage: {
+    width: '100%',
+    aspectRatio: 4/3,
   },
   photoTimeStamp: {
     position: 'absolute',
@@ -984,14 +1104,43 @@ const styles = StyleSheet.create({
   },
   photoInfoButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 6,
+    right: 6,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     width: 24,
     height: 24,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  photoCaption: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+  },
+  photoDate: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#777',
+  },
+  photoTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  tagChip: {
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  tagChipText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '500',
   },
 
   // Image Viewer
@@ -1007,6 +1156,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 40,
+    zIndex: 1000,
+  },
+  footerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 900,
+  },
+  viewerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 1000,
   },
   imageViewerCloseButton: {
@@ -1030,15 +1195,69 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 64,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   imageViewerFooterText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  viewerInfoBox: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  viewerInfoText: {
+    color: '#fff',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  viewerTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  viewerTagChip: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  viewerTagText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  viewerLeftArrow: {
+    position: 'absolute',
+    left: 12,
+    top: '45%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 26,
+    width: 52,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerRightArrow: {
+    position: 'absolute',
+    right: 12,
+    top: '45%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 26,
+    width: 52,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Bottom Sheet

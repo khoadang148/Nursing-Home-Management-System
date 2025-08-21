@@ -28,6 +28,11 @@ import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import visitsService from '../../api/services/visitsService';
 import authService from '../../api/services/authService';
+import residentPhotosService from '../../api/services/residentPhotosService';
+import vitalSignsService from '../../api/services/vitalSignsService';
+import assessmentService from '../../api/services/assessmentService';
+import activityParticipationService from '../../api/services/activityParticipationService';
+import activityService from '../../api/services/activityService';
 
 const FamilyHomeScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -240,124 +245,196 @@ const FamilyHomeScreen = ({ navigation }) => {
       setUpcomingVisits([]);
     }
     
-    // Mock recent updates data
-    const updatedRecentUpdates = [
-      {
-        id: 'update_001',
-        type: 'assessment',
-        title: 'Đánh giá trong ngày',
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        residentId: familyResidents[0]?._id || 'res_001',
-        message: 'Tình trạng ổn định, cần theo dõi đường huyết. Tinh thần tốt, ăn uống bình thường.',
-        date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        time: '14:30',
-        read: false,
-        staffName: 'Bác sĩ Phạm Thị Doctor'
-      },
-      {
-        id: 'update_002',
-        type: 'vital_signs',
-        title: 'Đo chỉ số sinh hiệu',
-        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
-        residentId: familyResidents[1]?._id || 'res_002',
-        message: 'Huyết áp: 140/85 mmHg, Nhịp tim: 78 BPM, Nhiệt độ: 36.7°C. Cần theo dõi huyết áp.',
-        date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-        time: '12:15',
-        read: false,
-        staffName: 'Y tá Lê Văn Nurse'
-      },
-      {
-        id: 'update_003',
-        type: 'activity',
-        title: 'Tham gia hoạt động',
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        residentId: familyResidents[0]?._id || 'res_003',
-        message: 'Tham gia tập thể dục buổi sáng rất tích cực. Thời gian: 30 phút.',
-        date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        time: '09:00',
-        read: false,
-        staffName: 'Nhân viên Hoàng Văn Caregiver'
-      },
-      {
-        id: 'update_004',
-        type: 'medication',
-        title: 'Uống thuốc theo lịch',
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        residentId: familyResidents[0]?._id || 'res_001',
-        message: 'Đã uống đầy đủ thuốc theo chỉ định: Metformin 500mg, Amlodipine 5mg.',
-        date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-        time: '08:00',
-        read: true,
-        staffName: 'Y tá Lê Văn Nurse'
-      },
-      {
-        id: 'update_005',
-        type: 'assessment',
-        title: 'Đánh giá tình trạng giấc ngủ',
-        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
-        residentId: familyResidents[1]?._id || 'res_002',
-        message: 'Ngủ được 6 tiếng, thức giấc 2 lần trong đêm. Cần theo dõi thêm.',
-        date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-        time: '07:30',
-        read: true,
-        staffName: 'Y tá Lê Văn Nurse'
+    // Load real recent updates data - chỉ trong ngày
+    await loadRecentUpdates();
+    
+    // Load real upcoming activities data
+    await loadUpcomingActivities();
+  };
+
+  // Load cập nhật gần đây từ API thực (chỉ trong ngày)
+  const loadRecentUpdates = async () => {
+    try {
+      const realUpdates = [];
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      // Lấy danh sách residents của family
+      const residentIds = familyResidents.map(r => r._id);
+      
+      if (residentIds.length > 0) {
+        // 1. Kiểm tra chỉ số sinh hiệu trong ngày
+        try {
+          for (const residentId of residentIds) {
+            const vitalsResponse = await vitalSignsService.getVitalSignsByResidentId(residentId);
+            if (vitalsResponse.success && Array.isArray(vitalsResponse.data)) {
+              const todayVitals = vitalsResponse.data
+                .filter(vital => {
+                  const recordedAt = new Date(vital.recorded_at || vital.createdAt);
+                  return recordedAt >= todayStart && recordedAt <= todayEnd;
+                })
+                .slice(0, 2);
+              
+              todayVitals.forEach(vital => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realUpdates.push({
+                  id: `vital_${vital._id}`,
+                  type: 'vital_signs',
+                  title: 'Đo chỉ số sinh hiệu',
+                  residentName: resident?.full_name || 'Người cao tuổi',
+                  residentId: residentId,
+                  message: `Huyết áp: ${vital.blood_pressure || 'N/A'}, Nhịp tim: ${vital.heart_rate || 'N/A'} BPM, Nhiệt độ: ${vital.temperature || 'N/A'}°C`,
+                  date: vital.recorded_at || vital.createdAt || new Date().toISOString(),
+                  time: new Date(vital.recorded_at || vital.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                  read: false,
+                  staffName: vital.recorded_by?.full_name || 'Y tá'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching vitals for updates:', error);
+        }
+        
+        // 2. Kiểm tra đánh giá sức khỏe trong ngày
+        try {
+          for (const residentId of residentIds) {
+            const assessmentsResponse = await assessmentService.getAssessmentsByResidentId(residentId);
+            if (assessmentsResponse.success && Array.isArray(assessmentsResponse.data)) {
+              const todayAssessments = assessmentsResponse.data
+                .filter(assessment => {
+                  const createdAt = new Date(assessment.created_at || assessment.createdAt);
+                  return createdAt >= todayStart && createdAt <= todayEnd;
+                })
+                .slice(0, 2);
+              
+              todayAssessments.forEach(assessment => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realUpdates.push({
+                  id: `assessment_${assessment._id}`,
+                  type: 'assessment',
+                  title: 'Đánh giá sức khỏe',
+                  residentName: resident?.full_name || 'Người cao tuổi',
+                  residentId: residentId,
+                  message: assessment.notes || assessment.general_notes || 'Đã hoàn thành đánh giá tình trạng sức khỏe',
+                  date: assessment.created_at || assessment.createdAt || new Date().toISOString(),
+                  time: new Date(assessment.created_at || assessment.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                  read: false,
+                  staffName: assessment.conducted_by?.full_name || 'Bác sĩ'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching assessments for updates:', error);
+        }
+        
+        // 3. Kiểm tra tham gia hoạt động trong ngày
+        try {
+          for (const residentId of residentIds) {
+            const participationsResponse = await activityParticipationService.getParticipationsByResidentId(residentId);
+            if (participationsResponse.success && Array.isArray(participationsResponse.data)) {
+              const todayParticipations = participationsResponse.data
+                .filter(participation => {
+                  const createdAt = new Date(participation.created_at || participation.createdAt);
+                  return createdAt >= todayStart && createdAt <= todayEnd;
+                })
+                .slice(0, 2);
+              
+              todayParticipations.forEach(participation => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                realUpdates.push({
+                  id: `activity_${participation._id}`,
+                  type: 'activity',
+                  title: 'Tham gia hoạt động',
+                  residentName: resident?.full_name || 'Người cao tuổi',
+                  residentId: residentId,
+                  message: `Tham gia hoạt động: ${participation.activity_id?.activity_name || 'Không rõ'}. Mức độ tham gia: ${participation.participation_level || 'Tích cực'}`,
+                  date: participation.created_at || participation.createdAt || new Date().toISOString(),
+                  time: new Date(participation.created_at || participation.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                  read: false,
+                  staffName: 'Nhân viên chăm sóc'
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching activity participations for updates:', error);
+        }
       }
-    ];
-    
-    setLatestUpdates(updatedRecentUpdates);
-    
-    // Mock upcoming activities
-    const currentTime = new Date();
-    const todayStr = currentTime.toISOString().split('T')[0];
-    const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    setUpcomingActivities([
-      { 
-        id: 'act_001', 
-        title: 'Liệu pháp âm nhạc nhóm', 
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        date: todayStr,
-        time: '15:30',
-        location: 'Phòng Giải Trí',
-        residentId: familyResidents[0]?._id || 'res_001'
-      },
-      { 
-        id: 'act_002', 
-        title: 'Khám sức khỏe định kỳ', 
-        residentName: familyResidents[1]?.full_name || 'Người cao tuổi',
-        date: todayStr,
-        time: '16:30',
-        location: 'Phòng Y Tế',
-        residentId: familyResidents[1]?._id || 'res_002'
-      },
-      { 
-        id: 'act_003', 
-        title: 'Tập thể dục buổi sáng', 
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        date: tomorrowStr,
-        time: '07:30',
-        location: 'Sân Tập',
-        residentId: familyResidents[0]?._id || 'res_003'
-      },
-      { 
-        id: 'act_004', 
-        title: 'Đi dạo vườn', 
-        residentName: `${familyResidents[0]?.full_name || 'Người cao tuổi'} & ${familyResidents[1]?.full_name || 'Người cao tuổi'}`,
-        date: tomorrowStr,
-        time: '09:00',
-        location: 'Sân Vườn',
-        residentId: 'multiple'
-      },
-      { 
-        id: 'act_005', 
-        title: 'Hoạt động vẽ tranh', 
-        residentName: familyResidents[0]?.full_name || 'Người cao tuổi',
-        date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-        time: '14:00',
-        location: 'Phòng Nghệ Thuật',
-        residentId: familyResidents[0]?._id || 'res_003'
-      },
-    ]);
+      
+      // Sắp xếp theo thời gian mới nhất
+      realUpdates.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      setLatestUpdates(realUpdates.slice(0, 5)); // Chỉ lấy 5 cập nhật gần nhất
+    } catch (error) {
+      console.error('Error loading recent updates:', error);
+      setLatestUpdates([]);
+    }
+  };
+
+  // Load hoạt động sắp tới từ API thực
+  const loadUpcomingActivities = async () => {
+    try {
+      const realActivities = [];
+      const now = new Date();
+      
+      // Lấy danh sách residents của family
+      const residentIds = familyResidents.map(r => r._id);
+      
+      if (residentIds.length > 0) {
+        // Lấy hoạt động sắp tới từ activity participations
+        try {
+          for (const residentId of residentIds) {
+            const participationsResponse = await activityParticipationService.getParticipationsByResidentId(residentId);
+            if (participationsResponse.success && Array.isArray(participationsResponse.data)) {
+              // Lọc các hoạt động sắp tới (chưa diễn ra)
+              const upcomingParticipations = participationsResponse.data
+                .filter(participation => {
+                  if (!participation.activity_id?.date || !participation.activity_id?.time) return false;
+                  
+                  const activityDate = new Date(participation.activity_id.date);
+                  const [hours, minutes] = participation.activity_id.time.split(':');
+                  activityDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                  
+                  return activityDate > now;
+                })
+                .slice(0, 5);
+              
+              upcomingParticipations.forEach(participation => {
+                const resident = familyResidents.find(r => r._id === residentId);
+                const activity = participation.activity_id;
+                
+                realActivities.push({
+                  id: `upcoming_${participation._id}`,
+                  title: activity.activity_name || 'Hoạt động',
+                  residentName: resident?.full_name || 'Người cao tuổi',
+                  date: activity.date,
+                  time: activity.time,
+                  location: activity.location || 'Chưa xác định',
+                  residentId: residentId
+                });
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching upcoming activities:', error);
+        }
+      }
+      
+      // Sắp xếp theo thời gian gần nhất
+      realActivities.sort((a, b) => {
+        const dateA = new Date(`${a.date} ${a.time}`);
+        const dateB = new Date(`${b.date} ${b.time}`);
+        return dateA - dateB;
+      });
+      
+      setUpcomingActivities(realActivities.slice(0, 5)); // Chỉ lấy 5 hoạt động sắp tới
+    } catch (error) {
+      console.error('Error loading upcoming activities:', error);
+      setUpcomingActivities([]);
+    }
   };
 
   // Get icon for update type
@@ -375,6 +452,20 @@ const FamilyHomeScreen = ({ navigation }) => {
         return <MaterialIcons name="restaurant" size={18} color={COLORS.success} />;
       default:
         return <MaterialIcons name="info" size={18} color={COLORS.info} />;
+    }
+  };
+
+  // Handle when user taps on an update item
+  const handleUpdatePress = (update) => {
+    // Navigate to resident detail screen
+    if (update.residentId) {
+      navigation.navigate('FamilyResidentDetail', {
+        residentId: update.residentId,
+        residentName: update.residentName,
+        initialTab: update.type === 'vital_signs' ? 'vitals' : 
+                   update.type === 'assessment' ? 'assessments' : 
+                   update.type === 'activity' ? 'activities' : 'overview'
+      });
     }
   };
   
@@ -497,7 +588,7 @@ const FamilyHomeScreen = ({ navigation }) => {
                       <View style={styles.residentDetailRow}>
                         <MaterialIcons name="cake" size={16} color={COLORS.textSecondary} />
                         <Text style={styles.residentDetails}>
-                          {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
+                          Sinh ngày: {selectedResident.date_of_birth ? new Date(selectedResident.date_of_birth).toLocaleDateString('vi-VN') : 'Chưa có thông tin'} - {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
                         </Text>
                       </View>
                     </View>
