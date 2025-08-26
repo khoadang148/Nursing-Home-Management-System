@@ -6,6 +6,8 @@ import TaskListScreen from '../screens/tasks/TaskListScreen';
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 import CreateTaskScreen from '../screens/tasks/CreateTaskScreen';
 import EditTaskScreen from '../screens/tasks/EditTaskScreen';
+import RecordVitalsScreen from '../screens/residents/RecordVitalsScreen';
+import AddAssessmentScreen from '../screens/residents/AddAssessmentScreen';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +22,8 @@ const TasksNavigator = () => {
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
       <Stack.Screen name="EditTask" component={EditTaskScreen} />
+      <Stack.Screen name="RecordVitals" component={RecordVitalsScreen} />
+      <Stack.Screen name="AddAssessment" component={AddAssessmentScreen} />
     </Stack.Navigator>
   );
 };

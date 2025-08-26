@@ -39,6 +39,18 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
     return () => backHandler.remove();
   }, [canGoBack]);
 
+  // Handle component unmount (user navigates away)
+  useEffect(() => {
+    return () => {
+      // If user navigates away without completing payment, consider it cancelled
+      if (!paymentStatus) {
+        console.log('🚪 User navigated away - considering payment as cancelled');
+        // Note: We can't navigate here as component is unmounting
+        // The timeout will handle this case
+      }
+    };
+  }, [paymentStatus]);
+
   // Handle navigation state changes
   const onNavigationStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
@@ -47,21 +59,43 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
     const currentUrl = navState.url;
     console.log('🔄 WebView URL changed:', currentUrl);
     
-    // Kiểm tra URL PayOS success/cancel
+    // Prevent duplicate handling if payment status is already set
+    if (paymentStatus) {
+      console.log('⚠️ Payment status already set, skipping URL check');
+      return;
+    }
+    
+    // Kiểm tra URL PayOS success/cancel với nhiều pattern hơn
     if (currentUrl.includes('payos.vn/payment/success') || 
         currentUrl.includes('payment/success') || 
-        currentUrl.includes('success')) {
+        currentUrl.includes('success') ||
+        currentUrl.includes('thanh-toan-thanh-cong') ||
+        currentUrl.includes('payment-complete')) {
       console.log('✅ Payment success detected');
       setPaymentStatus('success');
       handlePaymentComplete('success');
     } else if (currentUrl.includes('payos.vn/payment/cancel') || 
                currentUrl.includes('payment/cancel') || 
-               currentUrl.includes('cancel')) {
-      console.log('❌ Payment cancelled');
+               currentUrl.includes('cancel') ||
+               currentUrl.includes('huy-thanh-toan') ||
+               currentUrl.includes('payment-cancelled') ||
+               currentUrl.includes('payment-cancel') ||
+               currentUrl.includes('thanh-toan-bi-huy') ||
+               currentUrl.includes('user-cancelled') ||
+               currentUrl.includes('user-cancel') ||
+               currentUrl.includes('404') ||
+               currentUrl.includes('page-not-found') ||
+               currentUrl.includes('error') ||
+               currentUrl.includes('not-found') ||
+               currentUrl.includes('bad-link') ||
+               currentUrl.includes('oops')) {
+      console.log('❌ Payment cancelled or error page detected');
       setPaymentStatus('cancel');
       handlePaymentComplete('cancel');
     } else if (currentUrl.includes('payment-error') || 
-               currentUrl.includes('error')) {
+               currentUrl.includes('payment-failed') ||
+               currentUrl.includes('thanh-toan-that-bai') ||
+               currentUrl.includes('payment-failure')) {
       console.log('💥 Payment error detected');
       setPaymentStatus('error');
       handlePaymentComplete('error');
@@ -70,11 +104,33 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
 
   // Handle payment completion
   const handlePaymentComplete = (status) => {
+    console.log('🚀 Handling payment completion with status:', status);
+    
+    // Clear any existing modals
+    setShowExitModal(false);
+    
+    // Force navigation immediately for cancelled payments
+    if (status === 'cancel') {
+      console.log('🧭 Immediately navigating to PaymentResult for cancelled payment');
+      navigation.replace('PaymentResult', {
+        billId: billData?.id,
+        paymentStatus: status,
+        paymentData: {
+          transaction_id: billData?.orderCode || 'N/A',
+          payment_method: 'PayOS',
+          amount: billData?.amount || 0,
+          timestamp: new Date().toISOString(),
+        }
+      });
+      return;
+    }
+    
     setTimeout(() => {
       if (onPaymentComplete) {
         onPaymentComplete(status, billData);
       } else {
         // Navigate to payment result screen
+        console.log('🧭 Navigating to PaymentResult with status:', status);
         navigation.replace('PaymentResult', {
           billId: billData?.id,
           paymentStatus: status,
@@ -86,7 +142,7 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
           }
         });
       }
-    }, 1000); // Reduced delay
+    }, 1500); // Increased delay to ensure smooth transition
   };
 
   // Handle WebView load start
@@ -116,14 +172,84 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
 
   // Handle exit payment
   const handleExitPayment = () => {
+    console.log('🚪 User confirmed exit payment');
     setShowExitModal(false);
-    navigation.goBack();
+    
+    // Set payment status to prevent duplicate handling
+    setPaymentStatus('cancel');
+    
+    // Navigate to payment result screen with cancelled status
+    setTimeout(() => {
+      console.log('🧭 Navigating to PaymentResult from exit payment');
+      navigation.replace('PaymentResult', {
+        billId: billData?.id,
+        paymentStatus: 'cancel',
+        paymentData: {
+          transaction_id: billData?.orderCode || 'N/A',
+          payment_method: 'PayOS',
+          amount: billData?.amount || 0,
+          timestamp: new Date().toISOString(),
+        }
+      });
+    }, 500); // Short delay to ensure modal is closed
   };
 
   // Handle continue payment
   const handleContinuePayment = () => {
+    console.log('✅ User chose to continue payment');
     setShowExitModal(false);
   };
+
+  // Add timeout to detect payment cancellation
+  useEffect(() => {
+    const paymentTimeout = setTimeout(() => {
+      // If no payment status is set after 5 minutes, consider it cancelled
+      if (!paymentStatus) {
+        console.log('⏰ Payment timeout - considering as cancelled');
+        setPaymentStatus('cancel');
+        handlePaymentComplete('cancel');
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearTimeout(paymentTimeout);
+  }, [paymentStatus]);
+
+  // Add timeout to detect stuck WebView (shorter timeout)
+  useEffect(() => {
+    const stuckTimeout = setTimeout(() => {
+      // If WebView is still loading after 30 seconds, consider it stuck
+      if (loading && !paymentStatus) {
+        console.log('⚠️ WebView appears to be stuck, treating as cancelled');
+        setPaymentStatus('cancel');
+        handlePaymentComplete('cancel');
+      }
+    }, 30 * 1000); // 30 seconds
+
+    return () => clearTimeout(stuckTimeout);
+  }, [loading, paymentStatus]);
+
+  // Add emergency timeout for any stuck state
+  useEffect(() => {
+    const emergencyTimeout = setTimeout(() => {
+      // If no payment status after 2 minutes, force navigation
+      if (!paymentStatus) {
+        console.log('🚨 Emergency timeout - forcing navigation to PaymentResult');
+        setPaymentStatus('cancel');
+        navigation.replace('PaymentResult', {
+          billId: billData?.id,
+          paymentStatus: 'cancel',
+          paymentData: {
+            transaction_id: billData?.orderCode || 'N/A',
+            payment_method: 'PayOS',
+            amount: billData?.amount || 0,
+            timestamp: new Date().toISOString(),
+          }
+        });
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearTimeout(emergencyTimeout);
+  }, [paymentStatus]);
 
   // Render loading indicator
   const renderLoading = () => (
@@ -184,7 +310,7 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
       </View>
 
       {/* Payment Status Overlay */}
-      {paymentStatus && (
+      {paymentStatus && !showExitModal && (
         <View style={styles.statusOverlay}>
           <View style={styles.statusContainer}>
             <MaterialIcons 
@@ -205,9 +331,16 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
             </Text>
             <Text style={styles.statusSubText}>
               {paymentStatus === 'success' ? 'Đang chuyển hướng...' :
-               paymentStatus === 'cancel' ? 'Bạn đã hủy thanh toán' :
+               paymentStatus === 'cancel' ? 'Đang chuyển hướng...' :
                'Có lỗi xảy ra trong quá trình thanh toán'}
             </Text>
+            {paymentStatus === 'cancel' && (
+              <ActivityIndicator 
+                size="small" 
+                color={COLORS.warning} 
+                style={{ marginTop: 16 }}
+              />
+            )}
           </View>
         </View>
       )}
@@ -221,10 +354,10 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
               size={48} 
               color={COLORS.warning} 
             />
-            <Text style={styles.exitTitle}>Thoát Thanh Toán?</Text>
+            <Text style={styles.exitTitle}>Hủy Thanh Toán?</Text>
             <Text style={styles.exitMessage}>
-              Bạn có chắc chắn muốn thoát khỏi trang thanh toán? 
-              Quá trình thanh toán sẽ bị hủy.
+              Bạn có chắc chắn muốn hủy thanh toán?{'\n'}
+              Hóa đơn sẽ được đánh dấu là "Chưa thanh toán" và bạn có thể thanh toán lại sau.
             </Text>
             
             <View style={styles.exitButtons}>
@@ -232,13 +365,13 @@ const PaymentWebViewScreen = ({ route, navigation }) => {
                 style={styles.exitButtonContinue}
                 onPress={handleContinuePayment}
               >
-                <Text style={styles.exitButtonContinueText}>Tiếp Tục</Text>
+                <Text style={styles.exitButtonContinueText}>Tiếp Tục Thanh Toán</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.exitButtonExit}
                 onPress={handleExitPayment}
               >
-                <Text style={styles.exitButtonExitText}>Thoát</Text>
+                <Text style={styles.exitButtonExitText}>Hủy Thanh Toán</Text>
               </TouchableOpacity>
             </View>
           </View>

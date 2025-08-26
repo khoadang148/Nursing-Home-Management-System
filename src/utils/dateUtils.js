@@ -219,6 +219,38 @@ export const formatDateFromBackend = (dateString) => {
   }
 };
 
+// Helper để format ngày theo múi giờ Việt Nam (UTC+7)
+export const formatDateToVietnamTime = (dateString) => {
+  if (!dateString) return '--';
+  
+  try {
+    const date = new Date(dateString);
+    // Sử dụng toLocaleDateString với timezone Việt Nam
+    return date.toLocaleDateString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
+  } catch (error) {
+    console.error('Error parsing date to Vietnam time:', dateString, error);
+    return '--';
+  }
+};
+
+// Helper để format ngày giờ theo múi giờ Việt Nam (UTC+7)
+export const formatDateTimeToVietnamTime = (dateString) => {
+  if (!dateString) return '--';
+  
+  try {
+    const date = new Date(dateString);
+    // Sử dụng toLocaleString với timezone Việt Nam
+    return date.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
+  } catch (error) {
+    console.error('Error parsing datetime to Vietnam time:', dateString, error);
+    return '--';
+  }
+};
+
 // Helper để format ngày giờ từ backend
 export const formatDateTimeFromBackend = (dateString) => {
   if (!dateString) return '--';

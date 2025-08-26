@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { medicationService } from '../../api/medicationService';
+import medicationService from '../../api/services/medicationService';
 
 // Async thunks
 export const fetchMedications = createAsyncThunk(

@@ -215,14 +215,38 @@ const FamilyNotificationsScreen = ({ navigation }) => {
     }
   };
 
+  // Save read status to AsyncStorage
+  const saveReadStatus = async (readNotifications) => {
+    try {
+      await AsyncStorage.setItem('READ_FAMILY_NOTIFICATIONS', JSON.stringify([...readNotifications]));
+    } catch (error) {
+      console.error('Error saving read status:', error);
+    }
+  };
+
+  // Load read status from AsyncStorage
+  const loadReadStatus = async () => {
+    try {
+      const readIds = await AsyncStorage.getItem('READ_FAMILY_NOTIFICATIONS');
+      if (readIds) {
+        return new Set(JSON.parse(readIds));
+      }
+      return new Set();
+    } catch (error) {
+      console.error('Error loading read status:', error);
+      return new Set();
+    }
+  };
+
   const loadNotifications = async () => {
     setLoading(true);
     
     try {
-      // Đảm bảo deletedNotificationIds đã được load
-      const currentDeletedIds = deletedNotificationIds.size === 0 
-        ? await loadDeletedNotifications() 
-        : deletedNotificationIds;
+      // Đảm bảo deletedNotificationIds và readNotificationIds đã được load
+      const [currentDeletedIds, currentReadIds] = await Promise.all([
+        deletedNotificationIds.size === 0 ? loadDeletedNotifications() : Promise.resolve(deletedNotificationIds),
+        loadReadStatus()
+      ]);
       
       const realNotifications = [];
       
@@ -245,14 +269,15 @@ const FamilyNotificationsScreen = ({ navigation }) => {
                 .slice(0, 3);
               
               recentPhotos.forEach(photo => {
+                const notificationId = `photo_${photo._id}`;
                 const resident = familyResidents.find(r => r._id === residentId);
                 realNotifications.push({
-                  id: `photo_${photo._id}`,
+                  id: notificationId,
                   title: 'Ảnh Mới Được Tải Lên',
                   message: `Có ảnh mới của ${resident?.full_name || 'người thân'} được tải lên từ hoạt động: ${photo.related_activity_id?.activity_name || 'Không rõ'}`,
                   type: 'photo_upload',
                   date: photo.uploaded_at || photo.createdAt || new Date().toISOString(),
-                  read: false,
+                  read: currentReadIds.has(notificationId),
                   priority: 'normal'
                 });
               });
@@ -277,14 +302,15 @@ const FamilyNotificationsScreen = ({ navigation }) => {
                 .slice(0, 2);
               
               recentVitals.forEach(vital => {
+                const notificationId = `vital_${vital._id}`;
                 const resident = familyResidents.find(r => r._id === residentId);
                 realNotifications.push({
-                  id: `vital_${vital._id}`,
+                  id: notificationId,
                   title: 'Cập Nhật Chỉ Số Sinh Hiệu',
                   message: `Chỉ số sinh hiệu mới của ${resident?.full_name || 'người thân'}: Huyết áp ${vital.blood_pressure || 'N/A'}, Nhịp tim ${vital.heart_rate || 'N/A'} BPM, Nhiệt độ ${vital.temperature || 'N/A'}°C`,
                   type: 'health',
                   date: vital.recorded_at || vital.createdAt || new Date().toISOString(),
-                  read: false,
+                  read: currentReadIds.has(notificationId),
                   priority: vital.blood_pressure && parseInt(vital.blood_pressure.split('/')[0]) > 140 ? 'high' : 'normal'
                 });
               });
@@ -309,14 +335,15 @@ const FamilyNotificationsScreen = ({ navigation }) => {
                 .slice(0, 2);
               
               recentAssessments.forEach(assessment => {
+                const notificationId = `assessment_${assessment._id}`;
                 const resident = familyResidents.find(r => r._id === residentId);
                 realNotifications.push({
-                  id: `assessment_${assessment._id}`,
+                  id: notificationId,
                   title: 'Đánh Giá Sức Khỏe Mới',
                   message: `Đánh giá mới cho ${resident?.full_name || 'người thân'}: ${assessment.notes || assessment.general_notes || 'Đã hoàn thành đánh giá tình trạng sức khỏe'}`,
                   type: 'health',
                   date: assessment.created_at || assessment.createdAt || new Date().toISOString(),
-                  read: false,
+                  read: currentReadIds.has(notificationId),
                   priority: 'normal'
                 });
               });
@@ -341,14 +368,15 @@ const FamilyNotificationsScreen = ({ navigation }) => {
                 .slice(0, 3);
               
               recentParticipations.forEach(participation => {
+                const notificationId = `activity_${participation._id}`;
                 const resident = familyResidents.find(r => r._id === residentId);
                 realNotifications.push({
-                  id: `activity_${participation._id}`,
+                  id: notificationId,
                   title: 'Tham Gia Hoạt Động',
                   message: `${resident?.full_name || 'Người thân'} đã tham gia hoạt động: ${participation.activity_id?.activity_name || 'Không rõ'}. Mức độ tham gia: ${participation.participation_level || 'Bình thường'}`,
                   type: 'activity',
                   date: participation.created_at || participation.createdAt || new Date().toISOString(),
-                  read: false,
+                  read: currentReadIds.has(notificationId),
                   priority: 'normal'
                 });
               });
@@ -362,7 +390,7 @@ const FamilyNotificationsScreen = ({ navigation }) => {
       // 5. Thêm nhắc nhở thanh toán
       try {
         if (user?.id) {
-          const billsResponse = await billsService.familyService.getBillsByFamilyMember({ family_member_id: user.id });
+          const billsResponse = await billsService.getBillsByFamilyMember({ family_member_id: user.id });
           if (billsResponse.data && Array.isArray(billsResponse.data)) {
             const upcomingBills = billsResponse.data
               .filter(bill => {
@@ -374,13 +402,14 @@ const FamilyNotificationsScreen = ({ navigation }) => {
               .slice(0, 3);
             
             upcomingBills.forEach(bill => {
+              const notificationId = `bill_${bill._id}`;
               realNotifications.push({
-                id: `bill_${bill._id}`,
+                id: notificationId,
                 title: 'Nhắc Nhở Thanh Toán',
                 message: `Hóa đơn "${bill.title}" sẽ đến hạn thanh toán vào ${new Date(bill.due_date).toLocaleDateString('vi-VN')}. Số tiền: ${new Intl.NumberFormat('vi-VN').format(bill.amount)} VNĐ`,
                 type: 'payment',
                 date: bill.created_at || new Date().toISOString(),
-                read: false,
+                read: currentReadIds.has(notificationId),
                 priority: 'high'
               });
             });
@@ -462,13 +491,19 @@ const FamilyNotificationsScreen = ({ navigation }) => {
     }
   };
 
-  const handleNotificationPress = (notification) => {
+  const handleNotificationPress = async (notification) => {
     // If notification is unread, mark it as read
     if (!notification.read) {
+      // Update local state immediately
       const updatedNotifications = notifications.map(n => 
         n.id === notification.id ? { ...n, read: true } : n
       );
       setNotifications(updatedNotifications);
+      
+      // Save read status to AsyncStorage
+      const currentReadIds = await loadReadStatus();
+      currentReadIds.add(notification.id);
+      await saveReadStatus(currentReadIds);
     }
 
     // Navigate based on notification type
@@ -476,8 +511,11 @@ const FamilyNotificationsScreen = ({ navigation }) => {
       case 'visit':
         navigation.navigate('Visits');
         break;
-      case 'photo':
-        navigation.navigate('Gallery');
+      case 'photo_upload':
+        navigation.navigate('HinhAnh');
+        break;
+      case 'payment':
+        navigation.navigate('HoaDon');
         break;
       default:
         // Show detail alert for other types
@@ -490,7 +528,7 @@ const FamilyNotificationsScreen = ({ navigation }) => {
     }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     Alert.alert(
       'Đánh dấu tất cả đã đọc',
       'Bạn có muốn đánh dấu tất cả thông báo là đã đọc?',
@@ -498,9 +536,14 @@ const FamilyNotificationsScreen = ({ navigation }) => {
         { text: 'Hủy', style: 'cancel' },
         { 
           text: 'Đồng ý', 
-          onPress: () => {
+          onPress: async () => {
+            // Update local state immediately
             const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
             setNotifications(updatedNotifications);
+            
+            // Save read status for all notifications to AsyncStorage
+            const allNotificationIds = new Set(notifications.map(n => n.id));
+            await saveReadStatus(allNotificationIds);
           }
         }
       ]
@@ -517,16 +560,16 @@ const FamilyNotificationsScreen = ({ navigation }) => {
           text: 'Xóa',
           style: 'destructive',
           onPress: async () => {
+            // Update local state immediately
+            const updatedNotifications = notifications.filter(n => n.id !== notificationId);
+            setNotifications(updatedNotifications);
+            
             // Thêm vào danh sách đã xóa
             const newDeletedIds = new Set([...deletedNotificationIds, notificationId]);
             setDeletedNotificationIds(newDeletedIds);
             
             // Lưu vào AsyncStorage
             await saveDeletedNotifications(newDeletedIds);
-            
-            // Cập nhật danh sách thông báo hiển thị
-            const updatedNotifications = notifications.filter(n => n.id !== notificationId);
-            setNotifications(updatedNotifications);
           }
         }
       ]

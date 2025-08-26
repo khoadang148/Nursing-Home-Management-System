@@ -686,15 +686,9 @@ const FamilyHomeScreen = ({ navigation }) => {
               <Text style={styles.quickActionText}>Hóa Đơn</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.quickActionButton}
-              onPress={() => navigation.navigate('HoTro')}
-            >
-              <View style={[styles.iconBackground, { backgroundColor: COLORS.info }]}>
-                <MaterialIcons name="help-outline" size={24} color="white" />
-              </View>
-              <Text style={styles.quickActionText}>Hỗ Trợ</Text>
-            </TouchableOpacity>
+            <View style={styles.quickActionButton}>
+              {/* Empty space to maintain 3-column layout */}
+            </View>
           </View>
         </View>
         

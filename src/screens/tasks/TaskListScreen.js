@@ -11,102 +11,9 @@ import {
 import { Appbar, FAB, Chip, Searchbar, Menu, Divider } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
-
-// Mock data for tasks
-export const mockTasks = [
-  {
-    id: '1',
-    title: 'Quản lý thuốc',
-    description: 'Quản lý thuốc buổi sáng cho John Doe',
-    dueDate: '2024-03-15T09:00:00',
-    priority: 'Cao',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '1',
-    residentName: 'John Doe',
-    roomNumber: '101',
-    category: 'Thuốc',
-  },
-  {
-    id: '2',
-    title: 'Kiểm tra huyết áp',
-    description: 'Kiểm tra và ghi lại huyết áp của Mary Smith',
-    dueDate: '2024-03-15T10:30:00',
-    priority: 'Trung bình',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '2',
-    residentName: 'Mary Smith',
-    roomNumber: '102',
-    category: 'Dấu hiệu sinh tồn',
-  },
-  {
-    id: '3',
-    title: 'Buổi vật lý trị liệu',
-    description: 'Hỗ trợ William Johnson với các bài tập PT',
-    dueDate: '2024-03-15T13:00:00',
-    priority: 'Trung bình',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '3',
-    residentName: 'William Johnson',
-    roomNumber: '103',
-    category: 'Liệu pháp',
-  },
-  {
-    id: '4',
-    title: 'Thay băng vết thương',
-    description: 'Thay băng vết thương cho Patricia Brown',
-    dueDate: '2024-03-15T11:15:00',
-    priority: 'Cao',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '4',
-    residentName: 'Patricia Brown',
-    roomNumber: '104',
-    category: 'Điều trị',
-  },
-  {
-    id: '5',
-    title: 'Hoạt động xã hội',
-    description: 'Đưa Richard Miller đến hoạt động nhóm tại phòng chung',
-    dueDate: '2024-03-15T14:30:00',
-    priority: 'Thấp',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '5',
-    residentName: 'Richard Miller',
-    roomNumber: '105',
-    category: 'Hoạt động',
-  },
-  {
-    id: '6',
-    title: 'Quản lý thuốc',
-    description: 'Quản lý thuốc buổi chiều cho John Doe',
-    dueDate: '2024-03-15T15:00:00',
-    priority: 'Cao',
-    status: 'Chờ xử lý',
-    assignedTo: 'Jane Wilson',
-    residentId: '1',
-    residentName: 'John Doe',
-    roomNumber: '101',
-    category: 'Thuốc',
-  },
-  {
-    id: '7',
-    title: 'Thay ga giường',
-    description: 'Thay ga giường cho Mary Smith',
-    dueDate: '2024-03-15T10:00:00',
-    priority: 'Thấp',
-    status: 'Hoàn thành',
-    completedAt: '2024-03-15T09:45:00',
-    assignedTo: 'Jane Wilson',
-    residentId: '2',
-    residentName: 'Mary Smith',
-    roomNumber: '102',
-    category: 'Vệ sinh',
-  },
-];
+import staffAssignmentService from '../../api/services/staffAssignmentService';
+import vitalSignsService from '../../api/services/vitalSignsService';
+import assessmentService from '../../api/services/assessmentService';
 
 const TaskListScreen = ({ navigation }) => {
   const [tasks, setTasks] = useState([]);
@@ -118,37 +25,151 @@ const TaskListScreen = ({ navigation }) => {
   const [activeSort, setActiveSort] = useState('time'); // time, priority, resident
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    // Simulating API fetch
-    setTimeout(() => {
-      setTasks(mockTasks);
+  const isSameDayVN = (dateStr) => {
+    if (!dateStr) return false;
+    const tz = 'Asia/Ho_Chi_Minh';
+    const now = new Date();
+    const d = new Date(dateStr);
+    const [y1, m1, day1] = now
+      .toLocaleDateString('vi-VN', { timeZone: tz })
+      .split('/')
+      .map(Number);
+    const [y2, m2, day2] = d
+      .toLocaleDateString('vi-VN', { timeZone: tz })
+      .split('/')
+      .map(Number);
+    return y1 === y2 && m1 === m2 && day1 === day2;
+  };
+
+  const buildTasksFromAssignments = async () => {
+    setLoading(true);
+    try {
+      const assignRes = await staffAssignmentService.getMyAssignments();
+      console.log('🔍 Staff assignments response:', assignRes);
+      
+      if (!assignRes.success) {
+        console.log('❌ Failed to get staff assignments:', assignRes.error);
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+      const assignments = Array.isArray(assignRes.data) ? assignRes.data : [];
+      console.log('📋 Found assignments:', assignments.length);
+
+      const taskPromises = assignments.map(async (asg) => {
+        const resident = asg.resident_id || asg.resident || {};
+        const residentId = resident._id || asg.resident_id || asg.residentId;
+        const residentName = resident.full_name || resident.name || 'Không rõ tên';
+        
+        console.log('👤 Processing resident:', { residentId, residentName });
+
+        // Get bed assignment info
+        let roomNumber = '—';
+        try {
+          console.log('🛏️ Fetching bed assignment for resident:', residentId);
+          const bedRes = await staffAssignmentService.getBedAssignmentByResidentId(residentId);
+          console.log('🛏️ Bed assignment response:', bedRes);
+          
+          if (bedRes.success && bedRes.data && bedRes.data.length > 0) {
+            const bedAssignment = bedRes.data[0]; // Get the latest assignment
+            console.log('🛏️ Bed assignment data:', bedAssignment);
+            
+            const room = bedAssignment.bed_id?.room_id;
+            const bed = bedAssignment.bed_id;
+            console.log('🏠 Room data:', room);
+            console.log('🛏️ Bed data:', bed);
+            
+            if (room && bed) {
+              roomNumber = `Phòng ${room.room_number} - Giường ${bed.bed_number}`;
+            } else if (room) {
+              roomNumber = `Phòng ${room.room_number}`;
+            } else if (bed) {
+              roomNumber = `Giường ${bed.bed_number}`;
+            }
+            console.log('📍 Final room number:', roomNumber);
+          } else {
+            console.log('⚠️ No bed assignment found for resident:', residentId);
+          }
+        } catch (error) {
+          console.log('❌ Error fetching bed assignment:', error);
+        }
+
+        // Check today's vitals
+        const vitalsRes = await vitalSignsService.getVitalSignsByResidentId(residentId);
+        const hasTodayVitals = vitalsRes.success && Array.isArray(vitalsRes.data)
+          ? vitalsRes.data.some(v => isSameDayVN(v.date_time || v.created_at || v.date))
+          : false;
+
+        // Check today's assessments
+        const assessRes = await assessmentService.getAssessmentsByResidentId(residentId);
+        const hasTodayAssessment = assessRes.success && Array.isArray(assessRes.data)
+          ? assessRes.data.some(a => isSameDayVN(a.created_at || a.assessment_date || a.date))
+          : false;
+
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 0, 0);
+
+        return [
+          {
+            id: `vitals_${residentId}`,
+            type: 'vitals',
+            residentId,
+            residentName,
+            roomNumber,
+            title: 'Ghi nhận chỉ số sinh hiệu',
+            description: `Ghi nhận sinh hiệu hôm nay cho ${residentName}`,
+            dueDate: endOfDay.toISOString(),
+            status: hasTodayVitals ? 'Hoàn thành' : 'Chờ xử lý',
+            category: 'Sinh hiệu',
+          },
+          {
+            id: `assessment_${residentId}`,
+            type: 'assessment',
+            residentId,
+            residentName,
+            roomNumber,
+            title: 'Thực hiện đánh giá',
+            description: `Đánh giá tình trạng hôm nay cho ${residentName}`,
+            dueDate: endOfDay.toISOString(),
+            status: hasTodayAssessment ? 'Hoàn thành' : 'Chờ xử lý',
+            category: 'Đánh giá',
+          },
+        ];
+      });
+
+      const tasksNested = await Promise.all(taskPromises);
+      const builtTasks = tasksNested.flat();
+      console.log('✅ Built tasks:', builtTasks);
+      setTasks(builtTasks);
+    } catch (e) {
+      console.log('❌ Load tasks from assignments error:', e);
+      setTasks([]);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  useEffect(() => {
+    buildTasksFromAssignments();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulating refresh
-    setTimeout(() => {
-      setTasks(mockTasks);
-      setRefreshing(false);
-    }, 1000);
+    buildTasksFromAssignments().finally(() => setRefreshing(false));
   };
 
   const getFilteredTasks = () => {
     let filtered = [...tasks];
 
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(
         task =>
           task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.residentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          task.roomNumber.toLowerCase().includes(searchQuery.toLowerCase())
+          String(task.roomNumber).toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Apply status filter
     switch (activeFilter) {
       case 'pending':
         filtered = filtered.filter(task => task.status === 'Chờ xử lý');
@@ -165,11 +186,9 @@ const TaskListScreen = ({ navigation }) => {
         );
         break;
       default:
-        // 'all' - no filtering
         break;
     }
 
-    // Apply sorting
     switch (activeSort) {
       case 'time':
         filtered.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
@@ -188,87 +207,37 @@ const TaskListScreen = ({ navigation }) => {
     return filtered;
   };
 
-  const markTaskCompleted = (taskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: 'Hoàn thành',
-              completedAt: new Date().toISOString(),
-            }
-          : task
-      )
-    );
-  };
-
-  const markTaskPending = (taskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: 'Chờ xử lý',
-              completedAt: null,
-            }
-          : task
-      )
-    );
+  const handlePressTask = (item) => {
+    if (item.type === 'vitals') {
+      navigation.navigate('RecordVitals', { residentId: item.residentId });
+    } else if (item.type === 'assessment') {
+      navigation.navigate('AddAssessment', { residentId: item.residentId });
+    } else {
+      navigation.navigate('TaskDetail', { task: item });
+    }
   };
 
   const renderTaskItem = ({ item }) => {
     const dueDate = new Date(item.dueDate);
-    const isOverdue = dueDate < new Date() && item.status === 'Pending';
-    
-    // Format the due time
+    const isOverdue = dueDate < new Date() && item.status === 'Chờ xử lý';
     const dueTime = dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Calculate if the task is due today
     const today = new Date();
     const isToday = 
       dueDate.getDate() === today.getDate() &&
       dueDate.getMonth() === today.getMonth() &&
       dueDate.getFullYear() === today.getFullYear();
-      
-    // Calculate the date string to display
-            let dateString = isToday ? 'Hôm nay' : dueDate.toLocaleDateString('vi-VN');
-    
+    let dateString = isToday ? 'Hôm nay' : dueDate.toLocaleDateString('vi-VN');
+
     return (
       <TouchableOpacity
         style={styles.taskCard}
-        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+        onPress={() => handlePressTask(item)}
       >
         <View style={styles.taskHeader}>
           <View style={styles.taskTitleContainer}>
             <Text style={styles.taskTitle} numberOfLines={1}>
               {item.title}
             </Text>
-            <Chip
-              style={[
-                styles.priorityChip,
-                {
-                  backgroundColor:
-                    item.priority === 'Cao'
-                      ? COLORS.error + '20'
-                      : item.priority === 'Trung bình'
-                      ? COLORS.warning + '20'
-                      : COLORS.info + '20',
-                },
-              ]}
-              textStyle={{
-                color:
-                  item.priority === 'Cao'
-                    ? COLORS.error
-                    : item.priority === 'Trung bình'
-                    ? COLORS.warning
-                    : COLORS.info,
-                ...FONTS.body3,
-                fontSize: 10,
-                fontWeight: 'bold',
-              }}
-            >
-              {item.priority}
-            </Chip>
           </View>
           
           <View style={styles.taskStatusContainer}>
@@ -304,7 +273,7 @@ const TaskListScreen = ({ navigation }) => {
         <View style={styles.taskResidentInfo}>
           <MaterialIcons name="person" size={16} color={COLORS.textSecondary} />
           <Text style={styles.taskResidentName}>{item.residentName}</Text>
-          <Text style={styles.taskRoomNumber}>Phòng {item.roomNumber}</Text>
+          <Text style={styles.taskRoomNumber}>{item.roomNumber}</Text>
         </View>
         
         <Text style={styles.taskDescription} numberOfLines={2}>
@@ -328,17 +297,12 @@ const TaskListScreen = ({ navigation }) => {
             {item.status === 'Chờ xử lý' ? (
               <TouchableOpacity
                 style={styles.completeButton}
-                onPress={() => markTaskCompleted(item.id)}
+                onPress={() => handlePressTask(item)}
               >
-                <MaterialIcons name="check-circle" size={24} color={COLORS.success} />
+                <MaterialIcons name="play-circle" size={24} color={COLORS.primary} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.undoButton}
-                onPress={() => markTaskPending(item.id)}
-              >
-                <MaterialIcons name="undo" size={24} color={COLORS.primary} />
-              </TouchableOpacity>
+              <MaterialIcons name="check-circle" size={24} color={COLORS.success} />
             )}
           </View>
         </View>
@@ -500,12 +464,13 @@ Quá hạn
         refreshing={refreshing}
       />
 
-      <FAB
+      {/* Hidden create button for now */}
+      {/* <FAB
         style={styles.fab}
         icon="plus"
         onPress={() => navigation.navigate('CreateTask')}
         color={COLORS.surface}
-      />
+      /> */}
     </View>
   );
 };

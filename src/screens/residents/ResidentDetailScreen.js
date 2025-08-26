@@ -695,7 +695,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           data={photos}
           keyExtractor={item => item._id}
           numColumns={2}
-          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: cardMargin }}
+          columnWrapperStyle={{ gap: cardMargin, marginBottom: cardMargin }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -711,7 +711,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             const displayTags = tags.slice(0, 2);
             const hasMoreTags = tags.length > 2;
             return (
-              <Surface style={[styles.photoCard, { width: cardWidth, marginBottom: cardMargin }] }>
+              <Surface style={[styles.photoCard, { flex: 1, marginBottom: cardMargin }] }>
                 <TouchableOpacity activeOpacity={0.7} onPress={() => { 
                   setImageViewerPhotos(photos); 
                   setImageViewerIndex(index); 
@@ -1798,8 +1798,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusChip: {
-    height: 28,
-    borderRadius: 14,
+    height: 32,
+    borderRadius: 16,
   },
   vitalDate: { 
     ...FONTS.h4, 
@@ -1917,8 +1917,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    minWidth: 0,
-    maxWidth: '100%',
   },
   photoImage: {
     width: '100%',
@@ -1937,12 +1935,9 @@ const styles = StyleSheet.create({
     marginRight: 4,
     marginBottom: 4,
     backgroundColor: COLORS.primary + '15',
-    height: 22,
+    height: 28,
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 0,
-    borderRadius: 8,
-    minHeight: 20,
     maxWidth: 130,
   },
   photoTagText: {

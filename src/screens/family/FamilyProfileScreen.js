@@ -48,7 +48,7 @@ import { logout, updateProfile } from '../../redux/slices/authSlice';
 import { useNotification } from '../../components/NotificationSystem';
 
 // Import mock data for fallback
-import { familyMembers, residents } from '../../api/mockData';
+
 
 const FamilyProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();

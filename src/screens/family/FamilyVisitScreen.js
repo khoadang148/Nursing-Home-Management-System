@@ -26,7 +26,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 
 // Import API service
-import apiService from '../../api/apiService';
 import { addNotification } from '../../redux/slices/notificationSlice';
 import visitsService from '../../api/services/visitsService';
 

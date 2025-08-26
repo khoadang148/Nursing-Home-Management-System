@@ -14,6 +14,8 @@ import {
   SectionList,
   SafeAreaView,
   Modal,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
@@ -32,6 +34,7 @@ import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 import ImageViewing from 'react-native-image-viewing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomSheet from '@gorhom/bottom-sheet';
+import * as FileSystem from 'expo-file-system';
 
 import PhotoSearchFilters from '../../components/PhotoSearchFilters';
 import residentPhotosService from '../../api/services/residentPhotosService';
@@ -290,6 +293,12 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const [activeFilters, setActiveFilters] = useState({});
   const [showPhotoDetail, setShowPhotoDetail] = useState(false);
   
+  // Download functionality states
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState(new Set());
+  const [downloadingPhotos, setDownloadingPhotos] = useState(new Set());
+  const [downloadProgress, setDownloadProgress] = useState({});
+  
   // Bottom Sheet
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['25%', '50%', '75%'], []);
@@ -471,6 +480,215 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
     }
   };
 
+  // =========================
+  // DOWNLOAD FUNCTIONS
+  // =========================
+  
+  const requestStoragePermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+          {
+            title: 'Quyền truy cập bộ nhớ',
+            message: 'Ứng dụng cần quyền truy cập bộ nhớ để tải ảnh về điện thoại.',
+            buttonNeutral: 'Hỏi lại sau',
+            buttonNegative: 'Từ chối',
+            buttonPositive: 'Đồng ý',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true; // iOS doesn't need explicit permission for this
+  };
+
+  const downloadSinglePhoto = async (photo) => {
+    if (!photo || !photo.file_path) {
+      Alert.alert('Lỗi', 'Không thể tải ảnh này.');
+      return;
+    }
+
+    try {
+      setDownloadingPhotos(prev => new Set(prev).add(photo._id));
+      setDownloadProgress(prev => ({ ...prev, [photo._id]: 0 }));
+
+      // Generate filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `NHMS_${photo.resident_name || 'resident'}_${timestamp}.jpg`;
+      
+      // Download file to cache directory
+      const downloadResumable = FileSystem.createDownloadResumable(
+        photo.file_path,
+        FileSystem.cacheDirectory + filename,
+        {},
+        (downloadProgress) => {
+          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+          setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
+        }
+      );
+
+      const { uri } = await downloadResumable.downloadAsync();
+      
+      setDownloadingPhotos(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(photo._id);
+        return newSet;
+      });
+      setDownloadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[photo._id];
+        return newProgress;
+      });
+
+      Alert.alert(
+        'Tải xuống thành công',
+        `Ảnh "${photo.caption || 'Không có tiêu đề'}" đã được tải xuống thành công!\n\nĐể lưu vào thư viện ảnh, hãy:\n1. Mở ứng dụng "Ảnh" trên điện thoại\n2. Tìm ảnh trong thư mục "Tải xuống"\n3. Nhấn "Lưu vào thư viện"`,
+        [{ text: 'Đóng', onPress: () => {} }]
+      );
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      setDownloadingPhotos(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(photo._id);
+        return newSet;
+      });
+      setDownloadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[photo._id];
+        return newProgress;
+      });
+      Alert.alert('Lỗi', 'Không thể tải ảnh. Vui lòng thử lại sau.');
+    }
+  };
+
+  const downloadMultiplePhotos = async () => {
+    if (selectedPhotos.size === 0) {
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một ảnh để tải.');
+      return;
+    }
+
+    const hasPermission = await requestStoragePermission();
+    if (!hasPermission) {
+      Alert.alert('Quyền truy cập', 'Cần quyền truy cập bộ nhớ để tải ảnh.');
+      return;
+    }
+
+    const allPhotosFromSections = sections.flatMap(section => section.data).flat();
+    const photosToDownload = allPhotosFromSections.filter(photo => selectedPhotos.has(photo._id));
+
+    if (photosToDownload.length === 0) {
+      Alert.alert('Lỗi', 'Không tìm thấy ảnh đã chọn.');
+      return;
+    }
+
+    try {
+      // Add all photos to downloading set
+      setDownloadingPhotos(prev => new Set([...prev, ...selectedPhotos]));
+      
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const photo of photosToDownload) {
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `NHMS_${photo.resident_name || 'resident'}_${timestamp}.jpg`;
+          
+          const downloadResumable = FileSystem.createDownloadResumable(
+            photo.file_path,
+            FileSystem.cacheDirectory + filename,
+            {},
+            (downloadProgress) => {
+              const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+              setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
+            }
+          );
+
+          const { uri } = await downloadResumable.downloadAsync();
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Error downloading photo ${photo._id}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Clear downloading states
+      setDownloadingPhotos(prev => {
+        const newSet = new Set(prev);
+        selectedPhotos.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+      setDownloadProgress(prev => {
+        const newProgress = { ...prev };
+        selectedPhotos.forEach(id => delete newProgress[id]);
+        return newProgress;
+      });
+
+      // Show result
+      if (errorCount === 0) {
+        Alert.alert(
+          'Thành công', 
+          `Đã tải ${successCount} ảnh thành công!\n\nĐể lưu vào thư viện ảnh, hãy:\n1. Mở ứng dụng "Ảnh" trên điện thoại\n2. Tìm ảnh trong thư mục "Tải xuống"\n3. Nhấn "Lưu vào thư viện"`
+        );
+      } else {
+        Alert.alert('Hoàn thành', `Đã tải ${successCount} ảnh thành công, ${errorCount} ảnh lỗi.`);
+      }
+
+      // Exit selection mode
+      setIsSelectionMode(false);
+      setSelectedPhotos(new Set());
+
+    } catch (error) {
+      console.error('Batch download error:', error);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi tải ảnh. Vui lòng thử lại sau.');
+      
+      // Clear downloading states
+      setDownloadingPhotos(prev => {
+        const newSet = new Set(prev);
+        selectedPhotos.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+      setDownloadProgress(prev => {
+        const newProgress = { ...prev };
+        selectedPhotos.forEach(id => delete newProgress[id]);
+        return newProgress;
+      });
+    }
+  };
+
+  const togglePhotoSelection = (photoId) => {
+    setSelectedPhotos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(photoId)) {
+        newSet.delete(photoId);
+      } else {
+        newSet.add(photoId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    if (isSelectionMode) {
+      setSelectedPhotos(new Set());
+    }
+  };
+
+  const selectAllPhotos = () => {
+    const allPhotosFromSections = sections.flatMap(section => section.data).flat();
+    setSelectedPhotos(new Set(allPhotosFromSections.map(photo => photo._id)));
+  };
+
+  const deselectAllPhotos = () => {
+    setSelectedPhotos(new Set());
+  };
+
 
   const handlePrevImage = () => {
     setCurrentImageIndex(prev => Math.max(0, prev - 1));
@@ -501,26 +719,57 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   // 4. RENDER METHODS
   // =========================
   
-  const renderSectionHeader = ({ section: { title, data } }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderText}>{title}</Text>
-      <Text style={styles.sectionHeaderCount}>{data.length} ảnh</Text>
-    </View>
-  );
+  const renderSectionHeader = ({ section: { title, data } }) => {
+    // Count actual photos, not rows
+    const actualPhotoCount = data.reduce((total, row) => {
+      return total + (Array.isArray(row) ? row.length : 1);
+    }, 0);
+    
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>{title}</Text>
+        <Text style={styles.sectionHeaderCount}>{actualPhotoCount} ảnh</Text>
+      </View>
+    );
+  };
 
 
 
 
 
   const renderPhotoCard = (photo) => {
-    const handlePress = () => handlePhotoPress(photo);
+    const isSelected = selectedPhotos.has(photo._id);
+    const isDownloading = downloadingPhotos.has(photo._id);
+    const downloadProgressValue = downloadProgress[photo._id] || 0;
+
+    const handlePress = () => {
+      if (isSelectionMode) {
+        togglePhotoSelection(photo._id);
+      } else {
+        handlePhotoPress(photo);
+      }
+    };
+
     const handleInfoPress = (e) => {
       e.stopPropagation();
       setCurrentPhoto(photo);
       setShowPhotoDetail(true);
     };
+
+    const handleDownloadPress = (e) => {
+      e.stopPropagation();
+      downloadSinglePhoto(photo);
+    };
+
     return (
-      <TouchableOpacity style={styles.photoItem} onPress={handlePress} activeOpacity={0.85}>
+      <TouchableOpacity 
+        style={[
+          styles.photoItem, 
+          isSelected && styles.photoItemSelected
+        ]} 
+        onPress={handlePress} 
+        activeOpacity={0.85}
+      >
         <View style={styles.photoCard}>
           <Image
             source={{ uri: photo.file_path }}
@@ -528,6 +777,40 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
             resizeMode="cover"
             fadeDuration={0}
           />
+          
+          {/* Selection overlay */}
+          {isSelectionMode && (
+            <View style={styles.selectionOverlay}>
+              <View style={[
+                styles.selectionCheckbox,
+                isSelected && styles.selectionCheckboxSelected
+              ]}>
+                {isSelected && (
+                  <MaterialIcons name="check" size={18} color="#fff" />
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Download progress overlay */}
+          {isDownloading && (
+            <View style={styles.downloadOverlay}>
+              <View style={styles.downloadProgressContainer}>
+                <View style={styles.downloadProgressBar}>
+                  <View 
+                    style={[
+                      styles.downloadProgressFill, 
+                      { width: `${downloadProgressValue * 100}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.downloadProgressText}>
+                  {Math.round(downloadProgressValue * 100)}%
+                </Text>
+              </View>
+            </View>
+          )}
+
           <View style={styles.photoTimeStamp}>
             <Text style={styles.timeStampText}>
               {photo.taken_date
@@ -535,9 +818,31 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                 : '--:--'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.photoInfoButton} onPress={handleInfoPress} activeOpacity={0.8}>
-            <MaterialIcons name="info" size={16} color="#fff" />
-          </TouchableOpacity>
+
+          {/* Action buttons */}
+          <View style={styles.photoActionButtons}>
+            {!isSelectionMode && (
+              <TouchableOpacity 
+                style={styles.photoDownloadButton} 
+                onPress={handleDownloadPress}
+                disabled={isDownloading}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons 
+                  name={isDownloading ? "hourglass-empty" : "download"} 
+                  size={16} 
+                  color="#fff" 
+                />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={styles.photoInfoButton} 
+              onPress={handleInfoPress} 
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="info" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -622,27 +927,84 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
             <Text style={styles.headerTitle}>Thư viện ảnh</Text>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                Object.keys(activeFilters).length > 0 && styles.filterButtonActive
-              ]}
-              onPress={() => setShowAdvancedFilters(true)}
-            >
-              <MaterialIcons 
-                name="filter-list" 
-                size={24} 
-                color={Object.keys(activeFilters).length > 0 ? COLORS.primary : "#333"} 
-              />
-              {Object.keys(activeFilters).length > 0 && (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>
-                    {Object.values(activeFilters).flat().filter(Boolean).length}
-                  </Text>
-                </View>
+            <View style={styles.headerActions}>
+              {isSelectionMode && (
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={downloadMultiplePhotos}
+                  disabled={selectedPhotos.size === 0 || downloadingPhotos.size > 0}
+                >
+                  <MaterialIcons 
+                    name="download" 
+                    size={24} 
+                    color={selectedPhotos.size === 0 || downloadingPhotos.size > 0 ? "#ccc" : COLORS.primary} 
+                  />
+                  {selectedPhotos.size > 0 && (
+                    <View style={styles.downloadBadge}>
+                      <Text style={styles.downloadBadgeText}>{selectedPhotos.size}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  Object.keys(activeFilters).length > 0 && styles.filterButtonActive
+                ]}
+                onPress={() => setShowAdvancedFilters(true)}
+              >
+                <MaterialIcons 
+                  name="filter-list" 
+                  size={24} 
+                  color={Object.keys(activeFilters).length > 0 ? COLORS.primary : "#333"} 
+                />
+                {Object.keys(activeFilters).length > 0 && (
+                  <View style={styles.filterBadge}>
+                    <Text style={styles.filterBadgeText}>
+                      {Object.values(activeFilters).flat().filter(Boolean).length}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.selectionButton,
+                  isSelectionMode && styles.selectionButtonActive
+                ]}
+                onPress={toggleSelectionMode}
+              >
+                <MaterialIcons 
+                  name={isSelectionMode ? "close" : "select-all"} 
+                  size={24} 
+                  color={isSelectionMode ? "#fff" : "#333"} 
+                />
+              </TouchableOpacity>
+            </View>
       </View>
+      
+          {isSelectionMode && (
+            <View style={styles.selectionBar}>
+              <View style={styles.selectionInfo}>
+                <Text style={styles.selectionText}>
+                  Đã chọn {selectedPhotos.size} ảnh
+                </Text>
+              </View>
+              <View style={styles.selectionActions}>
+                <TouchableOpacity
+                  style={styles.selectionActionButton}
+                  onPress={selectAllPhotos}
+                >
+                  <Text style={styles.selectionActionText}>Chọn tất cả</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.selectionActionButton}
+                  onPress={deselectAllPhotos}
+                >
+                  <Text style={styles.selectionActionText}>Bỏ chọn</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
       
           <Searchbar
             placeholder="Tìm kiếm ảnh, người thân, hoạt động..."
@@ -989,6 +1351,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   filterButton: {
     padding: 8,
     position: 'relative',
@@ -1011,6 +1377,51 @@ const styles = StyleSheet.create({
   filterBadgeText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  selectionButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  selectionButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SIDE_PADDING,
+    paddingVertical: 10,
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  selectionInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  selectionText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  selectionActions: {
+    flexDirection: 'row',
+  },
+  selectionActionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary + '10',
+    marginLeft: 10,
+  },
+  selectionActionText: {
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: '600',
   },
   searchBar: {
@@ -1067,6 +1478,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     position: 'relative',
   },
+  photoItemSelected: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
   photoCard: {
     width: '100%',
     borderRadius: 10,
@@ -1103,13 +1518,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   photoInfoButton: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1397,6 +1809,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  downloadButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  downloadBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   // No Results Styles
   noResultsContainer: {
@@ -1436,6 +1868,85 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Selection Overlay
+  selectionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  selectionCheckbox: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionCheckboxSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+
+  // Download Overlay
+  downloadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  downloadProgressContainer: {
+    width: '80%',
+    alignItems: 'center',
+  },
+  downloadProgressBar: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  downloadProgressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 5,
+  },
+  downloadProgressText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  photoActionButtons: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    flexDirection: 'row',
+    zIndex: 2,
+  },
+  photoDownloadButton: {
+    backgroundColor: COLORS.primary,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
 });
 

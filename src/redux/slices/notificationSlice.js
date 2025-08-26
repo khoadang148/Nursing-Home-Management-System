@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { notifications } from '../../api/mockData';
+
 
 // Simulated API delay
 const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 500));
@@ -8,8 +8,9 @@ const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 50
 export const fetchNotifications = createAsyncThunk(
   'notifications/fetchAll',
   async () => {
+    // TODO: Replace with real API call
     await simulateNetworkDelay();
-    return notifications;
+    return [];
   }
 );
 
@@ -37,8 +38,7 @@ export const addNotification = createAsyncThunk(
   async (notificationData) => {
     await simulateNetworkDelay();
     const newNotification = {
-      id: (notifications.length + 1).toString(),
-// Add new notification (for simulating real-time notifications)
+      id: Date.now().toString(),
       isRead: false,
       ...notificationData,
     };

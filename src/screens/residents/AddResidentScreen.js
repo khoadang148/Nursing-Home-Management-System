@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
+  Keyboard
 } from 'react-native';
 import { 
   Appbar, 
@@ -17,13 +18,13 @@ import {
   Chip,
   HelperText,
   Divider,
-  Menu,
   Portal,
   Dialog,
   List,
   RadioButton,
   Checkbox
 } from 'react-native-paper';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
 import CommonAvatar from '../../components/CommonAvatar';
@@ -62,7 +63,9 @@ const AddResidentScreen = ({ navigation }) => {
   const [familyEmail, setFamilyEmail] = useState('');
   const [familyRelationship, setFamilyRelationship] = useState('');
   const [familyAddress, setFamilyAddress] = useState('');
-  const [familyMenuVisible, setFamilyMenuVisible] = useState(false);
+  // Family dropdown states
+  const [familyDropdownOpen, setFamilyDropdownOpen] = useState(false);
+  const [familyDropdownItems, setFamilyDropdownItems] = useState([]);
   const [discardDialogVisible, setDiscardDialogVisible] = useState(false);
   
 
@@ -86,17 +89,17 @@ const AddResidentScreen = ({ navigation }) => {
   // State cho dropdown và input khác
   const [relationshipOption, setRelationshipOption] = useState('');
   const [customRelationship, setCustomRelationship] = useState('');
-  const [relationshipMenuVisible, setRelationshipMenuVisible] = useState(false);
+  const [relationshipDropdownOpen, setRelationshipDropdownOpen] = useState(false);
   
   // State cho dropdown mối quan hệ khi tạo mới người thân
   const [newFamilyRelationshipOption, setNewFamilyRelationshipOption] = useState('');
   const [newFamilyCustomRelationship, setNewFamilyCustomRelationship] = useState('');
-  const [newFamilyRelationshipMenuVisible, setNewFamilyRelationshipMenuVisible] = useState(false);
+  const [newFamilyRelationshipDropdownOpen, setNewFamilyRelationshipDropdownOpen] = useState(false);
   
   // State cho dropdown mối quan hệ liên hệ khẩn cấp
   const [emergencyRelationshipOption, setEmergencyRelationshipOption] = useState('');
   const [emergencyCustomRelationship, setEmergencyCustomRelationship] = useState('');
-  const [emergencyRelationshipMenuVisible, setEmergencyRelationshipMenuVisible] = useState(false);
+  const [emergencyRelationshipDropdownOpen, setEmergencyRelationshipDropdownOpen] = useState(false);
   
   const onChangeDateOfBirth = (event, selectedDate) => {
     const currentDate = selectedDate || dateOfBirth;
@@ -452,6 +455,16 @@ const AddResidentScreen = ({ navigation }) => {
     console.log('FamilyList state updated:', familyList);
   }, [familyList]);
 
+  // Prepare dropdown items when familyList changes
+  useEffect(() => {
+    const dropdownItems = familyList.map(family => ({
+      label: `${family.full_name} - ${family.phone}`,
+      value: family._id,
+      family: family
+    }));
+    setFamilyDropdownItems(dropdownItems);
+  }, [familyList]);
+
   const loadFamilyUsers = async () => {
     try {
       setLoading(true);
@@ -499,7 +512,11 @@ const AddResidentScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.photoContainer}>
             <CommonAvatar 
               size={100} 
@@ -652,94 +669,81 @@ const AddResidentScreen = ({ navigation }) => {
                 <Text style={{ color: COLORS.textSecondary, marginBottom: 5 }}>
                   Danh sách người thân ({familyList.length} người) {loading && '(Đang tải...)'}
                 </Text>
-                <Menu
-                  visible={familyMenuVisible}
-                  onDismiss={() => setFamilyMenuVisible(false)}
-                  anchor={
-                    <TouchableOpacity
-                      style={styles.input}
-                      onPress={() => setFamilyMenuVisible(true)}
-                      activeOpacity={0.7}
-                    >
-                      <TextInput
-                        label="Chọn người thân *"
-                        value={
-                          selectedFamilyId
-                            ? `${familyList.find(f => f._id === selectedFamilyId)?.full_name || ''} - ${familyList.find(f => f._id === selectedFamilyId)?.phone || ''}`
-                            : ''
-                        }
-                        editable={false}
-                        mode="outlined"
-                        right={<TextInput.Icon icon="account-group" />}
-                        pointerEvents="none"
-                      />
-                    </TouchableOpacity>
-                  }
-                  style={{ minWidth: 250, maxWidth: 350 }}
-                >
-                  {familyList.length > 0 ? (
-                    familyList.map(f => (
-                      <Menu.Item
-                        key={f._id}
-                        onPress={() => {
-                          setSelectedFamilyId(f._id);
-                          setFamilyMenuVisible(false);
-                        }}
-                        title={
-                          <Text style={{ flexWrap: 'wrap', width: '100%' }}>
-                            {`${f.full_name} - ${f.phone}`}
-                          </Text>
-                        }
-                      />
-                    ))
-                  ) : (
-                    <Menu.Item
-                      title="Không có dữ liệu"
-                      disabled
-                    />
-                  )}
-                </Menu>
+                <View style={[styles.dropdownWrapper, familyDropdownOpen && styles.dropdownSpacer]}>
+                  <DropDownPicker
+                    open={familyDropdownOpen}
+                    value={selectedFamilyId}
+                    items={familyDropdownItems}
+                    setOpen={setFamilyDropdownOpen}
+                    setValue={setSelectedFamilyId}
+                    setItems={setFamilyDropdownItems}
+                    placeholder="Chọn người thân..."
+                    listMode="SCROLLVIEW"
+                    maxHeight={280}
+                    dropDownDirection="BOTTOM"
+                    zIndex={6000}
+                    zIndexInverse={1000}
+                    style={styles.dropdown}
+                    dropDownContainerStyle={styles.dropdownContainer}
+                    scrollViewProps={{ 
+                      nestedScrollEnabled: true, 
+                      keyboardShouldPersistTaps: 'handled',
+                      showsVerticalScrollIndicator: false
+                    }}
+                    listItemLabelStyle={styles.dropdownLabelStyle}
+                    placeholderStyle={styles.dropdownPlaceholderStyle}
+                    arrowIconStyle={styles.dropdownArrowIconStyle}
+                    tickIconStyle={styles.dropdownTickIconStyle}
+                    closeAfterSelecting={true}
+                    closeOnBackPressed={true}
+                    searchable={true}
+                    searchPlaceholder="Tìm kiếm người thân..."
+                    searchTextInputStyle={{
+                      borderColor: COLORS.border,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      fontSize: 14,
+                    }}
+                  />
+                </View>
               </View>
               {selectedFamilyId && (
                 <>
                   <Text style={styles.inputLabel}>Mối quan hệ với cư dân này *</Text>
-                  <Menu
-                    visible={relationshipMenuVisible}
-                    onDismiss={() => setRelationshipMenuVisible(false)}
-                    anchor={
-                      <TouchableOpacity
-                        style={styles.input}
-                        onPress={() => setRelationshipMenuVisible(true)}
-                        activeOpacity={0.7}
-                      >
-                        <TextInput
-                          label="Chọn mối quan hệ *"
-                          value={
-                            relationshipOption
-                              ? RELATIONSHIP_OPTIONS.find(opt => opt.value === relationshipOption)?.label || relationshipOption
-                              : ''
-                          }
-                          editable={false}
-                          mode="outlined"
-                          right={<TextInput.Icon icon="chevron-down" />}
-                          pointerEvents="none"
-                        />
-                      </TouchableOpacity>
-                    }
-                    style={{ minWidth: 200, maxWidth: 300 }}
-                  >
-                    {RELATIONSHIP_OPTIONS.map(opt => (
-                      <Menu.Item
-                        key={opt.value}
-                        onPress={() => {
-                          setRelationshipOption(opt.value);
-                          setRelationshipMenuVisible(false);
-                          if (opt.value !== 'khác') setCustomRelationship('');
-                        }}
-                        title={opt.label}
-                      />
-                    ))}
-                  </Menu>
+                  <View style={[styles.dropdownWrapper, relationshipDropdownOpen && styles.dropdownSpacer]}>
+                    <DropDownPicker
+                      open={relationshipDropdownOpen}
+                      value={relationshipOption}
+                      items={RELATIONSHIP_OPTIONS}
+                      setOpen={setRelationshipDropdownOpen}
+                      setValue={setRelationshipOption}
+                      setItems={() => {}}
+                      placeholder="Chọn mối quan hệ..."
+                      listMode="SCROLLVIEW"
+                      maxHeight={200}
+                      dropDownDirection="BOTTOM"
+                      zIndex={5000}
+                      zIndexInverse={2000}
+                      style={styles.dropdown}
+                      dropDownContainerStyle={styles.dropdownContainer}
+                      scrollViewProps={{ 
+                        nestedScrollEnabled: true, 
+                        keyboardShouldPersistTaps: 'handled',
+                        showsVerticalScrollIndicator: false
+                      }}
+                      listItemLabelStyle={styles.dropdownLabelStyle}
+                      placeholderStyle={styles.dropdownPlaceholderStyle}
+                      arrowIconStyle={styles.dropdownArrowIconStyle}
+                      tickIconStyle={styles.dropdownTickIconStyle}
+                      closeAfterSelecting={true}
+                      closeOnBackPressed={true}
+                      onChangeValue={(value) => {
+                        if (value !== 'khác') setCustomRelationship('');
+                      }}
+                    />
+                  </View>
                   {relationshipOption === 'khác' && (
                     <TextInput
                       label="Nhập mối quan hệ"
@@ -786,43 +790,38 @@ const AddResidentScreen = ({ navigation }) => {
                 keyboardType="email-address"
               />
               <Text style={styles.inputLabel}>Mối quan hệ với cư dân *</Text>
-              <Menu
-                visible={newFamilyRelationshipMenuVisible}
-                onDismiss={() => setNewFamilyRelationshipMenuVisible(false)}
-                anchor={
-                  <TouchableOpacity
-                    style={styles.input}
-                    onPress={() => setNewFamilyRelationshipMenuVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <TextInput
-                      label="Chọn mối quan hệ *"
-                      value={
-                        newFamilyRelationshipOption
-                          ? RELATIONSHIP_OPTIONS.find(opt => opt.value === newFamilyRelationshipOption)?.label || newFamilyRelationshipOption
-                          : ''
-                      }
-                      editable={false}
-                      mode="outlined"
-                      right={<TextInput.Icon icon="chevron-down" />}
-                      pointerEvents="none"
-                    />
-                  </TouchableOpacity>
-                }
-                style={{ minWidth: 200, maxWidth: 300 }}
-              >
-                {RELATIONSHIP_OPTIONS.map(opt => (
-                  <Menu.Item
-                    key={opt.value}
-                    onPress={() => {
-                      setNewFamilyRelationshipOption(opt.value);
-                      setNewFamilyRelationshipMenuVisible(false);
-                      if (opt.value !== 'khác') setNewFamilyCustomRelationship('');
-                    }}
-                    title={opt.label}
-                  />
-                ))}
-              </Menu>
+              <View style={[styles.dropdownWrapper, newFamilyRelationshipDropdownOpen && styles.dropdownSpacer]}>
+                <DropDownPicker
+                  open={newFamilyRelationshipDropdownOpen}
+                  value={newFamilyRelationshipOption}
+                  items={RELATIONSHIP_OPTIONS}
+                  setOpen={setNewFamilyRelationshipDropdownOpen}
+                  setValue={setNewFamilyRelationshipOption}
+                  setItems={() => {}}
+                  placeholder="Chọn mối quan hệ..."
+                  listMode="SCROLLVIEW"
+                  maxHeight={200}
+                  dropDownDirection="BOTTOM"
+                  zIndex={4000}
+                  zIndexInverse={3000}
+                  style={styles.dropdown}
+                  dropDownContainerStyle={styles.dropdownContainer}
+                  scrollViewProps={{ 
+                    nestedScrollEnabled: true, 
+                    keyboardShouldPersistTaps: 'handled',
+                    showsVerticalScrollIndicator: false
+                  }}
+                  listItemLabelStyle={styles.dropdownLabelStyle}
+                  placeholderStyle={styles.dropdownPlaceholderStyle}
+                  arrowIconStyle={styles.dropdownArrowIconStyle}
+                  tickIconStyle={styles.dropdownTickIconStyle}
+                  closeAfterSelecting={true}
+                  closeOnBackPressed={true}
+                  onChangeValue={(value) => {
+                    if (value !== 'khác') setNewFamilyCustomRelationship('');
+                  }}
+                />
+              </View>
               {newFamilyRelationshipOption === 'khác' && (
                 <TextInput
                   label="Nhập mối quan hệ"
@@ -877,43 +876,38 @@ const AddResidentScreen = ({ navigation }) => {
                 keyboardType="phone-pad"
               />
               <Text style={styles.inputLabel}>Mối quan hệ với cư dân *</Text>
-              <Menu
-                visible={emergencyRelationshipMenuVisible}
-                onDismiss={() => setEmergencyRelationshipMenuVisible(false)}
-                anchor={
-                  <TouchableOpacity
-                    style={styles.input}
-                    onPress={() => setEmergencyRelationshipMenuVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <TextInput
-                      label="Chọn mối quan hệ *"
-                      value={
-                        emergencyRelationshipOption
-                          ? RELATIONSHIP_OPTIONS.find(opt => opt.value === emergencyRelationshipOption)?.label || emergencyRelationshipOption
-                          : ''
-                      }
-                      editable={false}
-                      mode="outlined"
-                      right={<TextInput.Icon icon="chevron-down" />}
-                      pointerEvents="none"
-                    />
-                  </TouchableOpacity>
-                }
-                style={{ minWidth: 200, maxWidth: 300 }}
-              >
-                {RELATIONSHIP_OPTIONS.map(opt => (
-                  <Menu.Item
-                    key={opt.value}
-                    onPress={() => {
-                      setEmergencyRelationshipOption(opt.value);
-                      setEmergencyRelationshipMenuVisible(false);
-                      if (opt.value !== 'khác') setEmergencyCustomRelationship('');
-                    }}
-                    title={opt.label}
-                  />
-                ))}
-              </Menu>
+              <View style={[styles.dropdownWrapper, emergencyRelationshipDropdownOpen && styles.dropdownSpacer]}>
+                <DropDownPicker
+                  open={emergencyRelationshipDropdownOpen}
+                  value={emergencyRelationshipOption}
+                  items={RELATIONSHIP_OPTIONS}
+                  setOpen={setEmergencyRelationshipDropdownOpen}
+                  setValue={setEmergencyRelationshipOption}
+                  setItems={() => {}}
+                  placeholder="Chọn mối quan hệ..."
+                  listMode="SCROLLVIEW"
+                  maxHeight={200}
+                  dropDownDirection="BOTTOM"
+                  zIndex={3000}
+                  zIndexInverse={4000}
+                  style={styles.dropdown}
+                  dropDownContainerStyle={styles.dropdownContainer}
+                  scrollViewProps={{ 
+                    nestedScrollEnabled: true, 
+                    keyboardShouldPersistTaps: 'handled',
+                    showsVerticalScrollIndicator: false
+                  }}
+                  listItemLabelStyle={styles.dropdownLabelStyle}
+                  placeholderStyle={styles.dropdownPlaceholderStyle}
+                  arrowIconStyle={styles.dropdownArrowIconStyle}
+                  tickIconStyle={styles.dropdownTickIconStyle}
+                  closeAfterSelecting={true}
+                  closeOnBackPressed={true}
+                  onChangeValue={(value) => {
+                    if (value !== 'khác') setEmergencyCustomRelationship('');
+                  }}
+                />
+              </View>
               {emergencyRelationshipOption === 'khác' && (
                 <TextInput
                   label="Nhập mối quan hệ"
@@ -979,13 +973,18 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...FONTS.h3,
-    marginVertical: 10,
+    marginVertical: 15,
+    marginBottom: 12,
     color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   sectionSubtitle: {
     ...FONTS.body4,
-    marginBottom: 10,
+    marginBottom: 15,
     color: COLORS.textSecondary,
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   inputRow: {
     flexDirection: 'row',
@@ -997,11 +996,15 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 15,
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
   },
   inputLabel: {
     ...FONTS.body3,
     marginBottom: 8,
     color: COLORS.textSecondary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   datePickerButton: {
     marginBottom: 15,
@@ -1103,6 +1106,66 @@ const styles = StyleSheet.create({
     ...FONTS.body3,
     color: COLORS.text,
     flex: 1,
+  },
+  dropdown: {
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    minHeight: 55,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dropdownWrapper: {
+    zIndex: 6000,
+    marginBottom: 15,
+  },
+  dropdownContainer: {
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 6000,
+  },
+  dropdownOverlay: {
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  dropdownSpacer: {
+    paddingBottom: 320,
+  },
+  dropdownLabelStyle: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '500',
+    paddingVertical: 4,
+  },
+  dropdownPlaceholderStyle: {
+    color: COLORS.textSecondary,
+    fontSize: 15,
+  },
+  dropdownArrowIconStyle: {
+    width: 20,
+    height: 20,
+    tintColor: COLORS.primary,
+  },
+  dropdownTickIconStyle: {
+    width: 18,
+    height: 18,
+    tintColor: COLORS.primary,
   },
 });
 

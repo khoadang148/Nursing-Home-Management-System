@@ -19,7 +19,7 @@ import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 // import { getImageUri } from '../../config/appConfig';
 import CommonAvatar from '../../components/CommonAvatar';
-import { formatDateFromBackend } from '../../utils/dateUtils';
+import { formatDateFromBackend, formatDateToVietnamTime } from '../../utils/dateUtils';
 
 // Removed DEFAULT_AVATAR to avoid using placeholder images
 
@@ -218,7 +218,7 @@ const ResidentListScreen = ({ navigation }) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.infoText}>
-                Nhập viện: {formatDateFromBackend(item.admission_date)}
+                Nhập viện: {formatDateToVietnamTime(item.admission_date)}
               </Text>
             </View>
           </View>

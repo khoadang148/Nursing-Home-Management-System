@@ -16,7 +16,7 @@ const TermsOfServiceScreen = ({ navigation }) => {
     {
       id: '1',
       title: '1. Điều Khoản Chung',
-      content: `Bằng việc sử dụng ứng dụng NHMS (Nursing Home Management System), bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này. Ứng dụng được cung cấp bởi [Tên Công Ty] và được thiết kế để hỗ trợ quản lý và chăm sóc người cao tuổi trong các cơ sở y tế.`
+      content: `Bằng việc sử dụng ứng dụng NHMS (Nursing Home Management System), bạn đồng ý tuân thủ các điều khoản và điều kiện được nêu trong tài liệu này. Ứng dụng được cung cấp bởi Viện Dưỡng Lão [Tên Viện] và được thiết kế để hỗ trợ quản lý và chăm sóc người cao tuổi trong cơ sở y tế của chúng tôi.`
     },
     {
       id: '2',
@@ -26,7 +26,8 @@ const TermsOfServiceScreen = ({ navigation }) => {
 • Hỗ trợ liên lạc giữa gia đình và nhân viên chăm sóc
 • Quản lý lịch thăm và hoạt động
 • Theo dõi hóa đơn và thanh toán
-• Cập nhật thông tin về các hoạt động và dịch vụ`
+• Cập nhật thông tin về các hoạt động và dịch vụ
+• Quản lý gói dịch vụ chăm sóc và phòng ở`
     },
     {
       id: '3',
@@ -35,7 +36,8 @@ const TermsOfServiceScreen = ({ navigation }) => {
 • Tất cả thông tin được mã hóa và bảo mật
 • Chỉ những người được ủy quyền mới có thể truy cập
 • Không chia sẻ thông tin với bên thứ ba mà không có sự đồng ý
-• Tuân thủ các quy định về bảo vệ dữ liệu cá nhân`
+• Tuân thủ các quy định về bảo vệ dữ liệu cá nhân
+• Thông tin y tế được bảo mật theo quy định của Bộ Y tế`
     },
     {
       id: '4',
@@ -45,30 +47,51 @@ const TermsOfServiceScreen = ({ navigation }) => {
 • Bảo mật thông tin đăng nhập
 • Sử dụng ứng dụng đúng mục đích
 • Tôn trọng quyền riêng tư của người khác
-• Báo cáo các hoạt động bất thường`
+• Báo cáo các hoạt động bất thường
+• Thanh toán đúng hạn các khoản phí dịch vụ`
     },
     {
       id: '5',
-      title: '5. Giới Hạn Trách Nhiệm',
+      title: '5. Chính Sách Thanh Toán',
+      content: `Thời hạn thanh toán:
+• Thanh toán được thực hiện hàng tháng từ ngày 1 đến ngày 5 của mỗi tháng
+• Hóa đơn phải được thanh toán trước ngày hết hạn
+• Nếu quá hạn, nhân viên sẽ liên hệ trao đổi với gia đình
+• Nếu không thanh toán, viện sẽ trao trả lại người cao tuổi cho gia đình
+
+Phương thức thanh toán:
+• Đợt đăng ký đầu tiên: Thanh toán tại quầy nhân viên bằng chuyển khoản
+• Các tháng tiếp theo: Có thể thanh toán online qua QR Code hoặc tại quầy
+• Hỗ trợ tất cả ví điện tử và ứng dụng ngân hàng
+
+Cơ sở tính phí:
+• Dịch vụ chính: Chăm sóc cơ bản theo gói đã đăng ký (bắt buộc)
+• Phí phòng: Theo loại phòng và tiện nghi (bắt buộc)
+• Dịch vụ bổ sung: Các dịch vụ y tế, vật lý trị liệu (tùy chọn)
+• Thuốc bổ sung: Thuốc không trong gói cơ bản (tùy chọn)
+• Chi phí được tính dựa trên số ngày thực tế người cao tuổi lưu trú tại viện
+
+Chính sách hoàn tiền:
+• Hoàn tiền chỉ áp dụng khi gia đình hủy gói dịch vụ và đến nhận người thân
+• Thời gian hoàn tiền: Trong vòng 7 ngày làm việc kể từ khi nhận người thân về
+• Công thức hoàn tiền: Tiền đã đóng - (Tổng phí dịch vụ ÷ 30 ngày) × Số ngày thực tế ở viện
+• Tiền cọc 1 tháng ban đầu sẽ được hoàn lại cùng với số tiền dư`
+    },
+    {
+      id: '6',
+      title: '6. Giới Hạn Trách Nhiệm',
       content: `Chúng tôi không chịu trách nhiệm về:
 • Các lỗi kỹ thuật ngoài tầm kiểm soát
 • Mất mát dữ liệu do lỗi người dùng
 • Các vấn đề về kết nối internet
-• Thiệt hại gián tiếp phát sinh từ việc sử dụng ứng dụng`
-    },
-    {
-      id: '6',
-      title: '6. Cập Nhật Điều Khoản',
-      content: `Chúng tôi có quyền cập nhật các điều khoản này khi cần thiết. Người dùng sẽ được thông báo trước khi có thay đổi quan trọng. Việc tiếp tục sử dụng ứng dụng sau khi cập nhật được coi là đồng ý với các điều khoản mới.`
+• Thiệt hại gián tiếp phát sinh từ việc sử dụng ứng dụng
+• Các vấn đề sức khỏe phát sinh do không tuân thủ hướng dẫn y tế
+• Thiệt hại do thiên tai, hỏa hoạn hoặc các sự kiện bất khả kháng`
     },
     {
       id: '7',
-      title: '7. Liên Hệ Hỗ Trợ',
-      content: `Nếu bạn có bất kỳ câu hỏi nào về các điều khoản này, vui lòng liên hệ:
-• Email: support@nhms.com
-• Điện thoại: 1900-xxxx
-• Địa chỉ: [Địa chỉ công ty]
-• Giờ làm việc: Thứ 2 - Thứ 6, 8:00 - 17:00`
+      title: '7. Cập Nhật Điều Khoản',
+      content: `Chúng tôi có quyền cập nhật các điều khoản này khi cần thiết. Người dùng sẽ được thông báo trước khi có thay đổi quan trọng. Việc tiếp tục sử dụng ứng dụng sau khi cập nhật được coi là đồng ý với các điều khoản mới.`
     }
   ];
 
@@ -138,16 +161,28 @@ const TermsOfServiceScreen = ({ navigation }) => {
             <Title style={styles.contactTitle}>Thông Tin Liên Hệ</Title>
             <View style={styles.contactItem}>
               <MaterialIcons name="email" size={20} color={COLORS.primary} />
-              <Text style={styles.contactText}>support@nhms.com</Text>
+              <Text style={styles.contactText}>info@vienduonglao.com</Text>
             </View>
             <View style={styles.contactItem}>
               <MaterialIcons name="phone" size={20} color={COLORS.primary} />
-              <Text style={styles.contactText}>1900-xxxx</Text>
+              <Text style={styles.contactText}>1900-xxxx (Tổng đài tư vấn)</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <MaterialIcons name="phone" size={20} color={COLORS.primary} />
+              <Text style={styles.contactText}>090-xxxx-xxxx (Hỗ trợ kỹ thuật)</Text>
             </View>
             <View style={styles.contactItem}>
               <MaterialIcons name="location-on" size={20} color={COLORS.primary} />
               <Text style={styles.contactText}>123 Đường ABC, Quận 1, TP.HCM</Text>
-        </View>
+            </View>
+            <View style={styles.contactItem}>
+              <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
+              <Text style={styles.contactText}>Thứ 2 - Chủ nhật: 7:00 - 20:00</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <MaterialIcons name="info" size={20} color={COLORS.primary} />
+              <Text style={styles.contactText}>Hỗ trợ 24/7 cho các trường hợp khẩn cấp</Text>
+            </View>
           </Card.Content>
         </Card>
       </ScrollView>

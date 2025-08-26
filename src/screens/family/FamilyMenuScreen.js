@@ -98,14 +98,7 @@ const FamilyMenuScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('GoiDichVu'),
       showArrow: true
     },
-    {
-      id: 'support',
-      title: 'Hỗ Trợ',
-      icon: 'help-outline',
-      iconType: 'MaterialIcons',
-      onPress: () => navigation.navigate('HoTro'),
-      showArrow: true
-    },
+
     {
       id: 'divider1',
       type: 'divider'

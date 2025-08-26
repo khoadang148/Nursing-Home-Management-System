@@ -18,6 +18,7 @@ import billsService from '../../api/services/billsService';
 import residentService from '../../api/services/residentService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import { COLORS, FONTS } from '../../constants/theme';
+import { formatDateToVietnamTime } from '../../utils/dateUtils';
 
 const MyCreatedBillsScreen = () => {
   const navigation = useNavigation();
@@ -128,7 +129,7 @@ const MyCreatedBillsScreen = () => {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('vi-VN');
+    return formatDateToVietnamTime(date);
   };
 
   const renderItem = ({ item }) => {

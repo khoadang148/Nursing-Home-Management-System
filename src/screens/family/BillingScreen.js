@@ -23,7 +23,7 @@ const BillingScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const user = useSelector((state) => state.auth.user);
   const [bills, setBills] = useState([]);
-  const [residents, setResidents] = useState([]);
+
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -35,22 +35,25 @@ const BillingScreen = ({ navigation }) => {
   });
   const [selectedResidentId, setSelectedResidentId] = useState(null);
   const [bedAssignments, setBedAssignments] = useState({});
+  const [familyResidents, setFamilyResidents] = useState([]);
 
 
   useEffect(() => {
-    if (user?.id && bills.length === 0) {
+    if (user?.id) {
       fetchBills();
+      fetchFamilyResidents();
     }
-  }, [user, bills.length, filters, searchQuery]);
+  }, [user, filters, searchQuery]);
 
   // Check for data updates when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Only reload if there's no data
-      if (user?.id && bills.length === 0) {
+      // Reload data when screen comes into focus
+      if (user?.id) {
         fetchBills();
+        fetchFamilyResidents();
       }
-    }, [user?.id, bills.length])
+    }, [user?.id])
   );
 
   // Lấy thông tin bed assignment cho tất cả resident_id trong bills
@@ -79,12 +82,18 @@ const BillingScreen = ({ navigation }) => {
         if (searchQuery) params.search = searchQuery;
         if (filters.status) params.status = filters.status;
         if (filters.type) params.type = filters.type;
+        if (filters.residentId) params.resident_id = filters.residentId;
         if (filters.period) params.period = filters.period;
         console.log('[BillingScreen] params truyền vào API getBills:', params);
-        const result = await billsService.billingService.getBillsByFamilyMember(params);
+        const result = await billsService.getBillsByFamilyMember(params);
         console.log('[BillingScreen] API response:', result);
-        const validBills = result.data.filter(bill => bill && (bill.id || bill._id));
-        setBills(validBills);
+        if (result.success && Array.isArray(result.data)) {
+          const validBills = result.data.filter(bill => bill && (bill.id || bill._id));
+          setBills(validBills);
+        } else {
+          console.log('[BillingScreen] No bills found or API error:', result.error);
+          setBills([]);
+        }
       } else {
         setBills([]);
       }
@@ -94,11 +103,39 @@ const BillingScreen = ({ navigation }) => {
     }
   };
 
-  // Xóa fetchResidents và residents liên quan, chỉ giữ lại logic hiển thị bill
+  // Fetch family residents for filtering
+  const fetchFamilyResidents = async () => {
+    try {
+      if (user?.id) {
+        const result = await billsService.getBillsByFamilyMember({ family_member_id: user.id });
+        if (result.success && Array.isArray(result.data)) {
+          // Extract unique residents from bills
+          const uniqueResidents = [];
+          const seenResidentIds = new Set();
+          
+          result.data.forEach(bill => {
+            const resident = bill.resident_id;
+            if (resident && resident._id && !seenResidentIds.has(resident._id)) {
+              seenResidentIds.add(resident._id);
+              uniqueResidents.push(resident);
+            }
+          });
+          
+          setFamilyResidents(uniqueResidents);
+        } else {
+          console.log('[BillingScreen] No residents found or API error:', result.error);
+          setFamilyResidents([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching family residents:', error);
+      setFamilyResidents([]);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchBills();
+    await Promise.all([fetchBills(), fetchFamilyResidents()]);
     setRefreshing(false);
   };
 
@@ -266,7 +303,7 @@ const BillingScreen = ({ navigation }) => {
             {filters.residentId && (
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>
-                  {residents.find(r => r._id === filters.residentId)?.name || 'Cụ được chọn'}
+                  {familyResidents.find(r => r._id === filters.residentId)?.full_name || 'Cụ được chọn'}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setFilters(prev => ({ ...prev, residentId: null }))}
@@ -389,8 +426,8 @@ const BillingScreen = ({ navigation }) => {
               {/* Resident Filter */}
               <Text style={styles.filterSectionTitle}>Người cao tuổi</Text>
               <View style={styles.filterButtons}>
-                {residents.length > 0 ? (
-                  residents.map(resident => (
+                {familyResidents.length > 0 ? (
+                  familyResidents.map(resident => (
                   <TouchableOpacity
                       key={resident._id}
                     style={[

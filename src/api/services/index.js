@@ -9,4 +9,5 @@ export { default as activityService } from './activityService';
 export { default as carePlanService } from './carePlanService';
 export { default as billsService } from './billsService';
 export { default as bedAssignmentService } from './bedAssignmentService';
-export { default as vitalSignsService } from './vitalSignsService'; 
+export { default as vitalSignsService } from './vitalSignsService';
+export { default as staffAssignmentService } from './staffAssignmentService'; 

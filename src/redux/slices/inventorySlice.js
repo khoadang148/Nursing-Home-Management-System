@@ -1,9 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { inventory } from '../../api/mockData';
+
 
 // Initial state
 const initialState = {
-  inventoryItems: inventory,
+  inventoryItems: [],
   currentItem: null,
   isLoading: false,
   error: null,

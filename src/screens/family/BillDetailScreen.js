@@ -36,10 +36,49 @@ const BillDetailScreen = ({ route, navigation }) => {
   const [matchedRoomType, setMatchedRoomType] = useState(null);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [additionalCarePlans, setAdditionalCarePlans] = useState([]);
+  const [loadingCarePlans, setLoadingCarePlans] = useState(false);
 
   useEffect(() => {
     fetchBillDetail();
   }, [billId]);
+
+  // Fetch care plans từ API nếu bill không có assignment
+  useEffect(() => {
+    const fetchCarePlansFromAPI = async () => {
+      if (bill && bill.resident_id?._id && (!bill.care_plan_assignment_id)) {
+        setLoadingCarePlans(true);
+        try {
+          console.log('[BillDetailScreen] Fetching care plans from API for resident:', bill.resident_id._id);
+          const response = await billsService.billingService.getCarePlanAssignmentByResident(bill.resident_id._id);
+          console.log('[BillDetailScreen] Care plan assignment response:', response);
+          
+          if (response && Array.isArray(response) && response.length > 0) {
+            // Lấy assignment đầu tiên và care_plan_ids của nó
+            const assignment = response[0];
+            if (assignment && assignment.care_plan_ids && assignment.care_plan_ids.length > 0) {
+              setAdditionalCarePlans(assignment.care_plan_ids);
+              console.log('[BillDetailScreen] Set additional care plans:', assignment.care_plan_ids);
+            } else {
+              console.log('[BillDetailScreen] No care plans found in assignment');
+            }
+          } else if (response && response.care_plan_ids && response.care_plan_ids.length > 0) {
+            // Nếu response trực tiếp là assignment object
+            setAdditionalCarePlans(response.care_plan_ids);
+            console.log('[BillDetailScreen] Set additional care plans:', response.care_plan_ids);
+          } else {
+            console.log('[BillDetailScreen] No care plans found from API');
+          }
+        } catch (error) {
+          console.error('[BillDetailScreen] Error fetching care plans:', error);
+        } finally {
+          setLoadingCarePlans(false);
+        }
+      }
+    };
+    
+    fetchCarePlansFromAPI();
+  }, [bill?.resident_id?._id, bill?.care_plan_assignment_id]);
 
   useEffect(() => {
     const fetchBed = async () => {
@@ -89,6 +128,9 @@ const BillDetailScreen = ({ route, navigation }) => {
     try {
       setLoading(true);
       const billData = await billsService.billingService.getBillDetail(billId);
+      console.log('[BillDetailScreen] Bill data received:', JSON.stringify(billData, null, 2));
+      console.log('[BillDetailScreen] Assignment:', billData?.care_plan_assignment_id);
+      console.log('[BillDetailScreen] Care plans:', billData?.care_plan_assignment_id?.care_plan_ids);
       setBill(billData);
     } catch (error) {
       console.error('Error fetching bill detail:', error);
@@ -257,7 +299,16 @@ const BillDetailScreen = ({ route, navigation }) => {
 
   // Lấy thông tin assignment, care plans, room, bed từ bill (đã populate)
   const assignment = bill.care_plan_assignment_id;
-  const carePlans = assignment?.care_plan_ids || [];
+  
+  // Lấy care plans từ assignment hoặc từ API
+  let carePlans = assignment?.care_plan_ids || [];
+  const finalCarePlans = carePlans.length > 0 ? carePlans : additionalCarePlans;
+  
+  console.log('[BillDetailScreen] Render - Assignment:', assignment);
+  console.log('[BillDetailScreen] Render - Care plans from assignment:', carePlans);
+  console.log('[BillDetailScreen] Render - Additional care plans:', additionalCarePlans);
+  console.log('[BillDetailScreen] Render - Final care plans:', finalCarePlans);
+  
   const room = assignment?.assigned_room_id;
   const bed = assignment?.assigned_bed_id;
   const residentName = bill.resident_id?.full_name || 'Không rõ';
@@ -348,25 +399,31 @@ const BillDetailScreen = ({ route, navigation }) => {
   const handleExportPDF = async () => {
     try {
       setExportLoading(true);
-      const result = await billsService.billingService.exportBillPDF(bill.id);
-      Alert.alert(
-        'Xuất hóa đơn',
-        'Hóa đơn đã được xuất thành công. Bạn có muốn tải xuống không?',
-        [
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-          {
-            text: 'Tải xuống',
-            onPress: () => {
-              // TODO: Implement download logic
-              console.log('Download PDF:', result.url);
+      const result = await billsService.billingService.exportBillPDF(bill._id || bill.id);
+      
+      if (result.success && result.data?.url) {
+        Alert.alert(
+          'Xuất hóa đơn',
+          'Hóa đơn đã được xuất thành công. Bạn có muốn tải xuống không?',
+          [
+            {
+              text: 'Hủy',
+              style: 'cancel',
             },
-          },
-        ]
-      );
+            {
+              text: 'Tải xuống',
+              onPress: () => {
+                // Mở URL trong browser để tải xuống
+                Linking.openURL(result.data.url);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Thông báo', 'Hóa đơn đã được xuất thành công. Vui lòng kiểm tra email hoặc liên hệ nhân viên để nhận file.');
+      }
     } catch (error) {
+      console.error('Export PDF error:', error);
       Alert.alert('Lỗi', 'Không thể xuất hóa đơn. Vui lòng thử lại sau.');
     } finally {
       setExportLoading(false);
@@ -574,7 +631,7 @@ const BillDetailScreen = ({ route, navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Chi tiết hóa đơn</Text>
         {/* Hiển thị các gói dịch vụ */}
-        {carePlans.length > 0 && carePlans.map((plan) => (
+        {finalCarePlans.length > 0 && finalCarePlans.map((plan) => (
             <View 
             key={plan._id}
               style={[

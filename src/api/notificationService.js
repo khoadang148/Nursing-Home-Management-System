@@ -1,6 +1,4 @@
-import apiService from './apiService';
 import { NOTIFICATION_ENDPOINTS } from '../constants/api';
-import { mockNotifications } from './mockData';
 
 // Simulated API delay
 const simulateNetworkDelay = () => new Promise(resolve => setTimeout(resolve, 500));
@@ -284,59 +282,69 @@ export const NotificationUtils = {
 const notificationService = {
   // Get all notifications
   getAllNotifications: async () => {
-    await simulateNetworkDelay();
-    const sortedNotifications = NotificationUtils.sortNotifications(mockNotifications);
-    return { data: sortedNotifications, success: true };
+    try {
+      const response = await fetch('/api/notifications');
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: [], success: false, error: error.message };
+    }
   },
 
   // Get notification by ID
   getNotificationById: async (id) => {
-    await simulateNetworkDelay();
-    const notification = mockNotifications.find(n => n.id === id);
-    if (!notification) {
-      return { data: null, success: false, error: 'Không tìm thấy thông báo' };
+    try {
+      const response = await fetch(`/api/notifications/${id}`);
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: null, success: false, error: error.message };
     }
-    return { data: notification, success: true };
   },
 
   // Mark notification as read
   markAsRead: async (id) => {
-    await simulateNetworkDelay();
-    const notificationIndex = mockNotifications.findIndex(n => n.id === id);
-    if (notificationIndex === -1) {
-      return { data: null, success: false, error: 'Không tìm thấy thông báo' };
+    try {
+      const response = await fetch(`/api/notifications/${id}/read`, { method: 'PUT' });
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: null, success: false, error: error.message };
     }
-    mockNotifications[notificationIndex].isRead = true;
-    return { data: { id, isRead: true }, success: true };
   },
 
   // Mark all notifications as read
   markAllAsRead: async () => {
-    await simulateNetworkDelay();
-    mockNotifications.forEach(notification => {
-      notification.isRead = true;
-    });
-    return { data: { message: 'Đã đánh dấu tất cả thông báo là đã đọc' }, success: true };
+    try {
+      const response = await fetch('/api/notifications/read-all', { method: 'PUT' });
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: null, success: false, error: error.message };
+    }
   },
 
   // Delete notification
   deleteNotification: async (id) => {
-    await simulateNetworkDelay();
-    const notificationIndex = mockNotifications.findIndex(n => n.id === id);
-    if (notificationIndex === -1) {
-      return { data: null, success: false, error: 'Không tìm thấy thông báo' };
+    try {
+      const response = await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: null, success: false, error: error.message };
     }
-    mockNotifications.splice(notificationIndex, 1);
-    return { data: { id }, success: true };
   },
 
   // Create new notification using template
   createNotification: async (templateKey, params, additionalData) => {
-    await simulateNetworkDelay();
     try {
-      const newNotification = NotificationUtils.createNotification(templateKey, params, additionalData);
-      mockNotifications.unshift(newNotification);
-      return { data: newNotification, success: true };
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateKey, params, additionalData })
+      });
+      const data = await response.json();
+      return { data, success: true };
     } catch (error) {
       return { data: null, success: false, error: error.message };
     }
@@ -344,58 +352,59 @@ const notificationService = {
 
   // Send bulk notifications
   sendBulkNotifications: async (notifications) => {
-    await simulateNetworkDelay();
-    const createdNotifications = notifications.map(notif => {
-      if (notif.templateKey) {
-        return NotificationUtils.createNotification(notif.templateKey, notif.params, notif.additionalData);
-      }
-      return {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        priority: 'normal',
-        ...notif
-      };
-    });
-    
-    mockNotifications.unshift(...createdNotifications);
-    return { data: createdNotifications, success: true };
+    try {
+      const response = await fetch('/api/notifications/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifications)
+      });
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: null, success: false, error: error.message };
+    }
   },
 
   // Get notifications by type
   getNotificationsByType: async (type) => {
-    await simulateNetworkDelay();
-    const filteredNotifications = NotificationUtils.filterByType(mockNotifications, type);
-    const sortedNotifications = NotificationUtils.sortNotifications(filteredNotifications);
-    return { data: sortedNotifications, success: true };
+    try {
+      const response = await fetch(`/api/notifications?type=${type}`);
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: [], success: false, error: error.message };
+    }
   },
 
   // Get unread count
   getUnreadCount: async () => {
-    await simulateNetworkDelay();
-    const unreadCount = mockNotifications.filter(n => !n.isRead).length;
-    return { data: { count: unreadCount }, success: true };
+    try {
+      const response = await fetch('/api/notifications/unread-count');
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: { count: 0 }, success: false, error: error.message };
+    }
   },
 
   // Search notifications
   searchNotifications: async (query) => {
-    await simulateNetworkDelay();
-    const lowerQuery = query.toLowerCase();
-    const filteredNotifications = mockNotifications.filter(n => 
-      n.title.toLowerCase().includes(lowerQuery) || 
-      n.message.toLowerCase().includes(lowerQuery)
-    );
-    const sortedNotifications = NotificationUtils.sortNotifications(filteredNotifications);
-    return { data: sortedNotifications, success: true };
+    try {
+      const response = await fetch(`/api/notifications/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      return { data, success: true };
+    } catch (error) {
+      return { data: [], success: false, error: error.message };
+    }
   }
 };
 
 // For real API implementation (when backend is ready)
-const realNotificationService = {
-  getAllNotifications: () => apiService.get(NOTIFICATION_ENDPOINTS.getAllNotifications),
-  markAsRead: (id) => apiService.put(NOTIFICATION_ENDPOINTS.markAsRead(id)),
-  deleteNotification: (id) => apiService.delete(NOTIFICATION_ENDPOINTS.deleteNotification(id)),
-};
+// const realNotificationService = {
+//   getAllNotifications: () => apiService.get(NOTIFICATION_ENDPOINTS.getAllNotifications),
+//   markAsRead: (id) => apiService.put(NOTIFICATION_ENDPOINTS.markAsRead(id)),
+//   deleteNotification: (id) => apiService.delete(NOTIFICATION_ENDPOINTS.deleteNotification(id)),
+// };
 
 // Export the mock service for now
 export default notificationService; 

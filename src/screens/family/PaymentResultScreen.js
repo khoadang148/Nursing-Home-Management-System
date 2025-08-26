@@ -123,8 +123,8 @@ const PaymentResultScreen = ({ route, navigation }) => {
           {isSuccess 
             ? 'Hóa đơn của bạn đã được thanh toán thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!'
             : isCancelled 
-              ? 'Bạn đã hủy quá trình thanh toán. Bạn có thể thử lại bất cứ lúc nào.'
-              : 'Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại sau.'
+              ? 'Bạn đã hủy quá trình thanh toán. Hóa đơn vẫn chưa được thanh toán và bạn có thể thử lại bất cứ lúc nào từ trang chi tiết hóa đơn.'
+              : 'Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại sau hoặc liên hệ hỗ trợ nếu vấn đề vẫn tiếp tục.'
           }
         </Text>
 
@@ -205,6 +205,23 @@ const PaymentResultScreen = ({ route, navigation }) => {
               onPress={handleGoBack}
             >
               <Text style={styles.secondaryButtonText}>Về trang chính</Text>
+            </TouchableOpacity>
+          </>
+        ) : isCancelled ? (
+          <>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleViewBill}
+            >
+              <Ionicons name="document-text" size={20} color="white" />
+              <Text style={styles.primaryButtonText}>Xem hóa đơn</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleRetryPayment}
+            >
+              <Ionicons name="refresh" size={20} color={COLORS.primary} />
+              <Text style={styles.secondaryButtonText}>Thử lại thanh toán</Text>
             </TouchableOpacity>
           </>
         ) : (

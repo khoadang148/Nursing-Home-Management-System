@@ -10,6 +10,8 @@ import {
   Dimensions,
   Image,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -55,6 +57,17 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
   const [carePlanAssignment, setCarePlanAssignment] = useState(null);
   const [carePlanAssignments, setCarePlanAssignments] = useState([]);
   const [bedInfo, setBedInfo] = useState(null);
+  
+  // Filters for Vitals and Assessments
+  const [vitalsFilterMode, setVitalsFilterMode] = useState('all'); // all | day | month | year
+  const [vitalsPeriod, setVitalsPeriod] = useState(new Date());
+  const [assessmentFilterMode, setAssessmentFilterMode] = useState('all'); // all | day | month | year
+  const [assessmentPeriod, setAssessmentPeriod] = useState(new Date());
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState('vitals'); // 'vitals' | 'assessment'
+  const [dateInputDay, setDateInputDay] = useState('');
+  const [dateInputMonth, setDateInputMonth] = useState('');
+  const [dateInputYear, setDateInputYear] = useState('');
 
   useEffect(() => {
     console.log('[FamilyResidentDetailScreen] useEffect residentId:', residentId);
@@ -241,6 +254,108 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
     const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
     return `${formattedAmount} × 10,000 VNĐ`;
   };
+
+  // ===== Helpers for date filtering =====
+  const toDate = (value) => {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const isSameMonth = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  const isSameYear = (a, b) => a.getFullYear() === b.getFullYear();
+
+  const adjustPeriod = (date, mode, delta) => {
+    const d = new Date(date);
+    if (mode === 'day') {
+      d.setDate(d.getDate() + delta);
+    } else if (mode === 'month') {
+      d.setMonth(d.getMonth() + delta);
+    } else if (mode === 'year') {
+      d.setFullYear(d.getFullYear() + delta);
+    }
+    return d;
+  };
+
+  const getPeriodLabel = (date, mode) => {
+    if (mode === 'day') {
+      return new Date(date).toLocaleDateString('vi-VN');
+    }
+    if (mode === 'month') {
+      const d = new Date(date);
+      return `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
+    }
+    if (mode === 'year') {
+      return `${new Date(date).getFullYear()}`;
+    }
+    return 'Tất cả';
+  };
+
+  const openDatePicker = (target) => {
+    setDatePickerTarget(target);
+    const base = target === 'vitals' ? vitalsPeriod : assessmentPeriod;
+    setDateInputDay(String(base.getDate()));
+    setDateInputMonth(String(base.getMonth() + 1));
+    setDateInputYear(String(base.getFullYear()));
+    setDatePickerVisible(true);
+  };
+
+  const applyDatePicker = () => {
+    const d = parseInt(dateInputDay || '1', 10);
+    const m = parseInt(dateInputMonth || '1', 10) - 1;
+    const y = parseInt(dateInputYear || '1970', 10);
+    const candidate = new Date(y, m, d);
+    if (isNaN(candidate.getTime())) {
+      Alert.alert('Ngày không hợp lệ', 'Vui lòng nhập ngày/tháng/năm hợp lệ.');
+      return;
+    }
+    if (datePickerTarget === 'vitals') {
+      setVitalsPeriod(candidate);
+      setVitalsFilterMode('day');
+    } else {
+      setAssessmentPeriod(candidate);
+      setAssessmentFilterMode('day');
+    }
+    setDatePickerVisible(false);
+  };
+
+  // ===== Filtered data =====
+  const filteredVitals = React.useMemo(() => {
+    const list = vitalSigns || [];
+    if (vitalsFilterMode === 'all') {
+      return [...list].sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+    }
+    const period = vitalsPeriod;
+    return list
+      .filter((v) => {
+        const d = toDate(v.date_time);
+        if (!d) return false;
+        if (vitalsFilterMode === 'day') return isSameDay(d, period);
+        if (vitalsFilterMode === 'month') return isSameMonth(d, period);
+        if (vitalsFilterMode === 'year') return isSameYear(d, period);
+        return true;
+      })
+      .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+  }, [vitalSigns, vitalsFilterMode, vitalsPeriod]);
+
+  const filteredAssessments = React.useMemo(() => {
+    const list = assessments || [];
+    if (assessmentFilterMode === 'all') {
+      return [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+    const period = assessmentPeriod;
+    return list
+      .filter((as) => {
+        const d = toDate(as.date);
+        if (!d) return false;
+        if (assessmentFilterMode === 'day') return isSameDay(d, period);
+        if (assessmentFilterMode === 'month') return isSameMonth(d, period);
+        if (assessmentFilterMode === 'year') return isSameYear(d, period);
+        return true;
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [assessments, assessmentFilterMode, assessmentPeriod]);
 
   const renderTabBar = () => {
     const tabs = [
@@ -450,8 +565,37 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
   const renderVitalSigns = () => (
     <View>
-      {vitalSigns.length > 0 ? (
-        vitalSigns.map((vital, index) => (
+      {/* Filter controls */}
+      <View style={styles.filterRow}>
+        {['all','day','month','year'].map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            style={[styles.filterChip, vitalsFilterMode === mode && styles.filterChipActive]}
+            onPress={() => setVitalsFilterMode(mode)}
+          >
+            <Text style={[styles.filterLabel, vitalsFilterMode === mode && { color: COLORS.primary }]}>
+              {mode === 'all' ? 'Tất cả' : mode === 'day' ? 'Ngày' : mode === 'month' ? 'Tháng' : 'Năm'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        {vitalsFilterMode !== 'all' && (
+          <View style={styles.periodNav}>
+            <TouchableOpacity onPress={() => setVitalsPeriod(prev => adjustPeriod(prev, vitalsFilterMode, -1))}>
+              <MaterialIcons name="chevron-left" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.periodText}>{getPeriodLabel(vitalsPeriod, vitalsFilterMode)}</Text>
+            <TouchableOpacity onPress={() => setVitalsPeriod(prev => adjustPeriod(prev, vitalsFilterMode, 1))}>
+              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openDatePicker('vitals')}>
+              <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {filteredVitals.length > 0 ? (
+        filteredVitals.map((vital, index) => (
           <Card key={index} style={styles.card}>
             <Card.Content>
               <View style={styles.vitalHeader}>
@@ -520,8 +664,37 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
   const renderAssessments = () => (
     <View>
-      {assessments.length > 0 ? (
-        assessments.map((assessment, index) => (
+      {/* Filter controls */}
+      <View style={styles.filterRow}>
+        {['all','day','month','year'].map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            style={[styles.filterChip, assessmentFilterMode === mode && styles.filterChipActive]}
+            onPress={() => setAssessmentFilterMode(mode)}
+          >
+            <Text style={[styles.filterLabel, assessmentFilterMode === mode && { color: COLORS.primary }]}>
+              {mode === 'all' ? 'Tất cả' : mode === 'day' ? 'Ngày' : mode === 'month' ? 'Tháng' : 'Năm'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        {assessmentFilterMode !== 'all' && (
+          <View style={styles.periodNav}>
+            <TouchableOpacity onPress={() => setAssessmentPeriod(prev => adjustPeriod(prev, assessmentFilterMode, -1))}>
+              <MaterialIcons name="chevron-left" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <Text style={styles.periodText}>{getPeriodLabel(assessmentPeriod, assessmentFilterMode)}</Text>
+            <TouchableOpacity onPress={() => setAssessmentPeriod(prev => adjustPeriod(prev, assessmentFilterMode, 1))}>
+              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openDatePicker('assessment')}>
+              <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {filteredAssessments.length > 0 ? (
+        filteredAssessments.map((assessment, index) => (
           <Card key={index} style={styles.card}>
             <Card.Content>
               <View style={styles.assessmentHeader}>
@@ -795,6 +968,62 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
       >
         {renderContent()}
       </ScrollView>
+      
+      {/* Date Picker Modal */}
+      <Modal
+        visible={datePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+            <Text style={{ fontSize: 18, marginBottom: 12, color: '#333', fontWeight: 'bold' }}>
+              Chọn ngày cụ thể
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ fontSize: 14, color: '#666', marginBottom: 6 }}>Ngày</Text>
+                <TextInput
+                  value={dateInputDay}
+                  onChangeText={setDateInputDay}
+                  placeholder="DD"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 4 }}>
+                <Text style={{ fontSize: 14, color: '#666', marginBottom: 6 }}>Tháng</Text>
+                <TextInput
+                  value={dateInputMonth}
+                  onChangeText={setDateInputMonth}
+                  placeholder="MM"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={{ fontSize: 14, color: '#666', marginBottom: 6 }}>Năm</Text>
+                <TextInput
+                  value={dateInputYear}
+                  onChangeText={setDateInputYear}
+                  placeholder="YYYY"
+                  keyboardType="number-pad"
+                  style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, height: 40 }}
+                />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+              <TouchableOpacity onPress={() => setDatePickerVisible(false)} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Text style={{ fontSize: 14, color: '#666' }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={applyDatePicker} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Text style={{ fontSize: 14, color: COLORS.primary, fontWeight: 'bold' }}>Áp dụng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1185,6 +1414,42 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e0e0e0',
     marginVertical: 16,
+  },
+  
+  // Filter styles
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 16,
+    marginRight: 8,
+    marginTop: 4,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary + '20',
+  },
+  filterLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  periodNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  periodText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    marginHorizontal: 8,
   },
 });
 

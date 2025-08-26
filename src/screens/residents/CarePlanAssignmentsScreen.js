@@ -31,12 +31,27 @@ const CarePlanAssignmentsScreen = () => {
     try {
       setLoading(true);
       // Lấy danh sách care plan assignments từ API
+      console.log('[CarePlanAssignmentsScreen] Fetching assignments...');
       const assignmentsResponse = await carePlanAssignmentService.getAllCarePlanAssignments();
+      console.log('[CarePlanAssignmentsScreen] Assignments response:', assignmentsResponse);
       
       if (assignmentsResponse.success && assignmentsResponse.data) {
+        console.log('[CarePlanAssignmentsScreen] Assignment data count:', assignmentsResponse.data.length);
+        console.log('[CarePlanAssignmentsScreen] First assignment:', assignmentsResponse.data[0]);
+        // Lọc ra những assignment có resident_id hợp lệ trước
+        const validAssignments = assignmentsResponse.data.filter(assignment => {
+          const isValid = assignment.resident_id && assignment.resident_id._id;
+          if (!isValid) {
+            console.log('[CarePlanAssignmentsScreen] Skipping assignment with null resident_id:', assignment._id);
+          }
+          return isValid;
+        });
+        
+        console.log('[CarePlanAssignmentsScreen] Valid assignments count:', validAssignments.length);
+        
         // Lấy thông tin bed assignments cho từng resident
         const assignmentsWithBedInfo = await Promise.all(
-          assignmentsResponse.data.map(async (assignment) => {
+          validAssignments.map(async (assignment) => {
             try {
               const bedResponse = await bedAssignmentService.getBedAssignmentByResidentId(assignment.resident_id._id);
               if (bedResponse.success && bedResponse.data && bedResponse.data.length > 0) {
@@ -148,10 +163,16 @@ const CarePlanAssignmentsScreen = () => {
 
 
   const handleAssignmentPress = (assignment) => {
+    const mainPlan = assignment.care_plan_ids?.find(plan => plan.category === 'main')?.plan_name || 
+                     assignment.care_plan_ids?.[0]?.plan_name || 'N/A';
+    const supplementaryPlans = assignment.care_plan_ids?.filter(plan => plan.category === 'supplementary')
+                              .map(plan => plan.plan_name).join(', ') || 'Không có';
+    
     Alert.alert(
       'Chi tiết đăng ký',
       `Cư dân: ${assignment.resident_id?.full_name || 'N/A'}\n` +
-      `Gói chính: ${assignment.care_plan_ids?.[0]?.plan_name || 'N/A'}\n` +
+      `Gói chính: ${mainPlan}\n` +
+      `Gói phụ: ${supplementaryPlans}\n` +
       `Phòng: ${assignment.bed_info?.bed_id?.room_id?.room_number || 'N/A'}\n` +
       `Giường: ${assignment.bed_info?.bed_id?.bed_number || 'N/A'}\n` +
       `Ngày bắt đầu: ${formatDate(assignment.start_date || assignment.registration_date || assignment.created_at)}\n` +
@@ -235,7 +256,9 @@ const CarePlanAssignmentsScreen = () => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Gói chính:</Text>
                   <Text style={styles.detailValue}>
-                    {assignment.care_plan_ids?.[0]?.plan_name || 'Chưa có'}
+                    {assignment.care_plan_ids && assignment.care_plan_ids.length > 0 
+                      ? assignment.care_plan_ids.find(plan => plan.category === 'main')?.plan_name || assignment.care_plan_ids[0]?.plan_name || 'Chưa có'
+                      : 'Chưa có'}
                   </Text>
                 </View>
 
@@ -243,7 +266,15 @@ const CarePlanAssignmentsScreen = () => {
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Gói phụ:</Text>
                     <Text style={styles.detailValue}>
-                      {assignment.care_plan_ids.slice(1).map(plan => plan.plan_name).join(', ')}
+                      {assignment.care_plan_ids
+                        .filter(plan => plan && plan.category === 'supplementary')
+                        .map(plan => plan.plan_name)
+                        .join(', ') || 
+                      assignment.care_plan_ids
+                        .slice(1)
+                        .filter(plan => plan && plan.plan_name)
+                        .map(plan => plan.plan_name)
+                        .join(', ')}
                     </Text>
                   </View>
                 )}

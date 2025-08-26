@@ -13,6 +13,8 @@ export const API_CONFIG = {
   // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
   // BASE_URL: 'http://10.1.143.234:8000', // IP WiFi thực tế từ log trên trường student
   // BASE_URL: 'http://192.168.1.7:8000', // IP WiFi thực tế từ log
+
+  // BASE_URL: 'http://10.3.89.196:8000', // IP WiFi thực tế đồ án tốt nghiệp FPT_KLTN
   
   // Các IP khác cho các môi trường khác nhau (uncomment để sử dụng)
   // BASE_URL: 'http://192.168.56.1:8000', // IP VirtualBox/Hyper-V
