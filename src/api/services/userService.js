@@ -103,6 +103,28 @@ export const userService = {
       };
     }
   },
+
+  // Check if phone number exists
+  checkPhoneExists: async (phone) => {
+    try {
+      const response = await apiRequest.get(`/users/check-phone/${phone}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking phone exists:', error);
+      throw error;
+    }
+  },
+
+  // Check if email exists
+  checkEmailExists: async (email) => {
+    try {
+      const response = await apiRequest.get(`/users/check-email/${email}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking email exists:', error);
+      throw error;
+    }
+  },
 };
 
 export default userService; 

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
 import roomTypeService from '../../api/services/roomTypeService';
 import paymentService from '../../api/services/paymentService';
-import { formatCurrency, formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
+import { formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -27,6 +27,12 @@ const BillDetailScreen = ({ route, navigation }) => {
   const { billId, bedAssignment: bedAssignmentFromList } = route.params;
   const { colors } = useTheme();
   const [bill, setBill] = useState(null);
+
+  // Hàm format giá tiền mới
+  const formatCurrency = (amount) => {
+    if (!amount) return '0 VNĐ';
+    return new Intl.NumberFormat('vi-VN').format(amount * 10000) + ' VNĐ';
+  };
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -293,9 +299,9 @@ const BillDetailScreen = ({ route, navigation }) => {
     );
   }
 
-  // Sử dụng trạng thái từ API thay vì tự tính toán
-  const isOverdue = bill.status === 'overdue';
+  // Tính toán trạng thái thực tế dựa trên due date
   const daysRemaining = getDaysRemaining(bill.due_date);
+  const isOverdue = bill.status === 'overdue' || (bill.status === 'pending' && daysRemaining < 0);
 
   // Lấy thông tin assignment, care plans, room, bed từ bill (đã populate)
   const assignment = bill.care_plan_assignment_id;
@@ -399,9 +405,12 @@ const BillDetailScreen = ({ route, navigation }) => {
   const handleExportPDF = async () => {
     try {
       setExportLoading(true);
-      const result = await billsService.billingService.exportBillPDF(bill._id || bill.id);
+      console.log('DEBUG - Exporting PDF for bill:', bill._id || bill.id);
       
-      if (result.success && result.data?.url) {
+      const result = await billsService.billingService.exportBillPDF(bill._id || bill.id);
+      console.log('DEBUG - Export result:', result);
+      
+      if (result && result.success && result.data?.url) {
         Alert.alert(
           'Xuất hóa đơn',
           'Hóa đơn đã được xuất thành công. Bạn có muốn tải xuống không?',
@@ -419,12 +428,17 @@ const BillDetailScreen = ({ route, navigation }) => {
             },
           ]
         );
-      } else {
+      } else if (result && result.success && result.data) {
+        // Nếu có data nhưng không có URL
         Alert.alert('Thông báo', 'Hóa đơn đã được xuất thành công. Vui lòng kiểm tra email hoặc liên hệ nhân viên để nhận file.');
+      } else {
+        // Nếu result không có success hoặc data
+        console.error('Export failed - Invalid result structure:', result);
+        Alert.alert('Lỗi', 'Không thể xuất hóa đơn. Vui lòng thử lại sau.');
       }
     } catch (error) {
       console.error('Export PDF error:', error);
-      Alert.alert('Lỗi', 'Không thể xuất hóa đơn. Vui lòng thử lại sau.');
+      Alert.alert('Lỗi', `Không thể xuất hóa đơn: ${error.message || 'Vui lòng thử lại sau.'}`);
     } finally {
       setExportLoading(false);
     }
@@ -524,7 +538,7 @@ const BillDetailScreen = ({ route, navigation }) => {
                     {isOverdue 
                       ? `Quá hạn ${Math.abs(daysRemaining)} ngày`
                       : daysRemaining === 0 
-                        ? 'Đến hạn hôm nay'
+                        ? 'Hạn thanh toán hôm nay'
                         : `Còn ${daysRemaining} ngày`}
                   </Text>
                 )}

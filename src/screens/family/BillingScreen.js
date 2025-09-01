@@ -10,12 +10,12 @@ import {
   TextInput,
   Modal,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
-import { formatCurrency, formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
+import { formatDate, isExpired, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 
@@ -23,6 +23,12 @@ const BillingScreen = ({ navigation }) => {
   const { colors } = useTheme();
   const user = useSelector((state) => state.auth.user);
   const [bills, setBills] = useState([]);
+
+  // Hàm format giá tiền mới
+  const formatCurrency = (amount) => {
+    if (!amount) return '0 VNĐ';
+    return new Intl.NumberFormat('vi-VN').format(amount * 10000) + ' VNĐ';
+  };
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,19 +85,55 @@ const BillingScreen = ({ navigation }) => {
         // Lấy toàn bộ bill của family member qua API mới
         const params = {};
         params.family_member_id = user.id;
+        // Chỉ gửi search query lên API, các filter khác sẽ xử lý client-side
         if (searchQuery) params.search = searchQuery;
-        if (filters.status) params.status = filters.status;
-        if (filters.type) params.type = filters.type;
-        if (filters.residentId) params.resident_id = filters.residentId;
-        if (filters.period) params.period = filters.period;
         console.log('[BillingScreen] params truyền vào API getBills:', params);
         const result = await billsService.getBillsByFamilyMember(params);
         console.log('[BillingScreen] API response:', result);
-        if (result.success && Array.isArray(result.data)) {
-          const validBills = result.data.filter(bill => bill && (bill.id || bill._id));
+        
+        // API trả về { data: [], total: number } thay vì { success: true, data: [] }
+        if (result && Array.isArray(result.data)) {
+          let validBills = result.data.filter(bill => bill && (bill.id || bill._id));
+          
+          // Apply client-side filters
+          if (filters.status && filters.status !== 'all') {
+            validBills = validBills.filter(bill => bill.status === filters.status);
+          }
+          
+          if (filters.residentId) {
+            validBills = validBills.filter(bill => 
+              bill.resident_id?._id === filters.residentId || 
+              bill.resident_id === filters.residentId
+            );
+          }
+          
+          if (filters.period) {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            const endOfYear = new Date(now.getFullYear(), 11, 31);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            
+            validBills = validBills.filter(bill => {
+              const billDate = new Date(bill.created_at || bill.due_date);
+              switch (filters.period) {
+                case 'this_month':
+                  return billDate >= startOfMonth && billDate <= endOfMonth;
+                case 'this_year':
+                  return billDate >= startOfYear && billDate <= endOfYear;
+                case 'last_month':
+                  return billDate >= lastMonthStart && billDate <= lastMonthEnd;
+                default:
+                  return true;
+              }
+            });
+          }
+          
           setBills(validBills);
         } else {
-          console.log('[BillingScreen] No bills found or API error:', result.error);
+          console.log('[BillingScreen] No bills found or API error:', result);
           setBills([]);
         }
       } else {
@@ -108,7 +150,7 @@ const BillingScreen = ({ navigation }) => {
     try {
       if (user?.id) {
         const result = await billsService.getBillsByFamilyMember({ family_member_id: user.id });
-        if (result.success && Array.isArray(result.data)) {
+        if (result && Array.isArray(result.data)) {
           // Extract unique residents from bills
           const uniqueResidents = [];
           const seenResidentIds = new Set();
@@ -123,7 +165,7 @@ const BillingScreen = ({ navigation }) => {
           
           setFamilyResidents(uniqueResidents);
         } else {
-          console.log('[BillingScreen] No residents found or API error:', result.error);
+          console.log('[BillingScreen] No residents found or API error:', result);
           setFamilyResidents([]);
         }
       }
@@ -143,12 +185,40 @@ const BillingScreen = ({ navigation }) => {
 
   const getStatusColor = (bill) => {
     if (bill.status === 'paid') return '#4CAF50';    // Xanh lá - Đã thanh toán
+    
+    // Kiểm tra nếu pending nhưng đã quá hạn
+    if (bill.status === 'pending' && bill.dueDate) {
+      const today = new Date();
+      const due = new Date(bill.dueDate);
+      today.setHours(0, 0, 0, 0);
+      due.setHours(0, 0, 0, 0);
+      const daysRemaining = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysRemaining < 0) {
+        return '#F44336'; // Đỏ - Quá hạn
+      }
+    }
+    
     if (bill.status === 'overdue') return '#F44336'; // Đỏ - Quá hạn
     return '#FFA000'; // Cam - Chờ thanh toán (pending)
   };
 
   const getStatusText = (bill) => {
     if (bill.status === 'paid') return 'Đã thanh toán';
+    
+    // Kiểm tra nếu pending nhưng đã quá hạn
+    if (bill.status === 'pending' && bill.dueDate) {
+      const today = new Date();
+      const due = new Date(bill.dueDate);
+      today.setHours(0, 0, 0, 0);
+      due.setHours(0, 0, 0, 0);
+      const daysRemaining = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysRemaining < 0) {
+        return 'Quá hạn';
+      }
+    }
+    
     if (bill.status === 'overdue') return 'Quá hạn';
     return 'Chờ thanh toán'; // pending
   };
@@ -165,23 +235,29 @@ const BillingScreen = ({ navigation }) => {
     const dueDate = item.dueDate || item.due_date;
     const status = item.status;
     const daysRemaining = getDaysRemaining(dueDate);
-    const isOverdue = status === 'overdue';
+    const isOverdue = status === 'overdue' || (status === 'pending' && daysRemaining < 0);
+
+    // Xác định trạng thái thực tế dựa trên due date
+    let actualStatus = status;
+    if (status === 'pending' && daysRemaining < 0) {
+      actualStatus = 'overdue';
+    }
 
     // Xác định màu và text trạng thái
     let statusColor = '#FFA000', statusText = 'Chờ thanh toán';
-    if (status === 'paid') {
+    if (actualStatus === 'paid') {
       statusColor = '#4CAF50';
       statusText = 'Đã thanh toán';
-    } else if (status === 'overdue') {
+    } else if (actualStatus === 'overdue') {
       statusColor = '#F44336';
       statusText = 'Quá hạn';
     }
 
     // Tính số ngày còn lại/quá hạn
     let daysText = '';
-    if (status === 'pending') {
-      daysText = daysRemaining === 0 ? 'Quá hạn 0 ngày' : `Còn ${daysRemaining} ngày`;
-    } else if (status === 'overdue') {
+    if (actualStatus === 'pending') {
+      daysText = daysRemaining === 0 ? 'Hạn thanh toán hôm nay' : `Còn ${daysRemaining} ngày`;
+    } else if (actualStatus === 'overdue') {
       daysText = `Quá hạn ${Math.abs(daysRemaining)} ngày`;
     }
 
@@ -208,11 +284,11 @@ const BillingScreen = ({ navigation }) => {
           <Text style={styles.dueDate}>
             Hạn thanh toán: {formatDate(dueDate)}
           </Text>
-          {(status === 'pending' || status === 'overdue') && (
+          {(actualStatus === 'pending' || actualStatus === 'overdue') && (
             <Text style={[
               styles.daysRemaining,
-              isOverdue && styles.overdueText,
-              daysRemaining === 0 && !isOverdue && styles.dueTodayText
+              actualStatus === 'overdue' && styles.overdueText,
+              daysRemaining === 0 && actualStatus === 'pending' && styles.dueTodayText
             ]}>
               {daysText}
             </Text>
@@ -239,7 +315,7 @@ const BillingScreen = ({ navigation }) => {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
         <TouchableOpacity 

@@ -6,9 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  SafeAreaView,
-  Alert,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
@@ -148,7 +148,7 @@ const FamilyMenuScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.menuContainer}>
+    <SafeAreaView style={styles.menuContainer} edges={['top']}>
       <ScrollView style={styles.menuScrollView}>
         {/* User Profile Header */}
         <TouchableOpacity 

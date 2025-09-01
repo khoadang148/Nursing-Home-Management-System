@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Card, Title, Paragraph } from 'react-native-paper';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
@@ -72,7 +72,7 @@ const ChangePasswordScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
             <TouchableOpacity 

@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
+  TouchableOpacity
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph } from 'react-native-paper';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../../constants/theme';
@@ -96,7 +96,7 @@ Chính sách hoàn tiền:
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
           <TouchableOpacity 

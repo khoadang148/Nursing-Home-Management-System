@@ -21,75 +21,11 @@ import { updateProfile } from '../../redux/slices/authSlice';
 import authService from '../../api/services/authService';
 import CommonAvatar from '../../components/CommonAvatar';
 
-// Mock data - In a real app, this would come from an API
-const mockDashboardData = {
-  residents: {
-    total: 42,
-    newAdmissions: 3,
-    requireAttention: 5,
-  },
-  tasks: {
-    total: 28,
-    completed: 17,
-    pending: 11,
-    overdue: 2,
-  },
-  medications: {
-    pending: 8,
-    administered: 23,
-    refused: 1,
-  },
-  activities: {
-    today: 6,
-    upcoming: 4,
-    participation: '78%',
-  },
-  alerts: [
-    {
-      id: '1',
-      type: 'urgent',
-      title: 'Cảnh Báo Thuốc',
-      message: 'John Doe bỏ lỡ thuốc buổi sáng',
-      time: '10:15 AM',
-      read: false,
-    },
-    {
-      id: '2',
-      type: 'info',
-      title: 'Cư Dân Mới',
-      message: 'Margaret Wilson đã được đưa vào Phòng 204',
-      time: 'Hôm qua',
-      read: true,
-    },
-    {
-      id: '3',
-      type: 'warning',
-      title: 'Dấu Hiệu Sinh Tồn',
-      message: 'Mary Smith có huyết áp cao',
-      time: 'Hôm qua',
-      read: false,
-    },
-  ],
-};
-
-const upcomingShifts = [
-  {
-    id: '1',
-    date: 'Hôm nay',
-    startTime: '07:00 AM',
-    endTime: '03:00 PM',
-    department: 'Khoa Tổng Quát',
-    assignedResidents: 8,
-  },
-  {
-    id: '2',
-    date: 'Ngày mai',
-    startTime: '03:00 PM',
-    endTime: '11:00 PM',
-    department: 'Khoa Chăm Sóc Trí Nhớ',
-    assignedResidents: 6,
-  },
-];
+// Import services for real data
+import staffAssignmentService from '../../api/services/staffAssignmentService';
+import vitalSignsService from '../../api/services/vitalSignsService';
+import assessmentService from '../../api/services/assessmentService';
+import { fetchNotifications } from '../../redux/slices/notificationSlice';
 
 const DashboardScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -97,6 +33,8 @@ const DashboardScreen = ({ navigation }) => {
   const [activityCount, setActivityCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [avatarKey, setAvatarKey] = useState(0);
+  const [todayTasks, setTodayTasks] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState([]);
   const user = useSelector((state) => state.auth.user);
 
   const fetchDashboardData = async () => {
@@ -104,7 +42,15 @@ const DashboardScreen = ({ navigation }) => {
       setRefreshing(true);
       
       // Fetch residents count
-      const residentsResponse = await residentService.getAllResidents();
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let residentsResponse;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        residentsResponse = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        residentsResponse = await residentService.getAllResidents();
+      }
       if (residentsResponse.success) {
         setResidentCount(residentsResponse.data.length);
       }
@@ -116,10 +62,104 @@ const DashboardScreen = ({ navigation }) => {
           setActivityCount(activityResponse.data.length);
         }
       }
+
+      // Fetch today's tasks for staff
+      if (user?.role === 'staff' && user?.id) {
+        await fetchTodayTasks();
+      }
+
+      // Fetch unread notifications
+      if (user?.role === 'staff') {
+        await fetchUnreadNotifications();
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const fetchTodayTasks = async () => {
+    try {
+      const assignRes = await staffAssignmentService.getMyAssignments();
+      if (!assignRes.success) {
+        setTodayTasks([]);
+        return;
+      }
+
+      const assignments = Array.isArray(assignRes.data) ? assignRes.data : [];
+      const taskPromises = assignments.map(async (asg) => {
+        const resident = asg.resident_id || asg.resident || {};
+        const residentId = resident._id || asg.resident_id || asg.residentId;
+        const residentName = resident.full_name || resident.name || 'Không rõ tên';
+
+        // Check today's vitals
+        const vitalsRes = await vitalSignsService.getVitalSignsByResidentId(residentId);
+        const hasTodayVitals = vitalsRes.success && Array.isArray(vitalsRes.data)
+          ? vitalsRes.data.some(v => {
+              const recordedAt = new Date(v.date_time || v.created_at || v.date);
+              const today = new Date();
+              return recordedAt.toDateString() === today.toDateString();
+            })
+          : false;
+
+        // Check today's assessments
+        const assessRes = await assessmentService.getAssessmentsByResidentId(residentId);
+        const hasTodayAssessment = assessRes.success && Array.isArray(assessRes.data)
+          ? assessRes.data.some(a => {
+              const createdAt = new Date(a.created_at || a.assessment_date || a.date);
+              const today = new Date();
+              return createdAt.toDateString() === today.toDateString();
+            })
+          : false;
+
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 0, 0);
+
+        return [
+          {
+            id: `vitals_${residentId}`,
+            type: 'vitals',
+            residentId,
+            residentName,
+            title: 'Ghi nhận chỉ số sinh hiệu',
+            description: `Ghi nhận sinh hiệu hôm nay cho ${residentName}`,
+            dueDate: endOfDay.toISOString(),
+            status: hasTodayVitals ? 'Hoàn thành' : 'Chờ xử lý',
+            category: 'Sinh hiệu',
+          },
+          {
+            id: `assessment_${residentId}`,
+            type: 'assessment',
+            residentId,
+            residentName,
+            title: 'Thực hiện đánh giá',
+            description: `Đánh giá tình trạng hôm nay cho ${residentName}`,
+            dueDate: endOfDay.toISOString(),
+            status: hasTodayAssessment ? 'Hoàn thành' : 'Chờ xử lý',
+            category: 'Đánh giá',
+          },
+        ];
+      });
+
+      const tasksNested = await Promise.all(taskPromises);
+      const builtTasks = tasksNested.flat().filter(task => task.status === 'Chờ xử lý').slice(0, 3);
+      setTodayTasks(builtTasks);
+    } catch (error) {
+      console.error('Error fetching today tasks:', error);
+      setTodayTasks([]);
+    }
+  };
+
+  const fetchUnreadNotifications = async () => {
+    try {
+      // Fetch notifications from Redux store
+      const notifications = await dispatch(fetchNotifications());
+      const unread = notifications.payload?.filter(notif => !notif.isRead) || [];
+      setUnreadNotifications(unread.slice(0, 3));
+    } catch (error) {
+      console.error('Error fetching unread notifications:', error);
+      setUnreadNotifications([]);
     }
   };
 
@@ -174,6 +214,7 @@ const DashboardScreen = ({ navigation }) => {
 
   // Debug user data
   console.log('Dashboard - User data:', user);
+  console.log('Dashboard - User role:', user?.role);
   console.log('Dashboard - User avatar:', user?.avatar);
   console.log('Dashboard - User profile_picture:', user?.profile_picture);
   console.log('Dashboard - Final avatar URI:', getAvatarUri(user?.avatar || user?.profile_picture));
@@ -322,10 +363,10 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
         {/* Ẩn các card nhiệm vụ và thuốc */}
-        {/* Upcoming Shifts, Recent Alerts giữ nguyên nếu muốn */}
+        {/* Today's Tasks */}
         <Card style={styles.shiftCard}>
           <Card.Title
-            title="Ca Làm Sắp Tới"
+            title="Nhiệm Vụ Hôm Nay"
             titleStyle={styles.cardSectionTitle}
             right={(props) => (
               <IconButton
@@ -338,27 +379,54 @@ const DashboardScreen = ({ navigation }) => {
             )}
           />
           <Card.Content>
-            {upcomingShifts.map((shift) => (
-                              <View key={shift.id} style={styles.shiftItem}>
-                <View style={styles.shiftInfo}>
-                  <Text style={styles.shiftDate}>{shift.date}</Text>
-                  <Text style={styles.shiftTime}>
-                    {shift.startTime} - {shift.endTime}
-                  </Text>
-                </View>
-                <View style={styles.shiftDetails}>
-                  <Text style={styles.shiftDepartment}>{shift.department}</Text>
-                  <Text style={styles.shiftResidents}>
-                    {shift.assignedResidents} cư dân
-                  </Text>
-                </View>
-              </View>
-            ))}
+            {todayTasks.length > 0 ? (
+              todayTasks.map((task) => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskItem}
+                  onPress={() => {
+                    if (task.type === 'vitals') {
+                      // Navigate to CuDan tab first, then to RecordVitals
+                      navigation.navigate('CuDan', {
+                        screen: 'RecordVitals',
+                        params: { residentId: task.residentId }
+                      });
+                    } else if (task.type === 'assessment') {
+                      // Navigate to CuDan tab first, then to AddAssessment
+                      navigation.navigate('CuDan', {
+                        screen: 'AddAssessment',
+                        params: { residentId: task.residentId }
+                      });
+                    }
+                  }}
+                >
+                  <View style={styles.taskInfo}>
+                    <Text style={styles.taskTitle}>{task.title}</Text>
+                    <Text style={styles.taskResident}>{task.residentName}</Text>
+                  </View>
+                  <View style={styles.taskActions}>
+                    <MaterialIcons name="play-circle" size={24} color={COLORS.primary} />
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.noDataText}>Không có nhiệm vụ nào cần thực hiện</Text>
+            )}
+            {todayTasks.length > 0 && (
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('NhiemVu')}
+              >
+                <Text style={styles.viewAllText}>Xem tất cả nhiệm vụ</Text>
+              </TouchableOpacity>
+            )}
           </Card.Content>
         </Card>
+
+        {/* Unread Notifications */}
         <Card style={styles.alertsCard}>
           <Card.Title
-            title="Cảnh Báo Gần Đây"
+            title="Thông Báo Chưa Đọc"
             titleStyle={styles.cardSectionTitle}
             right={(props) => (
               <IconButton
@@ -371,53 +439,65 @@ const DashboardScreen = ({ navigation }) => {
             )}
           />
           <Card.Content>
-            {mockDashboardData.alerts.map((alert) => (
+            {unreadNotifications.length > 0 ? (
+              unreadNotifications.map((notification) => (
+                <TouchableOpacity
+                  key={notification.id}
+                  style={styles.alertItem}
+                  onPress={() => navigation.navigate('ThongBao')}
+                >
+                  <View
+                    style={[
+                      styles.alertIconContainer,
+                      {
+                        backgroundColor:
+                          notification.type === 'urgent'
+                            ? COLORS.error
+                            : notification.type === 'warning'
+                            ? COLORS.warning
+                            : COLORS.info,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={
+                        notification.type === 'urgent'
+                          ? 'priority-high'
+                          : notification.type === 'warning'
+                          ? 'warning'
+                          : 'info'
+                      }
+                      size={20}
+                      color={COLORS.surface}
+                    />
+                  </View>
+                  <View style={styles.alertContent}>
+                    <View style={styles.alertHeader}>
+                      <Text style={styles.alertTitle}>
+                        {notification.title}
+                      </Text>
+                      <Badge size={8} style={styles.unreadBadge} />
+                    </View>
+                    <Text style={styles.alertMessage}>
+                      {notification.message}
+                    </Text>
+                    <Text style={styles.alertTime}>
+                      {new Date(notification.timestamp).toLocaleString('vi-VN')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.noDataText}>Không có thông báo mới</Text>
+            )}
+            {unreadNotifications.length > 0 && (
               <TouchableOpacity
-                key={alert.id}
-                style={styles.alertItem}
+                style={styles.viewAllButton}
                 onPress={() => navigation.navigate('ThongBao')}
               >
-                <View
-                  style={[
-                    styles.alertIconContainer,
-                    {
-                      backgroundColor:
-                        alert.type === 'urgent'
-                          ? COLORS.error
-                          : alert.type === 'warning'
-                          ? COLORS.warning
-                          : COLORS.info,
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name={
-                      alert.type === 'urgent'
-                        ? 'priority-high'
-                        : alert.type === 'warning'
-                        ? 'warning'
-                        : 'info'
-                    }
-                    size={20}
-                    color={COLORS.surface}
-                  />
-                </View>
-                <View style={styles.alertContent}>
-                  <View style={styles.alertHeader}>
-                    <Text style={styles.alertTitle}>
-                      {alert.title}
-                    </Text>
-                    {!alert.read && <Badge size={8} style={styles.unreadBadge} />}
-                  </View>
-                  <Text style={styles.alertMessage}>
-                    {alert.message}
-                  </Text>
-                  <Text style={styles.alertTime}>
-                    {alert.time}
-                  </Text>
-                </View>
+                <Text style={styles.viewAllText}>Xem tất cả thông báo</Text>
               </TouchableOpacity>
-            ))}
+            )}
           </Card.Content>
         </Card>
       </ScrollView>
@@ -512,35 +592,44 @@ const styles = StyleSheet.create({
     ...FONTS.h4,
     color: COLORS.text,
   },
-  shiftItem: {
+  taskItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  shiftInfo: {
+  taskInfo: {
     flex: 1,
   },
-  shiftDate: {
+  taskTitle: {
     ...FONTS.h5,
     color: COLORS.text,
   },
-  shiftTime: {
+  taskResident: {
     ...FONTS.body3,
     color: COLORS.textSecondary,
   },
-  shiftDetails: {
-    flex: 1,
-    alignItems: 'flex-end',
+  taskActions: {
+    marginLeft: 12,
   },
-  shiftDepartment: {
+  viewAllButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  viewAllText: {
     ...FONTS.body2,
     color: COLORS.primary,
+    fontWeight: '600',
   },
-  shiftResidents: {
-    ...FONTS.body3,
+  noDataText: {
+    ...FONTS.body2,
     color: COLORS.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    paddingVertical: 20,
   },
   alertsCard: {
     marginBottom: 16,

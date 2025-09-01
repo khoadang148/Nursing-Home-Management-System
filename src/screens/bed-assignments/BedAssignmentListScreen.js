@@ -23,6 +23,7 @@ import carePlanService from '../../api/services/carePlanService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 
 const BedListScreen = ({ navigation }) => {
+  const user = useSelector((state) => state.auth.user);
   const [bedAssignments, setBedAssignments] = useState([]);
   const [availableBeds, setAvailableBeds] = useState([]);
   const [allBeds, setAllBeds] = useState([]);
@@ -201,13 +202,34 @@ const BedListScreen = ({ navigation }) => {
     
     try {
       // Lấy tất cả residents
-      const residentsResponse = await residentService.getAllResidents();
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let residentsResponse;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        residentsResponse = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        residentsResponse = await residentService.getAllResidents();
+      }
+      
+      console.log('DEBUG - User role:', user?.role);
+      console.log('DEBUG - User ID:', user?._id || user?.id);
       
       // Lấy tất cả bed assignments (cả active và inactive)
       const bedAssignmentsResponse = await bedAssignmentService.getAllBedAssignmentsIncludingInactive();
       
       // Lấy tất cả care plan assignments để kiểm tra điều kiện
-      const carePlanAssignmentsResponse = await carePlanAssignmentService.getAllCarePlanAssignments();
+      let carePlanAssignmentsResponse;
+      try {
+        carePlanAssignmentsResponse = await carePlanAssignmentService.getAllCarePlanAssignments();
+        console.log('DEBUG - Care plan assignments response:', carePlanAssignmentsResponse);
+      } catch (error) {
+        console.error('DEBUG - Error loading care plan assignments:', error);
+        carePlanAssignmentsResponse = { data: [] };
+      }
+      
+      console.log('DEBUG - Residents response:', residentsResponse);
+      console.log('DEBUG - Bed assignments response:', bedAssignmentsResponse);
       
       if (residentsResponse.success && bedAssignmentsResponse.success) {
         const allResidents = residentsResponse.data || [];
@@ -279,6 +301,8 @@ const BedListScreen = ({ navigation }) => {
         
         setUnassignedResidents(unassignedResidents);
       } else {
+        console.error('DEBUG - Residents response failed:', residentsResponse);
+        console.error('DEBUG - Bed assignments response failed:', bedAssignmentsResponse);
         Alert.alert('Lỗi', 'Không thể lấy danh sách cư dân chưa phân giường');
         setShowResidentModal(false);
       }

@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
 // Constants
@@ -80,9 +80,9 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
   }, [packageData, packageType]);
 
   const formatCurrency = (amount) => {
-    if (!amount) return '0 × 10,000 VNĐ';
-    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
-    return `${formattedAmount} × 10,000 VNĐ`;
+    if (!amount) return '0 VNĐ';
+    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount * 10000);
+    return `${formattedAmount} VNĐ`;
   };
 
   const formatDate = (dateString) => {
@@ -169,7 +169,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
 
   if (!packageInfo) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Không tìm thấy thông tin gói dịch vụ</Text>
         </View>
@@ -178,7 +178,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 

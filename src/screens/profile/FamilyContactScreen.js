@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Modal,
-  FlatList,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useMessageContext } from '../../contexts/MessageContext';
@@ -37,6 +37,7 @@ import {
 import { COLORS, FONTS } from '../../constants/theme';
 import messageService from '../../api/services/messageService';
 import familyService from '../../api/services/familyService';
+import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import CommonAvatar from '../../components/CommonAvatar';
 
@@ -110,7 +111,15 @@ const FamilyContactScreen = () => {
     setLoadingResidents(true);
     try {
       // Lấy tất cả residents từ API
-      const response = await familyService.getAllResidents();
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let response;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        response = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        response = await familyService.getAllResidents();
+      }
       if (response.success) {
         const residents = response.data || [];
         
@@ -420,7 +429,7 @@ const FamilyContactScreen = () => {
       transparent={false}
       onRequestClose={() => setShowCreateMessage(false)}
     >
-      <SafeAreaView style={styles.modalContainer}>
+      <SafeAreaView style={styles.modalContainer} edges={['top']}>
         <View style={styles.modalHeader}>
           <TouchableOpacity
             style={styles.modalBackButton}
@@ -526,7 +535,7 @@ const FamilyContactScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.customHeader}>
           <TouchableOpacity 
             style={styles.backButton} 
@@ -545,7 +554,7 @@ const FamilyContactScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
         <TouchableOpacity 
@@ -647,7 +656,7 @@ const FamilyContactScreen = () => {
 
       {/* Chat Screen */}
       {showChat && selectedContact && (
-        <SafeAreaView style={styles.chatContainer}>
+        <SafeAreaView style={styles.chatContainer} edges={['top']}>
           <View style={styles.chatHeader}>
             <TouchableOpacity onPress={() => setShowChat(false)}>
               <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />

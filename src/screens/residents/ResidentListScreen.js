@@ -32,6 +32,7 @@ const ResidentListScreen = ({ navigation }) => {
   const [filteredResidents, setFilteredResidents] = useState([]);
   const [residentsWithBedInfo, setResidentsWithBedInfo] = useState([]);
   const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'discharged'
 
   // Chỉ reload lần đầu khi component mount
   useEffect(() => {
@@ -48,7 +49,24 @@ const ResidentListScreen = ({ navigation }) => {
     try {
       setIsFetching(true);
       setLoading(true);
-      const response = await residentService.getAllResidents();
+      
+      // Debug user data
+      console.log('ResidentListScreen - User data:', user);
+      console.log('ResidentListScreen - User role:', user?.role);
+      console.log('ResidentListScreen - User ID:', user?._id || user?.id);
+      
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let response;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        console.log('ResidentListScreen - Using family member API');
+        response = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        console.log('ResidentListScreen - Using staff API');
+        response = await residentService.getAllResidents();
+      }
+      
       if (response.success) {
         const residentsData = response.data || [];
         setResidents(residentsData);
@@ -122,8 +140,20 @@ const ResidentListScreen = ({ navigation }) => {
       );
     }
 
+    // Filter by status
+    if (statusFilter !== 'all') {
+      result = result.filter(resident => {
+        if (statusFilter === 'active') {
+          return resident.status === 'active' || !resident.status; // active hoặc chưa có status
+        } else if (statusFilter === 'discharged') {
+          return resident.status === 'discharged' || resident.status === 'deceased';
+        }
+        return true;
+      });
+    }
+
     setFilteredResidents(result);
-  }, [searchQuery, residentsWithBedInfo]);
+  }, [searchQuery, statusFilter, residentsWithBedInfo]);
 
   const renderResidentItem = ({ item }) => {
     // Safety check for undefined item
@@ -142,21 +172,21 @@ const ResidentListScreen = ({ navigation }) => {
     const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const medicalConditionsCap = medicalConditions.map(cond => capitalizeFirst(cond));
     
-    // Map care_level to display format
-    const getCareLevelDisplay = (careLevel) => {
-      switch (careLevel) {
-        case 'intensive': return 'Cao';
-        case 'intermediate': return 'Trung bình';
-        case 'basic': return 'Thấp';
-        default: return 'Thấp';
+    // Map status to display format
+    const getStatusDisplay = (status) => {
+      switch (status) {
+        case 'active': return 'Đang chăm sóc';
+        case 'discharged': return 'Đã xuất viện';
+        case 'deceased': return 'Đã qua đời';
+        default: return 'Đang chăm sóc';
       }
     };
     
-    const getCareLevelColor = (careLevel) => {
-      switch (careLevel) {
-        case 'intensive': return COLORS.error;
-        case 'intermediate': return COLORS.warning;
-        case 'basic': return COLORS.success;
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'active': return COLORS.success;
+        case 'discharged': return COLORS.warning;
+        case 'deceased': return COLORS.error;
         default: return COLORS.success;
       }
     };
@@ -185,16 +215,16 @@ const ResidentListScreen = ({ navigation }) => {
               )}
             </View>
           </View>
-          <View style={styles.careLevelContainer}>
+          <View style={styles.statusContainer}>
             <Badge
               style={[
-                styles.careLevelBadge,
+                styles.statusBadge,
                 {
-                  backgroundColor: getCareLevelColor(item.care_level),
+                  backgroundColor: getStatusColor(item.status),
                 },
               ]}
             >
-              {getCareLevelDisplay(item.care_level)}
+              {getStatusDisplay(item.status)}
             </Badge>
           </View>
         </View>
@@ -291,6 +321,54 @@ const ResidentListScreen = ({ navigation }) => {
           inputStyle={styles.searchInput}
           iconColor={COLORS.primary}
         />
+        
+        {/* Status Filter Buttons */}
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              statusFilter === 'all' && styles.activeFilterButton
+            ]}
+            onPress={() => setStatusFilter('all')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              statusFilter === 'all' && styles.activeFilterButtonText
+            ]}>
+              Tất cả
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              statusFilter === 'active' && styles.activeFilterButton
+            ]}
+            onPress={() => setStatusFilter('active')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              statusFilter === 'active' && styles.activeFilterButtonText
+            ]}>
+              Đang chăm sóc
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              statusFilter === 'discharged' && styles.activeFilterButton
+            ]}
+            onPress={() => setStatusFilter('discharged')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              statusFilter === 'discharged' && styles.activeFilterButtonText
+            ]}>
+              Đã xuất viện
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -376,6 +454,32 @@ const styles = StyleSheet.create({
   searchInput: {
     ...FONTS.body2,
   },
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+    paddingHorizontal: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  activeFilterButton: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.surface,
+  },
+  filterButtonText: {
+    ...FONTS.body3,
+    color: COLORS.surface,
+    fontWeight: '500',
+  },
+  activeFilterButtonText: {
+    color: COLORS.primary,
+  },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -424,10 +528,10 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginLeft: 4,
   },
-  careLevelContainer: {
+  statusContainer: {
     alignItems: 'flex-end',
   },
-  careLevelBadge: {
+  statusBadge: {
     paddingHorizontal: 8,
   },
   cardBody: {

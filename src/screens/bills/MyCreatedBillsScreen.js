@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   FlatList, 
   StyleSheet, 
@@ -8,9 +8,10 @@ import {
   ActivityIndicator, 
   RefreshControl,
   Alert,
-  SafeAreaView,
-  TextInput
+  TextInput,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -108,8 +109,22 @@ const MyCreatedBillsScreen = () => {
     setFilteredBills(filtered);
   }, [bills, searchQuery, statusFilter]);
 
-  const renderStatus = (status) => {
-    switch (status) {
+  const renderStatus = (status, dueDate) => {
+    // Tính toán trạng thái dựa trên due date nếu status là pending
+    let actualStatus = status;
+    if (status === 'pending' && dueDate) {
+      const today = new Date();
+      const due = new Date(dueDate);
+      today.setHours(0, 0, 0, 0);
+      due.setHours(0, 0, 0, 0);
+      const daysRemaining = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysRemaining < 0) {
+        actualStatus = 'overdue';
+      }
+    }
+
+    switch (actualStatus) {
       case 'paid':
         return <Text style={[styles.status, styles.paid]}>Đã thanh toán</Text>;
       case 'overdue':
@@ -125,7 +140,7 @@ const MyCreatedBillsScreen = () => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(price);
+    }).format(price * 10000);
   };
 
   const formatDate = (date) => {
@@ -224,10 +239,16 @@ const MyCreatedBillsScreen = () => {
     due.setHours(0, 0, 0, 0);
     const daysRemaining = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
     
+    // Xác định trạng thái thực tế
+    let actualStatus = status;
+    if (status === 'pending' && daysRemaining < 0) {
+      actualStatus = 'overdue';
+    }
+    
     let daysText = '';
-    if (status === 'pending') {
-      daysText = daysRemaining === 0 ? 'Quá hạn 0 ngày' : `Còn ${daysRemaining} ngày`;
-    } else if (status === 'overdue') {
+    if (actualStatus === 'pending') {
+      daysText = daysRemaining === 0 ? 'Hạn thanh toán hôm nay' : `Còn ${daysRemaining} ngày`;
+    } else if (actualStatus === 'overdue') {
       daysText = `Quá hạn ${Math.abs(daysRemaining)} ngày`;
     }
 
@@ -246,7 +267,7 @@ const MyCreatedBillsScreen = () => {
             </View>
           </View>
           <View style={styles.statusContainer}>
-            {renderStatus(status)}
+            {renderStatus(status, dueDate)}
           </View>
         </View>
         
@@ -256,11 +277,11 @@ const MyCreatedBillsScreen = () => {
           <Text style={styles.dueDate}>
             Hạn thanh toán: {formatDate(dueDate)}
           </Text>
-          {(status === 'pending' || status === 'overdue') && (
+          {(actualStatus === 'pending' || actualStatus === 'overdue') && (
             <Text style={[
               styles.daysRemaining,
-              status === 'overdue' && styles.overdueText,
-              daysRemaining === 0 && status === 'pending' && styles.dueTodayText
+              actualStatus === 'overdue' && styles.overdueText,
+              daysRemaining === 0 && actualStatus === 'pending' && styles.dueTodayText
             ]}>
               {daysText}
             </Text>
@@ -284,7 +305,7 @@ const MyCreatedBillsScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
@@ -292,7 +313,7 @@ const MyCreatedBillsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -304,6 +325,8 @@ const MyCreatedBillsScreen = () => {
         <Text style={styles.headerTitle}>Hóa Đơn Tôi Đã Tạo</Text>
         <View style={styles.headerRight} />
       </View>
+
+
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
@@ -322,19 +345,19 @@ const MyCreatedBillsScreen = () => {
             style={[styles.filterButton, statusFilter === 'all' && styles.filterButtonActive]}
             onPress={() => setStatusFilter('all')}
           >
-            <Text style={[styles.filterText, statusFilter === 'all' && styles.filterTextActive]}>Tất cả</Text>
+            <Text style={[styles.filterText, statusFilter === 'all' && styles.filterTextActive]} numberOfLines={1}>Tất cả</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.filterButton, statusFilter === 'pending' && styles.filterButtonActive]}
             onPress={() => setStatusFilter('pending')}
           >
-            <Text style={[styles.filterText, statusFilter === 'pending' && styles.filterTextActive]}>Chưa thanh toán</Text>
+            <Text style={[styles.filterText, statusFilter === 'pending' && styles.filterTextActive]} numberOfLines={2} adjustsFontSizeToFit={true}>Chưa thanh toán</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.filterButton, statusFilter === 'paid' && styles.filterButtonActive]}
             onPress={() => setStatusFilter('paid')}
           >
-            <Text style={[styles.filterText, statusFilter === 'paid' && styles.filterTextActive]}>Đã thanh toán</Text>
+            <Text style={[styles.filterText, statusFilter === 'paid' && styles.filterTextActive]} numberOfLines={2} adjustsFontSizeToFit={true}>Đã thanh toán</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -358,6 +381,7 @@ const MyCreatedBillsScreen = () => {
           </View>
         }
         contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
@@ -402,10 +426,11 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 34,
   },
+
   searchContainer: {
     backgroundColor: COLORS.white,
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
@@ -416,6 +441,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     marginBottom: 15,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   searchInput: {
     flex: 1,
@@ -426,17 +464,19 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   filterButtonActive: {
     backgroundColor: COLORS.primary,
@@ -446,24 +486,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text,
     fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
+    ...Platform.select({
+      android: {
+        fontSize: 11,
+        lineHeight: 14,
+      },
+      ios: {
+        fontSize: 12,
+        lineHeight: 16,
+      },
+    }),
   },
   filterTextActive: {
     color: COLORS.white,
   },
   listContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   billItem: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     position: 'relative',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   billHeader: {
     flexDirection: 'row',

@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
+  StyleSheet
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -103,8 +103,10 @@ const CarePlanSelectionScreen = () => {
     }
   };
 
-  const mainCarePlans = carePlans.filter(plan => plan && plan.category === 'main');
-  const supplementaryCarePlans = carePlans.filter(plan => plan && plan.category === 'supplementary');
+  const mainCarePlans = carePlans.filter(plan => plan && plan.category === 'main')
+    .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
+  const supplementaryCarePlans = carePlans.filter(plan => plan && plan.category === 'supplementary')
+    .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
 
   const handleMainPlanSelect = (plan) => {
     setSelectedMainPlan(plan);
@@ -411,7 +413,7 @@ const CarePlanSelectionScreen = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN').format(price);
+    return new Intl.NumberFormat('vi-VN').format(price * 10000);
   };
 
   const totalCost = useMemo(() => {
@@ -454,7 +456,7 @@ const CarePlanSelectionScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
@@ -462,7 +464,7 @@ const CarePlanSelectionScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}> {/* Đã bỏ paddingTop */}
         <TouchableOpacity 
@@ -512,7 +514,6 @@ const CarePlanSelectionScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>2. Gói Dịch Vụ Chính (Bắt buộc)</Text>
-            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
           </View>
           <Text style={styles.sectionSubtitle}>Chọn 1 gói dịch vụ chính</Text>
           {mainCarePlans.filter(Boolean).map((plan) => {
@@ -545,7 +546,6 @@ const CarePlanSelectionScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>3. Gói Dịch Vụ Phụ (Tùy chọn)</Text>
-            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
           </View>
           <Text style={styles.sectionSubtitle}>Có thể chọn nhiều gói</Text>
           {supplementaryCarePlans.filter(Boolean).map((plan) => {
@@ -578,10 +578,9 @@ const CarePlanSelectionScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>4. Chọn Loại Phòng</Text>
-            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
           </View>
           <Text style={styles.sectionSubtitle}>Chọn loại phòng phù hợp</Text>
-          {roomTypes.filter(Boolean).map((roomType) => (
+          {roomTypes.filter(Boolean).sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0)).map((roomType) => (
             <TouchableOpacity
               key={roomType._id}
               style={[
@@ -802,7 +801,6 @@ const CarePlanSelectionScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>8. Tổng Chi Phí</Text>
-            <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
           </View>
           <View style={styles.costCard}>
             <View style={styles.costRow}>

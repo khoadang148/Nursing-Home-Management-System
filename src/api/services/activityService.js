@@ -11,7 +11,9 @@ const activityService = {
    */
   createActivity: async (activityData) => {
     try {
-      console.log('Creating activity with data:', activityData);
+      if (__DEV__) {
+        console.log('Creating activity with data:', activityData);
+      }
       const response = await apiClient.post('/activities', activityData);
       return {
         success: true,
@@ -19,10 +21,37 @@ const activityService = {
         message: 'Tạo hoạt động thành công'
       };
     } catch (error) {
-      console.error('Create activity error:', error);
+      // Xử lý lỗi từ backend
+      let errorMessage = 'Tạo hoạt động thất bại';
+      
+      if (error.response?.data) {
+        // Nếu backend trả về message cụ thể
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.status === 400) {
+          // Lỗi validation hoặc business logic
+          errorMessage = 'Thông tin không hợp lệ hoặc có xung đột lịch trình. Vui lòng kiểm tra lại.';
+        } else if (error.response.status === 500) {
+          errorMessage = 'Lỗi hệ thống. Vui lòng thử lại sau.';
+        }
+      } else if (error.message) {
+        // Lọc bỏ các thông tin debug không cần thiết
+        if (error.message.includes('Network Error')) {
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Kết nối bị timeout. Vui lòng thử lại.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       return {
         success: false,
-        error: error.response?.data || error.message || 'Tạo hoạt động thất bại'
+        error: errorMessage
       };
     }
   },

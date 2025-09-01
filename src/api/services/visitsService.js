@@ -21,7 +21,9 @@ const visitsService = {
    */
   createVisit: async (visitData) => {
     try {
+      console.log('VisitsService.createVisit - Sending data:', visitData);
       const response = await apiClient.post('/visits', visitData);
+      console.log('VisitsService.createVisit - Response:', response.data);
       return {
         success: true,
         data: response.data,
@@ -29,6 +31,7 @@ const visitsService = {
       };
     } catch (error) {
       console.log('Create visit error:', error);
+      console.log('Create visit error response:', error.response?.data);
       return {
         success: false,
         error: error.response?.data || error.message || 'Tạo lịch thăm thất bại'

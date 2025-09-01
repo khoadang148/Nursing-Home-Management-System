@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   FlatList, 
   TouchableOpacity, 
   RefreshControl,
   Alert,
-  ScrollView,
-  SafeAreaView,
+  ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -656,7 +656,7 @@ const FamilyNotificationsScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <MaterialIcons name="notifications" size={60} color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải thông báo...</Text>
       </SafeAreaView>
@@ -678,7 +678,7 @@ const FamilyNotificationsScreen = ({ navigation }) => {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Thông Báo</Text>

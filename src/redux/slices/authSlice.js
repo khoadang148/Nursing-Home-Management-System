@@ -105,6 +105,38 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+// Send OTP
+export const sendOtp = createAsyncThunk(
+  'auth/sendOtp',
+  async ({ phone }, { rejectWithValue }) => {
+    try {
+      const response = await authService.sendOtp(phone);
+      if (!response.success) {
+        return rejectWithValue(response.message || 'Failed to send OTP');
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to send OTP');
+    }
+  }
+);
+
+// Login with OTP
+export const loginWithOtp = createAsyncThunk(
+  'auth/loginWithOtp',
+  async ({ phone, otp }, { rejectWithValue }) => {
+    try {
+      const response = await authService.loginWithOtp(phone, otp);
+      if (!response.success) {
+        return rejectWithValue(response.message || 'Login failed');
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Login failed');
+    }
+  }
+);
+
 // Initial state
 const initialState = {
   user: null,
@@ -201,13 +233,10 @@ const authSlice = createSlice({
         state.error = null;
         state.message = 'Đăng nhập thành công!';
         
-        // Trigger profile fetch to get complete user data including avatar
-        if (action.payload.user && !action.payload.user.avatar) {
-          // Schedule profile fetch after login
-          setTimeout(() => {
-            // This will be handled by the component's useEffect
-          }, 100);
-        }
+        // Debug log
+        console.log('Email Login - User data saved to Redux:', action.payload.user);
+        console.log('Email Login - User avatar:', action.payload.user?.avatar);
+        console.log('Email Login - User role:', action.payload.user?.role);
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -335,6 +364,47 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Không thể gửi email đặt lại mật khẩu';
+        state.message = null;
+      })
+      
+      // Send OTP
+      .addCase(sendOtp.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.message = 'Đang gửi mã OTP...';
+      })
+      .addCase(sendOtp.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.error = null;
+        state.message = action.payload.message || 'Mã OTP đã được gửi';
+      })
+      .addCase(sendOtp.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Không thể gửi mã OTP';
+        state.message = null;
+      })
+      
+      // Login with OTP
+      .addCase(loginWithOtp.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.message = 'Đang đăng nhập...';
+      })
+      .addCase(loginWithOtp.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.access_token;
+        state.error = null;
+        state.message = action.payload.message || 'Đăng nhập thành công!';
+        
+        // Log để debug
+        console.log('OTP Login - User data saved to Redux:', action.payload.user);
+        console.log('OTP Login - User role:', action.payload.user?.role);
+      })
+      .addCase(loginWithOtp.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Đăng nhập thất bại';
         state.message = null;
       });
   },

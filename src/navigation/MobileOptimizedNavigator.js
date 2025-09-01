@@ -186,12 +186,19 @@ const FamilyMainStack = () => <FamilyStackNavigator />;
 const MobileOptimizedNavigator = () => {
   const { user } = useSelector((state) => state.auth);
   
+  // Debug log
+  console.log('MobileOptimizedNavigator - User data:', user);
+  console.log('MobileOptimizedNavigator - User role:', user?.role);
+  console.log('MobileOptimizedNavigator - Is authenticated:', !!user);
+  
   // Check user role and return appropriate navigator
   if (user && user.role === 'family') {
+    console.log('MobileOptimizedNavigator - Redirecting to FamilyMainStack');
     return <FamilyMainStack />;
   }
   
   // Default to staff navigator
+  console.log('MobileOptimizedNavigator - Redirecting to StaffMainStack');
   return <StaffMainStack />;
 };
 

@@ -77,6 +77,7 @@ const DELETED_STAFF_NOTIFICATIONS_KEY = 'DELETED_STAFF_NOTIFICATIONS';
 const NotificationsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { notifications, isLoading, error } = useSelector((state) => state.notifications);
+  const user = useSelector((state) => state.auth.user);
   const [refreshing, setRefreshing] = useState(false);
   const [realNotifications, setRealNotifications] = useState([]);
   const [loadingReal, setLoadingReal] = useState(true);
@@ -173,7 +174,15 @@ const NotificationsScreen = ({ navigation }) => {
       
       // 2. Kiểm tra cư dân cần đo sinh hiệu hôm nay
       try {
-        const residentsResponse = await residentService.getAllResidents();
+        // Kiểm tra role của user để sử dụng API phù hợp
+        let residentsResponse;
+        if (user?.role === 'family') {
+          // Family member chỉ có thể xem residents của mình
+          residentsResponse = await residentService.getResidentsByFamilyMember(user._id || user.id);
+        } else {
+          // Staff có thể xem tất cả residents
+          residentsResponse = await residentService.getAllResidents();
+        }
         if (residentsResponse.success && Array.isArray(residentsResponse.data)) {
           const today = new Date();
           const todayStr = today.toISOString().split('T')[0];
@@ -216,7 +225,15 @@ const NotificationsScreen = ({ navigation }) => {
       
       // 3. Kiểm tra đánh giá cần hoàn thành hôm nay
       try {
-        const residentsResponse = await residentService.getAllResidents();
+        // Kiểm tra role của user để sử dụng API phù hợp
+        let residentsResponse;
+        if (user?.role === 'family') {
+          // Family member chỉ có thể xem residents của mình
+          residentsResponse = await residentService.getResidentsByFamilyMember(user._id || user.id);
+        } else {
+          // Staff có thể xem tất cả residents
+          residentsResponse = await residentService.getAllResidents();
+        }
         if (residentsResponse.success && Array.isArray(residentsResponse.data)) {
           const today = new Date();
           const todayStr = today.toISOString().split('T')[0];

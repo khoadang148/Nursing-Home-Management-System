@@ -261,6 +261,186 @@ class AuthService {
       };
     }
   }
+
+  // Send OTP
+  async sendOtp(phone) {
+    try {
+      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
+        phone,
+      });
+
+      return {
+        success: true,
+        data: response.data,
+        message: response.data.message || 'Mã OTP đã được gửi',
+      };
+    } catch (error) {
+      console.log('Send OTP failed:', error.response?.status);
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        
+        switch (status) {
+          case 404:
+            return {
+              success: false,
+              error: 'Số điện thoại chưa được đăng ký trong hệ thống.',
+            };
+          case 422:
+            return {
+              success: false,
+              error: data?.message || 'Số điện thoại không hợp lệ.',
+            };
+          case 500:
+            return {
+              success: false,
+              error: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+            };
+          default:
+            return {
+              success: false,
+              error: data?.message || 'Không thể gửi mã OTP.',
+            };
+        }
+      } else if (error.request) {
+        return {
+          success: false,
+          error: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.',
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Không thể gửi mã OTP.',
+        };
+      }
+    }
+  }
+
+  // Login with OTP
+  async loginWithOtp(phone, otp) {
+    try {
+      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN_OTP, {
+        phone,
+        otp,
+      });
+
+      // Response format: { access_token, user }
+      if (response.data.access_token) {
+        // Lưu token vào AsyncStorage
+        await AsyncStorage.setItem('accessToken', response.data.access_token);
+        
+        return {
+          success: true,
+          access_token: response.data.access_token,
+          user: response.data.user,
+          message: response.data.message || 'Đăng nhập thành công',
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Đăng nhập thất bại',
+        };
+      }
+    } catch (error) {
+      console.log('Login with OTP failed:', error.response?.status);
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        
+        switch (status) {
+          case 400:
+            return {
+              success: false,
+              error: data?.message || 'Mã OTP không đúng hoặc đã hết hạn.',
+            };
+          case 404:
+            return {
+              success: false,
+              error: 'Số điện thoại không tồn tại trong hệ thống.',
+            };
+          case 422:
+            return {
+              success: false,
+              error: data?.message || 'Dữ liệu không hợp lệ.',
+            };
+          case 500:
+            return {
+              success: false,
+              error: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+            };
+          default:
+            return {
+              success: false,
+              error: data?.message || 'Đăng nhập thất bại.',
+            };
+        }
+      } else if (error.request) {
+        return {
+          success: false,
+          error: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.',
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Đăng nhập thất bại.',
+        };
+      }
+    }
+  }
+
+  // Forgot Password
+  async forgotPassword(emailData) {
+    try {
+      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, emailData);
+
+      if (response.data.success) {
+        return {
+          success: true,
+          message: response.data.message || 'Mật khẩu mới đã được gửi về email của bạn',
+          data: response.data.data,
+        };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Đặt lại mật khẩu thất bại',
+        };
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        
+        switch (status) {
+          case 400:
+            return {
+              success: false,
+              message: data?.message || 'Email không hợp lệ',
+            };
+          case 404:
+            return {
+              success: false,
+              message: data?.message || 'Email không tồn tại trong hệ thống',
+            };
+          case 422:
+            return {
+              success: false,
+              message: data?.message || 'Dữ liệu không hợp lệ',
+            };
+          default:
+            return {
+              success: false,
+              message: data?.message || 'Đặt lại mật khẩu thất bại',
+            };
+        }
+      } else {
+        return {
+          success: false,
+          message: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
+        };
+      }
+    }
+  }
 }
 
 export default new AuthService(); 

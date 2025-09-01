@@ -10,8 +10,8 @@ import {
   RefreshControl,
   FlatList,
   Dimensions,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { Card, Title, Paragraph, Divider, ActivityIndicator, Chip, Searchbar } from 'react-native-paper';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,8 @@ import { updateProfile } from '../../redux/slices/authSlice';
 import residentService from '../../api/services/residentService';
 import bedAssignmentService from '../../api/services/bedAssignmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
+import assessmentService from '../../api/services/assessmentService';
+import activityParticipationService from '../../api/services/activityParticipationService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
 import authService from '../../api/services/authService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
@@ -36,39 +38,127 @@ import CommonAvatar from '../../components/CommonAvatar';
 
 const { width } = Dimensions.get('window');
 
-// Mock recent updates - sẽ được cập nhật với dữ liệu thực sau
-const mockRecentUpdates = [
-  {
-    id: '1',
-    type: 'assessment',
-    title: 'Đánh giá trong ngày',
-    subtitle: 'Tình trạng ổn định, cần theo dõi đường huyết',
-    time: '2 giờ trước',
-    resident_id: 'res_001',
-    icon: 'assignment',
-    color: COLORS.primary
-  },
-  {
-    id: '2',
-    type: 'vital_signs',
-    title: 'Đo chỉ số sinh hiệu',
-    subtitle: 'Huyết áp 140/85, cần theo dõi',
-    time: '4 giờ trước',
-    resident_id: 'res_002',
-    icon: 'favorite',
-    color: COLORS.error
-  },
-  {
-    id: '3',
-    type: 'activity',
-    title: 'Hoạt động mới',
-    subtitle: 'Tham gia tập thể dục buổi sáng',
-    time: '6 giờ trước',
-    resident_id: 'res_003',
-    icon: 'directions-run',
-    color: COLORS.success
-  }
-];
+// Real recent updates will be loaded from API
+const getRecentUpdates = (residentsWithDetails) => {
+  const updates = [];
+  
+  residentsWithDetails.forEach(resident => {
+    // Add vital signs update if available
+    if (resident.vitalSigns) {
+      const vitalTime = new Date(resident.vitalSigns.date_time || resident.vitalSigns.created_at);
+      const timeDiff = Date.now() - vitalTime.getTime();
+      const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+      
+      // Chỉ hiển thị nếu có dữ liệu thật
+      const bloodPressure = resident.vitalSigns.blood_pressure;
+      const heartRate = resident.vitalSigns.heart_rate;
+      
+      if (bloodPressure || heartRate) {
+        let subtitle = '';
+        if (bloodPressure && heartRate) {
+          subtitle = `Huyết áp ${bloodPressure}, Nhịp tim ${heartRate} BPM`;
+        } else if (bloodPressure) {
+          subtitle = `Huyết áp ${bloodPressure}`;
+        } else if (heartRate) {
+          subtitle = `Nhịp tim ${heartRate} BPM`;
+        }
+        
+        updates.push({
+          id: `vital_${resident._id}`,
+          type: 'vital_signs',
+          title: 'Đo chỉ số sinh hiệu',
+          subtitle: subtitle,
+          time: `${hoursAgo} giờ trước`,
+          resident_id: resident._id,
+          resident_name: resident.full_name,
+          icon: 'favorite',
+          color: COLORS.error,
+          timestamp: vitalTime
+        });
+      }
+    }
+    
+    // Add assessment update if available
+    if (resident.assessments && resident.assessments.length > 0) {
+      const latestAssessment = resident.assessments[0]; // Assuming sorted by date desc
+      const assessmentTime = new Date(latestAssessment.date || latestAssessment.created_at);
+      const timeDiff = Date.now() - assessmentTime.getTime();
+      const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+      
+      // Chỉ hiển thị nếu có dữ liệu thật
+      const assessmentNotes = latestAssessment.notes || latestAssessment.general_notes;
+      
+      if (assessmentNotes && assessmentNotes.trim() !== '') {
+        updates.push({
+          id: `assessment_${resident._id}`,
+          type: 'assessment',
+          title: 'Đánh giá sức khỏe',
+          subtitle: assessmentNotes,
+          time: `${hoursAgo} giờ trước`,
+          resident_id: resident._id,
+          resident_name: resident.full_name,
+          icon: 'assignment',
+          color: COLORS.primary,
+          timestamp: assessmentTime
+        });
+      }
+    }
+    
+    // Add activity update if available
+    if (resident.activities && resident.activities.length > 0) {
+      const latestActivity = resident.activities[0]; // Assuming sorted by date desc
+      const activityTime = new Date(latestActivity.created_at || latestActivity.date);
+      const timeDiff = Date.now() - activityTime.getTime();
+      const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+      
+      // Chỉ hiển thị nếu có dữ liệu thật
+      const activityName = latestActivity.activity_id?.activity_name;
+      const attendanceStatus = latestActivity.attendance_status;
+      const participationLevel = latestActivity.participation_level;
+      
+      if (activityName && attendanceStatus) {
+        let statusText = '';
+        let color = COLORS.success;
+        
+        switch (attendanceStatus) {
+          case 'attended':
+            statusText = participationLevel || 'Đã tham gia';
+            color = COLORS.success;
+            break;
+          case 'excused':
+            statusText = 'Xin nghỉ';
+            color = COLORS.warning;
+            break;
+          case 'absent':
+            statusText = 'Vắng mặt';
+            color = COLORS.error;
+            break;
+          default:
+            statusText = 'Chưa xác định';
+            color = COLORS.textSecondary;
+        }
+        
+        updates.push({
+          id: `activity_${resident._id}`,
+          type: 'activity',
+          title: 'Hoạt động',
+          subtitle: `${activityName} - ${statusText}`,
+          time: `${hoursAgo} giờ trước`,
+          resident_id: resident._id,
+          resident_name: resident.full_name,
+          icon: 'directions-run',
+          color: color,
+          timestamp: activityTime
+        });
+      }
+    }
+  });
+  
+  // Sort by timestamp and take top 3
+  return updates
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 3);
+};
 
 const FamilyResidentScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -80,6 +170,7 @@ const FamilyResidentScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredResidents, setFilteredResidents] = useState([]);
   const [residentsWithDetails, setResidentsWithDetails] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const sortedResidentsWithDetails = [...residentsWithDetails].sort((a, b) => new Date(a.admission_date) - new Date(b.admission_date));
   
   // Get user data with fallback to mock data
@@ -115,21 +206,22 @@ const FamilyResidentScreen = ({ navigation }) => {
 
   const userData = getUserData();
   
-  // Load data only when user changes or on mount
+  // Load data only when user changes or on mount, and only if not already loaded
   useEffect(() => {
     console.log('🔄 FamilyResidentScreen useEffect triggered - user?.id:', user?.id);
-    if (user?.id) {
+    if (user?.id && !dataLoaded) {
       console.log('📡 Loading data for user:', user?.id);
       loadData();
+      setDataLoaded(true);
     }
-  }, [user?.id, loadData]); // Add loadData to dependencies
+  }, [user?.id, dataLoaded]); // Only load once per user session
 
-  // Load resident details when familyResidents changes - chỉ load 1 lần
+  // Load resident details when familyResidents changes
   useEffect(() => {
-    if (familyResidents.length > 0 && residentsWithDetails.length === 0) {
+    if (familyResidents.length > 0) {
       loadResidentDetails();
     }
-  }, [familyResidents.length]); // Remove residentsWithDetails.length dependency
+  }, [familyResidents]); // Depend on the actual array, not just length
 
   // Fetch profile after login to get complete user data including avatar
   useEffect(() => {
@@ -153,12 +245,28 @@ const FamilyResidentScreen = ({ navigation }) => {
   useEffect(() => {
     filterResidents();
   }, [searchQuery, residentsWithDetails.length]); // Only depend on searchQuery and residentsWithDetails length
+
+  // Update recent updates when residentsWithDetails changes
+  useEffect(() => {
+    if (residentsWithDetails.length > 0) {
+      console.log('[FamilyResidentScreen] Generating recent updates from residents:', residentsWithDetails.map(r => ({
+        name: r.full_name,
+        hasVitals: !!r.vitalSigns,
+        hasAssessments: r.assessments?.length > 0,
+        hasActivities: r.activities?.length > 0
+      })));
+      
+      const updates = getRecentUpdates(residentsWithDetails);
+      console.log('[FamilyResidentScreen] Generated updates:', updates);
+      setRecentUpdates(updates);
+    }
+  }, [residentsWithDetails]);
   
-  const loadData = useCallback(async () => {
+  const loadData = async () => {
     try {
       // Fetch residents for this family member
-      if (userData?.id || userData?._id) {
-        const familyMemberId = userData.id || userData._id;
+      if (user?.id || user?._id) {
+        const familyMemberId = user.id || user._id;
         await dispatch(fetchResidentsByFamilyMember(familyMemberId)).unwrap();
       }
       
@@ -167,7 +275,7 @@ const FamilyResidentScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  }, [userData?.id, userData?._id, dispatch]);
+  };
   
   const loadResidentDetails = async () => {
     try {
@@ -223,12 +331,43 @@ const FamilyResidentScreen = ({ navigation }) => {
             carePlanName = 'Chưa có';
             carePlanCost = '';
           }
+          
+          // Lấy đánh giá sức khỏe gần nhất
+          let assessments = [];
+          try {
+            const assessmentRes = await assessmentService.getAssessmentsByResidentId(resident._id);
+            if (assessmentRes.success && Array.isArray(assessmentRes.data)) {
+              assessments = assessmentRes.data
+                .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
+                .slice(0, 3); // Lấy 3 đánh giá gần nhất
+            }
+          } catch (error) {
+            console.log('Error loading assessments for resident:', resident._id, error.message);
+            assessments = [];
+          }
+          
+          // Lấy hoạt động gần nhất
+          let activities = [];
+          try {
+            const activityRes = await activityParticipationService.getParticipationsByResidentId(resident._id);
+            if (activityRes.success && Array.isArray(activityRes.data)) {
+              activities = activityRes.data
+                .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
+                .slice(0, 3); // Lấy 3 hoạt động gần nhất
+            }
+          } catch (error) {
+            console.log('Error loading activities for resident:', resident._id, error.message);
+            activities = [];
+          }
+          
           return {
             ...resident,
             bedInfo,
             vitalSigns: latestVital,
             carePlanName,
-            carePlanCost
+            carePlanCost,
+            assessments,
+            activities
           };
         })
       );
@@ -239,25 +378,20 @@ const FamilyResidentScreen = ({ navigation }) => {
   };
   
   const loadAdditionalData = async () => {
-    // Update recent updates with actual resident names (chỉ dùng cho UI demo, không cho phép click nếu id là mock)
-    const updatedRecentUpdates = mockRecentUpdates.map(update => {
-      const resident = familyResidents.find(r => r._id === update.resident_id);
-      return {
-        ...update,
-        title: `${update.title.split(' cho ')[0]} cho ${resident?.full_name || 'Người cao tuổi'}`
-      };
-    });
-    setRecentUpdates(updatedRecentUpdates);
-    // loadResidentDetails will be called by useEffect when familyResidents changes
+    // Recent updates will be generated from residentsWithDetails
+    // This function is now handled by useEffect that depends on residentsWithDetails
   };
   
   const onRefresh = async () => {
     setRefreshing(true);
+    // Reset cache to force reload
+    setDataLoaded(false);
+    setResidentsWithDetails([]);
+    setRecentUpdates([]);
     // Trigger Redux reload
     dispatch(triggerResidentDataReload());
-    // Reset residentsWithDetails để force reload
-    setResidentsWithDetails([]);
     await loadData();
+    setDataLoaded(true);
     setRefreshing(false);
   };
 
@@ -444,13 +578,11 @@ const FamilyResidentScreen = ({ navigation }) => {
   };
 
   const renderRecentUpdateCard = ({ item: update }) => {
-    const isMockId = typeof update.resident_id === 'string' && update.resident_id.startsWith('res_');
     return (
     <TouchableOpacity
       style={styles.updateCard}
-        onPress={isMockId ? undefined : () => handleRecentUpdatePress(update)}
-        activeOpacity={isMockId ? 1 : 0.7}
-        disabled={isMockId}
+        onPress={() => handleRecentUpdatePress(update)}
+        activeOpacity={0.7}
     >
       <View style={styles.updateHeader}>
         <View style={[styles.updateIcon, { backgroundColor: update.color + '20' }]}>
@@ -458,7 +590,9 @@ const FamilyResidentScreen = ({ navigation }) => {
         </View>
         <View style={styles.updateInfo}>
           <Text style={styles.updateTitle}>{update.title}</Text>
-          <Text style={styles.updateSubtitle}>{update.subtitle}</Text>
+          <Text style={styles.updateSubtitle}>
+            {update.resident_name ? `${update.resident_name}: ${update.subtitle}` : update.subtitle}
+          </Text>
           <Text style={styles.updateTime}>{update.time}</Text>
         </View>
         <MaterialIcons name="chevron-right" size={20} color={COLORS.textSecondary} />
@@ -490,7 +624,7 @@ const FamilyResidentScreen = ({ navigation }) => {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Người Thân</Text>
         <Text style={styles.headerSubtitle}>
@@ -517,12 +651,18 @@ const FamilyResidentScreen = ({ navigation }) => {
         {/* Recent Updates Header */}
         <View style={styles.headerSection}>
           <Text style={styles.sectionTitle}>Cập nhật gần đây</Text>
-          {recentUpdates.map((update, index) => (
-            <View key={update.id}>
-              {renderRecentUpdateCard({ item: update })}
-              {index < recentUpdates.length - 1 && <View style={{ height: 8 }} />}
+          {recentUpdates.length > 0 ? (
+            recentUpdates.map((update, index) => (
+              <View key={update.id}>
+                {renderRecentUpdateCard({ item: update })}
+                {index < recentUpdates.length - 1 && <View style={{ height: 8 }} />}
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyUpdatesContainer}>
+              <Text style={styles.emptyUpdatesText}>Chưa có cập nhật gần đây</Text>
             </View>
-          ))}
+          )}
         </View>
         
         {/* Residents List */}
@@ -563,6 +703,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
+    paddingTop: 50,
   },
   loadingText: {
     marginTop: 16,
@@ -573,6 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingTop: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -596,6 +738,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   scrollContent: {
+    paddingTop: 36,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
@@ -756,6 +899,15 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
     textAlign: 'center',
+  },
+  emptyUpdatesContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyUpdatesText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
   },
   medicalInfo: {
     backgroundColor: '#f8f9fa',

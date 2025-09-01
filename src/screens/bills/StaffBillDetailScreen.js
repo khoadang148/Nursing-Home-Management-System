@@ -10,12 +10,13 @@ import {
   Modal,
   Dimensions,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import billsService from '../../api/services/billsService';
 import roomTypeService from '../../api/services/roomTypeService';
-import { formatCurrency, formatDate, getDaysRemaining } from '../../utils/helpers';
+import { formatDate, getDaysRemaining } from '../../utils/helpers';
 import { COLORS } from '../../constants/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -24,6 +25,12 @@ const StaffBillDetailScreen = ({ route, navigation }) => {
   const { billId, billData } = route.params;
   const [bill, setBill] = useState(billData || null);
   const [loading, setLoading] = useState(!billData);
+
+  // Hàm format giá tiền mới
+  const formatCurrency = (amount) => {
+    if (!amount) return '0 VNĐ';
+    return new Intl.NumberFormat('vi-VN').format(amount * 10000) + ' VNĐ';
+  };
   const [exportLoading, setExportLoading] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -92,25 +99,40 @@ const StaffBillDetailScreen = ({ route, navigation }) => {
   const handleExportPDF = async () => {
     try {
       setExportLoading(true);
+      console.log('DEBUG - Exporting PDF for bill:', bill._id);
+      
       const result = await billsService.billingService.exportBillPDF(bill._id);
-      Alert.alert(
-        'Xuất hóa đơn',
-        'Hóa đơn đã được xuất thành công. Bạn có muốn tải xuống không?',
-        [
-          {
-            text: 'Hủy',
-            style: 'cancel',
-          },
-          {
-            text: 'Tải xuống',
-            onPress: () => {
-              console.log('Download PDF:', result.url);
+      console.log('DEBUG - Export result:', result);
+      
+      if (result && result.success && result.data?.url) {
+        Alert.alert(
+          'Xuất hóa đơn',
+          'Hóa đơn đã được xuất thành công. Bạn có muốn tải xuống không?',
+          [
+            {
+              text: 'Hủy',
+              style: 'cancel',
             },
-          },
-        ]
-      );
+            {
+              text: 'Tải xuống',
+              onPress: () => {
+                // Mở URL trong browser để tải xuống
+                Linking.openURL(result.data.url);
+              },
+            },
+          ]
+        );
+      } else if (result && result.success && result.data) {
+        // Nếu có data nhưng không có URL
+        Alert.alert('Thông báo', 'Hóa đơn đã được xuất thành công. Vui lòng kiểm tra email hoặc liên hệ nhân viên để nhận file.');
+      } else {
+        // Nếu result không có success hoặc data
+        console.error('Export failed - Invalid result structure:', result);
+        Alert.alert('Lỗi', 'Không thể xuất hóa đơn. Vui lòng thử lại sau.');
+      }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể xuất hóa đơn. Vui lòng thử lại sau.');
+      console.error('Export PDF error:', error);
+      Alert.alert('Lỗi', `Không thể xuất hóa đơn: ${error.message || 'Vui lòng thử lại sau.'}`);
     } finally {
       setExportLoading(false);
     }
@@ -138,9 +160,9 @@ const StaffBillDetailScreen = ({ route, navigation }) => {
     );
   }
 
-  // Sử dụng trạng thái từ API thay vì tự tính toán
-  const isOverdue = bill.status === 'overdue';
+  // Tính toán trạng thái thực tế dựa trên due date
   const daysRemaining = getDaysRemaining(bill.due_date);
+  const isOverdue = bill.status === 'overdue' || (bill.status === 'pending' && daysRemaining < 0);
 
   // Lấy thông tin từ bill (đã populate)
   const assignment = bill.care_plan_assignment_id;
@@ -288,7 +310,7 @@ const StaffBillDetailScreen = ({ route, navigation }) => {
                     {isOverdue 
                       ? `Quá hạn ${Math.abs(daysRemaining)} ngày`
                       : daysRemaining === 0 
-                        ? 'Đến hạn hôm nay'
+                        ? 'Hạn thanh toán hôm nay'
                         : `Còn ${daysRemaining} ngày`}
                   </Text>
                 )}

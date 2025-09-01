@@ -8,7 +8,6 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   FlatList,
   Dimensions,
   ScrollView as RNScrollView,
@@ -16,6 +15,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Surface, Button, Chip, Divider, Menu, Appbar } from 'react-native-paper';
@@ -29,6 +29,8 @@ import residentPhotosService from '../../api/services/residentPhotosService';
 import assessmentService from '../../api/services/assessmentService';
 import vitalSignsService from '../../api/services/vitalSignsService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
+import carePlanService from '../../api/services/carePlanService';
+import roomService from '../../api/services/roomService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri, getImageUriHelper } from '../../utils/avatarUtils';
 import CommonAvatar from '../../components/CommonAvatar';
@@ -43,45 +45,7 @@ const getApiBaseUrl = () => {
 
 
 
-// Mock data for medications (để test giao diện khi chưa có API)
-const MOCK_MEDICATIONS = [
-  {
-    id: 'med1',
-    medication_name: 'Metformin 500mg',
-    dosage: '1 viên',
-    frequency: '2 lần/ngày',
-    time: 'Sáng và tối',
-    purpose: 'Điều trị tiểu đường',
-    side_effects: 'Có thể gây buồn nôn nhẹ',
-    start_date: '2024-01-15',
-    end_date: null,
-    status: 'active'
-  },
-  {
-    id: 'med2',
-    medication_name: 'Amlodipine 5mg',
-    dosage: '1 viên',
-    frequency: '1 lần/ngày',
-    time: 'Sáng',
-    purpose: 'Điều trị cao huyết áp',
-    side_effects: 'Có thể gây phù chân',
-    start_date: '2024-01-10',
-    end_date: null,
-    status: 'active'
-  },
-  {
-    id: 'med3',
-    medication_name: 'Aspirin 81mg',
-    dosage: '1 viên',
-    frequency: '1 lần/ngày',
-    time: 'Sáng',
-    purpose: 'Phòng ngừa đột quỵ',
-    side_effects: 'Có thể gây chảy máu dạ dày',
-    start_date: '2024-01-05',
-    end_date: null,
-    status: 'active'
-  }
-];
+
 
 
 // Định nghĩa hàm capitalizeWords (nên đặt gần đầu file hoặc ngay trên component)
@@ -121,6 +85,17 @@ const ResidentDetailScreen = ({ route, navigation }) => {
   const [imageViewerUri, setImageViewerUri] = useState('');
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [imageViewerPhotos, setImageViewerPhotos] = useState([]);
+  
+  // Bed assignment modal states
+  const [bedAssignmentModalVisible, setBedAssignmentModalVisible] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [availableBeds, setAvailableBeds] = useState([]);
+  const [selectedBed, setSelectedBed] = useState(null);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loadingBeds, setLoadingBeds] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [roomTypes, setRoomTypes] = useState([]);
   
   const fetchData = useCallback(async (isRefreshing = false) => {
     console.log('🔄 fetchData called - isRefreshing:', isRefreshing, 'residentId:', residentId);
@@ -225,6 +200,31 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     }, [residentId, fetchData])
   );
 
+  // Load room types for display
+  const loadRoomTypes = useCallback(async () => {
+    try {
+      console.log('DEBUG - Loading room types...');
+      const response = await carePlanService.getRoomTypes();
+      console.log('DEBUG - Room types response:', response);
+      
+      if (response && Array.isArray(response)) {
+        setRoomTypes(response);
+        console.log('DEBUG - Room types loaded successfully:', response.length);
+        console.log('DEBUG - Room types data:', response.map(rt => ({
+          room_type: rt.room_type,
+          type_name: rt.type_name,
+          monthly_price: rt.monthly_price
+        })));
+      } else {
+        console.log('DEBUG - Room types response is not an array:', response);
+        setRoomTypes([]);
+      }
+    } catch (error) {
+      console.error('Error loading room types:', error);
+      setRoomTypes([]);
+    }
+  }, []);
+
   // Add callback for edit screens to trigger reload
   const handleEditCallback = useCallback(() => {
     console.log('Edit callback triggered, reloading data...');
@@ -237,6 +237,11 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  // Load room types when component mounts
+  useEffect(() => {
+    loadRoomTypes();
+  }, [loadRoomTypes]);
 
   // ===== Helpers for date filtering =====
   const toDate = (value) => {
@@ -438,7 +443,188 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     );
   };
 
+  // Bed assignment functions
+  const openBedAssignmentModal = async () => {
+    setBedAssignmentModalVisible(true);
+    setSelectedRoom(null);
+    setSelectedBed(null);
+    setAvailableBeds([]);
+    await Promise.all([loadRoomTypes(), loadAvailableRooms()]);
+  };
+
+  const loadAvailableRooms = async () => {
+    setLoadingRooms(true);
+    try {
+      // Kiểm tra xem resident có gói dịch vụ còn hạn không
+      const now = new Date();
+      let activeCarePlanAssignment = null;
+      
+      if (carePlanAssignments && carePlanAssignments.length > 0) {
+        activeCarePlanAssignment = carePlanAssignments.find(assignment => {
+          const startDate = new Date(assignment.start_date);
+          const endDate = new Date(assignment.end_date);
+          return assignment.status === 'active' && now >= startDate && now <= endDate;
+        });
+      }
+      
+      if (!activeCarePlanAssignment) {
+        console.log('DEBUG - No active care plan assignment found');
+        Alert.alert('Lỗi', 'Cư dân này không có gói dịch vụ còn hạn. Vui lòng đăng ký gói dịch vụ trước.');
+        setAvailableRooms([]);
+        return;
+      }
+      
+      // Lấy main care plan ID (không phải plan_type)
+      let mainCarePlanId = null;
+      if (activeCarePlanAssignment.care_plan_ids && activeCarePlanAssignment.care_plan_ids.length > 0) {
+        mainCarePlanId = activeCarePlanAssignment.care_plan_ids[0]._id;
+        console.log('DEBUG - Found active care plan ID:', mainCarePlanId);
+      }
+      
+      if (!mainCarePlanId) {
+        console.log('DEBUG - No main care plan ID found');
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin gói dịch vụ chính.');
+        setAvailableRooms([]);
+        return;
+      }
+      
+      console.log('DEBUG - Care plan assignments:', carePlanAssignments);
+      console.log('DEBUG - Active care plan assignment:', activeCarePlanAssignment);
+      console.log('DEBUG - Main care plan ID:', mainCarePlanId);
+
+      // Kiểm tra xem resident đã có phòng giường chưa
+      const hasCurrentBedAssignment = resident.bed_info && 
+        resident.bed_info.bed_id && 
+        resident.bed_info.bed_id.room_id && 
+        !resident.bed_info.unassigned_date;
+      
+      let currentRoomType = null;
+      if (hasCurrentBedAssignment) {
+        currentRoomType = resident.bed_info.bed_id.room_id.room_type;
+        console.log('DEBUG - Resident has current bed assignment, room type:', currentRoomType);
+      } else {
+        console.log('DEBUG - Resident has no current bed assignment');
+      }
+
+      // Lấy phòng trống phù hợp với giới tính và gói dịch vụ
+      const params = {
+        gender: resident.gender,
+        main_care_plan_id: mainCarePlanId,
+        status: 'available'
+      };
+
+      // Nếu resident đang có phòng, chỉ hiển thị phòng cùng loại để đổi
+      if (hasCurrentBedAssignment && currentRoomType) {
+        params.room_type = currentRoomType;
+        console.log('DEBUG - Filtering by current room type for room change:', currentRoomType);
+      } else {
+        console.log('DEBUG - Showing all available room types for new assignment');
+      }
+
+      console.log('DEBUG - Loading rooms with params:', params);
+
+      // Sử dụng carePlanService.getRoomsByFilter như CarePlanSelectionScreen
+      const response = await carePlanService.getRoomsByFilter(params);
+      console.log('DEBUG - Care plan service response:', response);
+      
+      if (response && Array.isArray(response)) {
+        setAvailableRooms(response);
+        console.log('DEBUG - Available rooms set:', response.length);
+      } else {
+        console.error('Failed to load available rooms:', response);
+        setAvailableRooms([]);
+        Alert.alert('Lỗi', 'Không thể tải danh sách phòng trống');
+      }
+    } catch (error) {
+      console.error('Error loading available rooms:', error);
+      setAvailableRooms([]);
+      Alert.alert('Lỗi', 'Không thể tải danh sách phòng trống');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const handleRoomSelection = async (room) => {
+    setSelectedRoom(room);
+    setSelectedBed(null);
+    await loadAvailableBeds(room._id);
+  };
+
+  const loadAvailableBeds = async (roomId) => {
+    setLoadingBeds(true);
+    try {
+      console.log('DEBUG - Loading beds for room:', roomId);
+      
+      // Sử dụng carePlanService.getAvailableBedsByRoom như CarePlanSelectionScreen
+      const response = await carePlanService.getAvailableBedsByRoom(roomId);
+      console.log('DEBUG - Beds service response:', response);
+      
+      if (response && Array.isArray(response)) {
+        setAvailableBeds(response);
+        console.log('DEBUG - Available beds set:', response.length);
+      } else {
+        console.error('Failed to load available beds:', response);
+        setAvailableBeds([]);
+      }
+    } catch (error) {
+      console.error('Error loading available beds:', error);
+      setAvailableBeds([]);
+    } finally {
+      setLoadingBeds(false);
+    }
+  };
+
+  const handleBedSelection = (bed) => {
+    setSelectedBed(bed);
+  };
+
+  const handleAssignBed = async () => {
+    if (!selectedRoom || !selectedBed) {
+      Alert.alert('Lỗi', 'Vui lòng chọn phòng và giường');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      // Nếu cư dân đã có giường, hủy phân công cũ trước
+      if (resident.bed_info) {
+        const unassignResponse = await bedAssignmentService.unassignBed(resident.bed_info._id);
+        if (!unassignResponse.success) {
+          Alert.alert('Lỗi', 'Không thể hủy phân công giường cũ');
+          return;
+        }
+      }
+
+      // Tạo phân công giường mới
+      const assignmentData = {
+        resident_id: resident._id,
+        bed_id: selectedBed._id,
+        assigned_date: new Date().toISOString(),
+        assigned_by: 'staff', // Sẽ cập nhật sau khi có user context
+        notes: 'Phân công giường mới'
+      };
+
+      const response = await bedAssignmentService.createBedAssignment(assignmentData);
+      if (response.success) {
+        Alert.alert('Thành công', 'Đã phân công giường thành công');
+        setBedAssignmentModalVisible(false);
+        fetchData(); // Reload data
+      } else {
+        Alert.alert('Lỗi', response.error || 'Không thể phân công giường');
+      }
+    } catch (error) {
+      console.error('Error assigning bed:', error);
+      Alert.alert('Lỗi', 'Không thể phân công giường');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   const renderOverviewTab = () => {
+    // Debug logs để kiểm tra dữ liệu
+    console.log('DEBUG - renderOverviewTab - roomTypes:', roomTypes?.length || 0);
+    console.log('DEBUG - renderOverviewTab - resident.bed_info:', resident.bed_info);
+    
     // Kiểm tra xem thông tin người thân và liên hệ khẩn cấp có giống nhau không
     const isEmergencyContactSameAsFamily = 
       resident.family_member_id && 
@@ -476,14 +662,125 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Phòng:</Text>
             <Text style={styles.infoValue}>
-              {activeAssignment?.bed_id?.room_id?.room_number ? `Phòng ${activeAssignment.bed_id.room_id.room_number}` : 'Chưa phân công'}
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                
+                console.log('DEBUG - Room info check:', {
+                  hasCurrentBedAssignment,
+                  roomNumber: hasCurrentBedAssignment ? resident.bed_info.bed_id.room_id.room_number : null,
+                  roomType: hasCurrentBedAssignment ? resident.bed_info.bed_id.room_id.room_type : null
+                });
+                
+                if (hasCurrentBedAssignment) {
+                  return `Phòng ${resident.bed_info.bed_id.room_id.room_number}`;
+                } else {
+                  return 'Chưa phân công';
+                }
+              })()}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Loại phòng:</Text>
+            <Text style={styles.infoValue}>
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                
+                if (hasCurrentBedAssignment && resident.bed_info.bed_id.room_id.room_type) {
+                  console.log('DEBUG - Looking for room type:', resident.bed_info.bed_id.room_id.room_type);
+                  console.log('DEBUG - Available room types:', roomTypes.map(rt => rt.room_type));
+                  
+                  const roomTypeObj = roomTypes.find(rt => rt.room_type === resident.bed_info.bed_id.room_id.room_type);
+                  if (roomTypeObj) {
+                    console.log('DEBUG - Room type found:', roomTypeObj);
+                    return roomTypeObj.type_name;
+                  } else {
+                    console.log('DEBUG - Room type not found for:', resident.bed_info.bed_id.room_id.room_type);
+                    return resident.bed_info.bed_id.room_id.room_type;
+                  }
+                } else {
+                  return 'Chưa phân công';
+                }
+              })()}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Giường:</Text>
             <Text style={styles.infoValue}>
-              {activeAssignment?.bed_id?.bed_number ? `Giường ${activeAssignment.bed_id.bed_number}` : 'Chưa phân công'}
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                
+                if (hasCurrentBedAssignment && resident.bed_info.bed_id.bed_number) {
+                  return `Giường ${resident.bed_info.bed_id.bed_number}`;
+                } else {
+                  return 'Chưa phân công';
+                }
+              })()}
             </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Giá phòng:</Text>
+            <Text style={styles.infoValue}>
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                
+                if (hasCurrentBedAssignment && resident.bed_info.bed_id.room_id.room_type) {
+                  const roomTypeObj = roomTypes.find(rt => rt.room_type === resident.bed_info.bed_id.room_id.room_type);
+                  if (roomTypeObj && roomTypeObj.monthly_price) {
+                    console.log('DEBUG - Room type found:', roomTypeObj.type_name, 'Price:', roomTypeObj.monthly_price);
+                    return `${new Intl.NumberFormat('vi-VN').format(roomTypeObj.monthly_price * 10000)}/tháng`;
+                  } else {
+                    console.log('DEBUG - Room type found but no price:', roomTypeObj?.type_name);
+                    return 'Giá liên hệ';
+                  }
+                } else {
+                  return 'Chưa phân công';
+                }
+              })()}
+            </Text>
+          </View>
+          
+          {/* Bed Assignment Button */}
+          <View style={styles.bedAssignmentContainer}>
+            {(() => {
+              const hasCurrentBedAssignment = resident.bed_info && 
+                resident.bed_info.bed_id && 
+                resident.bed_info.bed_id.room_id && 
+                !resident.bed_info.unassigned_date;
+              
+              return hasCurrentBedAssignment ? (
+                <Button
+                  mode="outlined"
+                  icon="swap-horizontal"
+                  onPress={openBedAssignmentModal}
+                  style={styles.bedAssignmentButton}
+                  labelStyle={styles.bedAssignmentButtonText}
+                >
+                  Đổi Giường
+                </Button>
+              ) : (
+                <Button
+                  mode="contained"
+                  icon="bed"
+                  onPress={openBedAssignmentModal}
+                  style={styles.bedAssignmentButton}
+                  labelStyle={styles.bedAssignmentButtonText}
+                >
+                  Phân Bổ Phòng Giường
+                </Button>
+              );
+            })()}
           </View>
         </Surface>
       </View>
@@ -867,82 +1164,68 @@ const ResidentDetailScreen = ({ route, navigation }) => {
     );
   };
 
-  const renderMedicationsTab = () => (
-    <>
+    const renderMedicationsTab = () => {
+    // Chỉ hiển thị dữ liệu thật, không có fallback
+    const hasRealMedications = resident.current_medications && 
+      Array.isArray(resident.current_medications) && 
+      resident.current_medications.length > 0 &&
+      resident.current_medications.some(med => med && med.medication_name);
+    
+    if (!hasRealMedications) {
+      return (
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Thuốc Chi Tiết</Text>
+          </View>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Chưa có thông tin thuốc</Text>
+          </View>
+        </View>
+      );
+    }
+    
+    return (
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Thuốc Chi Tiết</Text>
         </View>
         
-        {resident.current_medications && resident.current_medications.length > 0 ? (
-          resident.current_medications.map((med, index) => (
-            <Surface key={med._id || med.id} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
-                <View style={styles.medicationHeader}>
+        {resident.current_medications
+          .filter(med => med && med.medication_name) // Chỉ lấy thuốc có tên thật
+          .map((med, index) => (
+            <Surface key={med._id || med.id || `med-${index}`} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
+              <View style={styles.medicationHeader}>
                 <Text style={styles.medicationName}>{med.medication_name}</Text>
-                  <Chip
-                    style={[
-                      styles.statusChip,
-                      {
+                <Chip
+                  style={[
+                    styles.statusChip,
+                    {
                       backgroundColor: COLORS.success + '20',
-                      },
-                    ]}
-                    textStyle={{
+                    },
+                  ]}
+                  textStyle={{
                     color: COLORS.success,
-                    }}
-                  >
+                  }}
+                >
                   Đang Sử Dụng
-                  </Chip>
+                </Chip>
+              </View>
+              
+              <View style={styles.medicationDetails}>
+                <View style={styles.medicationDetail}>
+                  <Text style={styles.medicationLabel}>Liều Lượng:</Text>
+                  <Text style={styles.medicationValue}>{med.dosage || 'N/A'}</Text>
                 </View>
-                
-                <View style={styles.medicationDetails}>
-                  <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Liều Lượng:</Text>
-                    <Text style={styles.medicationValue}>{med.dosage}</Text>
-                  </View>
-                  <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Tần Suất:</Text>
-                    <Text style={styles.medicationValue}>{med.frequency}</Text>
-                  </View>
+                <View style={styles.medicationDetail}>
+                  <Text style={styles.medicationLabel}>Tần Suất:</Text>
+                  <Text style={styles.medicationValue}>{med.frequency || 'N/A'}</Text>
                 </View>
+              </View>
             </Surface>
-          ))
-        ) : (
-          // Sử dụng mock data khi không có dữ liệu thực
-          MOCK_MEDICATIONS.map((med, index) => (
-            <Surface key={med.id} style={[styles.cardContainer, { backgroundColor: '#fff' }]}>
-                <View style={styles.medicationHeader}>
-                <Text style={styles.medicationName}>{med.medication_name}</Text>
-                  <Chip
-                    style={[
-                      styles.statusChip,
-                      {
-                      backgroundColor: COLORS.success + '20',
-                      },
-                    ]}
-                    textStyle={{
-                    color: COLORS.success,
-                    }}
-                  >
-                  Đang Sử Dụng
-                  </Chip>
-                </View>
-                
-                <View style={styles.medicationDetails}>
-                  <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Liều Lượng:</Text>
-                    <Text style={styles.medicationValue}>{med.dosage}</Text>
-                  </View>
-                  <View style={styles.medicationDetail}>
-                    <Text style={styles.medicationLabel}>Tần Suất:</Text>
-                    <Text style={styles.medicationValue}>{med.frequency}</Text>
-                  </View>
-                </View>
-            </Surface>
-          ))
-        )}
+          ))}
       </View>
-    </>
-  );
+    );
+  };
 
   const renderVitalsTab = () => (
     <>
@@ -1145,14 +1428,30 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             <View style={styles.roomBadge}>
               <MaterialIcons name="room" size={16} color={COLORS.primary} />
               <Text style={styles.roomText}>
-                {activeAssignment?.bed_id?.room_id?.room_number ? 
-                  `Phòng ${activeAssignment.bed_id.room_id.room_number}` : 
-                  'Chưa phân công phòng'
-                }
+                {(() => {
+                  const hasCurrentBedAssignment = resident.bed_info && 
+                    resident.bed_info.bed_id && 
+                    resident.bed_info.bed_id.room_id && 
+                    !resident.bed_info.unassigned_date;
+                  
+                  if (hasCurrentBedAssignment) {
+                    return `Phòng ${resident.bed_info.bed_id.room_id.room_number}`;
+                  } else {
+                    return 'Chưa phân công phòng';
+                  }
+                })()}
               </Text>
-              {activeAssignment?.bed_id?.bed_number && (
-                <Text style={styles.bedText}> - Giường {activeAssignment.bed_id.bed_number}</Text>
-              )}
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                
+                if (hasCurrentBedAssignment && resident.bed_info.bed_id.bed_number) {
+                  return <Text style={styles.bedText}> - Giường {resident.bed_info.bed_id.bed_number}</Text>;
+                }
+                return null;
+              })()}
             </View>
           </View>
         </View>
@@ -1456,6 +1755,197 @@ const ResidentDetailScreen = ({ route, navigation }) => {
             </View>
           )}
         </View>
+      </Modal>
+
+      {/* Bed Assignment Modal */}
+      <Modal
+        visible={bedAssignmentModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setBedAssignmentModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalBackButton}
+              onPress={() => setBedAssignmentModalVisible(false)}
+            >
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              {(() => {
+                const hasCurrentBedAssignment = resident.bed_info && 
+                  resident.bed_info.bed_id && 
+                  resident.bed_info.bed_id.room_id && 
+                  !resident.bed_info.unassigned_date;
+                return hasCurrentBedAssignment ? 'Đổi Giường' : 'Phân Bổ Phòng Giường';
+              })()}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Room Selection */}
+            <View style={styles.selectionSection}>
+              <Text style={styles.selectionTitle}>Chọn Phòng</Text>
+              <Text style={styles.selectionSubtitle}>
+                Phòng phù hợp với giới tính: {resident.gender === 'male' ? 'Nam' : 'Nữ'}
+                {(() => {
+                  const now = new Date();
+                  const activeAssignment = carePlanAssignments?.find(assignment => {
+                    const startDate = new Date(assignment.start_date);
+                    const endDate = new Date(assignment.end_date);
+                    return assignment.status === 'active' && now >= startDate && now <= endDate;
+                  });
+                  return activeAssignment?.care_plan_ids?.[0]?.plan_name ? 
+                    ` • Gói dịch vụ: ${activeAssignment.care_plan_ids[0].plan_name}` : 
+                    ' • Gói dịch vụ: Chưa có';
+                })()}
+              </Text>
+              
+              {loadingRooms ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Đang tải danh sách phòng...</Text>
+                </View>
+              ) : availableRooms.length > 0 ? (
+                availableRooms.map((room) => (
+                  <TouchableOpacity
+                    key={room._id}
+                    style={[
+                      styles.roomItem,
+                      selectedRoom?._id === room._id && styles.selectedRoomItem
+                    ]}
+                    onPress={() => handleRoomSelection(room)}
+                  >
+                    <View style={styles.roomInfo}>
+                      <Text style={styles.roomName}>Phòng {room.room_number}</Text>
+                      <Text style={styles.roomType}>
+                        {(() => {
+                          const roomTypeObj = roomTypes.find(rt => rt.room_type === room.room_type);
+                          return roomTypeObj ? roomTypeObj.type_name : (room.room_type || 'Phòng chuẩn');
+                        })()}
+                      </Text>
+                      <Text style={styles.roomCapacity}>
+                        Tầng {room.floor || 'N/A'} • {room.gender === 'male' ? 'Nam' : 'Nữ'}
+                      </Text>
+                      <Text style={styles.roomPrice}>
+                        {(() => {
+                          const roomTypeObj = roomTypes.find(rt => rt.room_type === room.room_type);
+                          if (roomTypeObj && roomTypeObj.monthly_price) {
+                            return `${new Intl.NumberFormat('vi-VN').format(roomTypeObj.monthly_price * 10000)}/tháng`;
+                          }
+                          return 'Giá liên hệ';
+                        })()}
+                      </Text>
+                    </View>
+                    {selectedRoom?._id === room._id && (
+                      <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>Không có phòng phù hợp</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Vui lòng kiểm tra lại thông tin cư dân hoặc gói dịch vụ
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Bed Selection */}
+            {selectedRoom && (
+              <View style={styles.selectionSection}>
+                <Text style={styles.selectionTitle}>Chọn Giường</Text>
+                <Text style={styles.selectionSubtitle}>
+                  Phòng {selectedRoom.room_number} - {(() => {
+                    const roomTypeObj = roomTypes.find(rt => rt.room_type === selectedRoom.room_type);
+                    return roomTypeObj ? roomTypeObj.type_name : (selectedRoom.room_type || 'Phòng chuẩn');
+                  })()}
+                </Text>
+                
+                {loadingBeds ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.loadingText}>Đang tải danh sách giường...</Text>
+                  </View>
+                ) : availableBeds.length > 0 ? (
+                  availableBeds.map((bed) => (
+                    <TouchableOpacity
+                      key={bed._id}
+                      style={[
+                        styles.bedItem,
+                        selectedBed?._id === bed._id && styles.selectedBedItem
+                      ]}
+                      onPress={() => handleBedSelection(bed)}
+                    >
+                      <View style={styles.bedInfo}>
+                        <Text style={styles.bedName}>Giường {bed.bed_number}</Text>
+                        <Text style={styles.bedType}>{bed.bed_type || 'Chuẩn'}</Text>
+                        <Text style={styles.bedStatus}>Trống</Text>
+                        {bed.monthly_price && (
+                          <Text style={styles.bedPrice}>
+                            {new Intl.NumberFormat('vi-VN').format(bed.monthly_price * 10000)}/tháng
+                          </Text>
+                        )}
+                      </View>
+                      {selectedBed?._id === bed._id && (
+                        <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>Không có giường trống</Text>
+                    <Text style={styles.emptyStateSubtext}>Vui lòng chọn phòng khác</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Assignment Summary */}
+            {selectedRoom && selectedBed && (
+              <View style={styles.summarySection}>
+                <Text style={styles.summaryTitle}>Tóm Tắt Phân Bổ</Text>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Cư dân:</Text>
+                  <Text style={styles.summaryValue}>{resident.full_name}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Phòng:</Text>
+                  <Text style={styles.summaryValue}>Phòng {selectedRoom.room_number}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Giường:</Text>
+                  <Text style={styles.summaryValue}>Giường {selectedBed.bed_number}</Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Action Buttons */}
+          <View style={styles.modalFooter}>
+            <Button
+              mode="outlined"
+              onPress={() => setBedAssignmentModalVisible(false)}
+              style={styles.cancelButton}
+              labelStyle={styles.cancelButtonText}
+            >
+              Hủy
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleAssignBed}
+              disabled={!selectedRoom || !selectedBed || isAssigning}
+              style={styles.assignButton}
+              labelStyle={styles.assignButtonText}
+              loading={isAssigning}
+            >
+              {isAssigning ? 'Đang phân bổ...' : 'Xác nhận phân bổ'}
+            </Button>
+          </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -2034,6 +2524,226 @@ const styles = StyleSheet.create({
   imageTagText: {
     color: '#fff',
     fontSize: 11,
+    fontWeight: '500',
+  },
+  // Bed assignment styles
+  bedAssignmentContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  bedAssignmentButton: {
+    borderRadius: 8,
+    minWidth: 200,
+  },
+  bedAssignmentButtonText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingTop: 45,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modalBackButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  selectionSection: {
+    marginBottom: 24,
+  },
+  selectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  selectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  roomItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectedRoomItem: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '15',
+    elevation: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  roomInfo: {
+    flex: 1,
+  },
+  roomName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  roomType: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  roomCapacity: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  roomPrice: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  bedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  selectedBedItem: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '15',
+    elevation: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  bedInfo: {
+    flex: 1,
+  },
+  bedName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  bedStatus: {
+    fontSize: 14,
+    color: COLORS.success,
+    fontWeight: '500',
+  },
+  bedType: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  bedPrice: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  summarySection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    fontWeight: '600',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: 8,
+    borderColor: '#ccc',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontWeight: '500',
+  },
+  assignButton: {
+    flex: 1,
+    marginLeft: 8,
+    backgroundColor: COLORS.primary,
+  },
+  assignButtonText: {
+    color: 'white',
     fontWeight: '500',
   },
 });

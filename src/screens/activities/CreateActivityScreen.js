@@ -154,7 +154,17 @@ const CreateActivityScreen = () => {
   const loadResidents = async () => {
     try {
       setLoadingResidents(true);
-      const response = await residentService.getAllResidents();
+      
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let response;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        response = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        response = await residentService.getAllResidents();
+      }
+      
       if (response.success) {
         const residentsData = response.data || [];
         console.log('DEBUG - API Response residents:', residentsData.map(r => ({
@@ -402,21 +412,150 @@ const CreateActivityScreen = () => {
         schedule_time: scheduledTime.toISOString(),
         duration: parseInt(duration),
         location: location,
-        capacity: parseInt(capacity)
+        capacity: parseInt(capacity),
+        staff_id: user._id,
+        facilitator: user?.full_name || 'Nhân viên'
       };
       
       console.log('Creating activity with data:', activityData);
       
-      // Create activity
+      // ===== PHASE 1: KIỂM TRA TẤT CẢ CONFLICTS TRƯỚC KHI TẠO =====
+      
+      // 1.1 Check staff schedule conflicts first
+      let staffConflict = null;
+      try {
+        const staffActivitiesResponse = await activityService.getActivitiesByStaffId(user._id || user.id);
+        if (staffActivitiesResponse.success && staffActivitiesResponse.data) {
+          staffConflict = staffActivitiesResponse.data.find(activity => {
+            const activityDate = new Date(activity.schedule_time);
+            const activityEndTime = new Date(activityDate.getTime() + (activity.duration || 60) * 60 * 1000);
+            
+            const newActivityDate = new Date(scheduledTime);
+            const newActivityEndTime = new Date(newActivityDate.getTime() + parseInt(duration) * 60 * 1000);
+            
+            // Check same day and time overlap
+            const sameDay = activityDate.toDateString() === newActivityDate.toDateString();
+            const timeOverlap = newActivityDate < activityEndTime && newActivityEndTime > activityDate;
+            
+            return sameDay && timeOverlap;
+          });
+        }
+      } catch (error) {
+        console.warn('Error checking staff schedule conflicts:', error);
+      }
+      
+      // 1.2 Check resident schedule conflicts
+      const conflictingResidents = [];
+      const validResidents = [];
+      
+      if (selectedResidents.length > 0) {
+        for (const residentId of selectedResidents) {
+          try {
+            // Check if resident has conflicting activities
+            const residentParticipations = await activityParticipationService.getParticipationsByResidentId(residentId);
+            if (residentParticipations.success && residentParticipations.data) {
+              const conflictingParticipation = residentParticipations.data.find(participation => {
+                if (!participation.activity_id || typeof participation.activity_id === 'string') return false;
+                
+                const activity = participation.activity_id;
+                const activityDate = new Date(activity.schedule_time);
+                const activityEndTime = new Date(activityDate.getTime() + (activity.duration || 60) * 60 * 1000);
+                
+                const newActivityDate = new Date(scheduledTime);
+                const newActivityEndTime = new Date(newActivityDate.getTime() + parseInt(duration) * 60 * 1000);
+                
+                // Check same day and time overlap
+                const sameDay = activityDate.toDateString() === newActivityDate.toDateString();
+                const timeOverlap = newActivityDate < activityEndTime && newActivityEndTime > activityDate;
+                
+                return sameDay && timeOverlap;
+              });
+              
+              if (conflictingParticipation) {
+                const activity = conflictingParticipation.activity_id;
+                const activityStartTime = new Date(activity.schedule_time).toLocaleTimeString('vi-VN', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                });
+                const activityEndTime = new Date(new Date(activity.schedule_time).getTime() + (activity.duration || 60) * 60 * 1000).toLocaleTimeString('vi-VN', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                });
+                const residentName = residents.find(r => r._id === residentId)?.full_name || 'Cư dân';
+                conflictingResidents.push(`${residentName} (${activity.activity_name} - ${activityStartTime} đến ${activityEndTime})`);
+              } else {
+                validResidents.push(residentId);
+              }
+            } else {
+              validResidents.push(residentId);
+            }
+          } catch (error) {
+            console.warn(`Error checking resident ${residentId} schedule:`, error);
+            validResidents.push(residentId);
+          }
+        }
+      }
+      
+      // 1.3 Nếu có conflicts, hiển thị cảnh báo và KHÔNG tạo activity
+      if (staffConflict || conflictingResidents.length > 0) {
+        let conflictMessage = 'Không thể tạo hoạt động do các xung đột lịch trình sau:\n\n';
+        
+        if (staffConflict) {
+          const activityStartTime = new Date(staffConflict.schedule_time).toLocaleTimeString('vi-VN', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          const activityEndTime = new Date(new Date(staffConflict.schedule_time).getTime() + (staffConflict.duration || 60) * 60 * 1000).toLocaleTimeString('vi-VN', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          conflictMessage += `• Bạn đã có hoạt động "${staffConflict.activity_name}" từ ${activityStartTime} đến ${activityEndTime} trong cùng ngày.\n\n`;
+        }
+        
+        if (conflictingResidents.length > 0) {
+          conflictMessage += `• Cư dân không thể tham gia do trùng lịch:\n${conflictingResidents.join('\n')}`;
+        }
+        
+        Alert.alert(
+          'Xung đột lịch trình',
+          conflictMessage,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // ===== PHASE 2: TẠO ACTIVITY VÀ PARTICIPATIONS (CHỈ KHI KHÔNG CÓ CONFLICTS) =====
+      
+      // 2.1 Create activity
       const activityResponse = await activityService.createActivity(activityData);
       if (!activityResponse.success) {
-        throw new Error(activityResponse.error || 'Không thể tạo hoạt động');
+        // Kiểm tra các loại lỗi từ backend
+        const errorMessage = activityResponse.error || 'Không thể tạo hoạt động. Vui lòng thử lại.';
+        
+        if (errorMessage.includes('Đã có hoạt động') || 
+            errorMessage.includes('Bạn đã có hoạt động') || 
+            errorMessage.includes('Nhân viên đã có hoạt động') ||
+            errorMessage.includes('trùng lịch') ||
+            errorMessage.includes('trong cùng ngày')) {
+          Alert.alert(
+            'Xung đột lịch trình',
+            errorMessage,
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Lỗi',
+            errorMessage,
+            [{ text: 'OK' }]
+          );
+        }
+        return;
       }
       
       const createdActivity = activityResponse.data;
       console.log('Activity created successfully:', createdActivity);
       
-      // Create activity participations for selected residents
+      // 2.2 Create activity participations for ALL selected residents (since we already checked conflicts)
       if (selectedResidents.length > 0) {
         const participationDataList = selectedResidents.map(residentId => ({
           staff_id: user._id,
@@ -426,25 +565,43 @@ const CreateActivityScreen = () => {
           attendance_status: 'pending' // Default status as per schema
         }));
         
-        console.log('Creating participations:', participationDataList);
+        console.log('Creating participations for all selected residents:', participationDataList);
         
         const participationResponse = await activityParticipationService.createMultipleActivityParticipations(participationDataList);
         if (!participationResponse.success) {
           console.warn('Failed to create some participations:', participationResponse.error);
+          // Nếu không tạo được participations, xóa activity đã tạo
+          try {
+            await activityService.deleteActivity(createdActivity._id);
+            Alert.alert(
+              'Lỗi',
+              'Đã tạo hoạt động nhưng không thể tạo danh sách tham gia. Hoạt động đã được xóa.',
+              [{ text: 'OK' }]
+            );
+            return;
+          } catch (deleteError) {
+            console.error('Error deleting activity after participation creation failure:', deleteError);
+          }
         } else {
-          console.log('Participations created successfully:', participationResponse.data);
+          console.log('All participations created successfully:', participationResponse.data);
         }
       }
       
+      // ===== PHASE 3: HIỂN THỊ THÔNG BÁO THÀNH CÔNG =====
+      
       Alert.alert(
         'Thành công',
-        'Hoạt động đã được tạo thành công!',
+        `Hoạt động "${name}" đã được tạo thành công!\n\n${selectedResidents.length} cư dân đã được thêm vào danh sách tham gia.`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
       
     } catch (error) {
-      console.error('Error creating activity:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tạo hoạt động. Vui lòng thử lại.');
+      // Chỉ xử lý các lỗi không mong muốn
+      Alert.alert(
+        'Thông báo',
+        'Có lỗi xảy ra khi tạo hoạt động. Vui lòng kiểm tra lại thông tin và thử lại.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setSubmitting(false);
     }
@@ -553,39 +710,49 @@ const CreateActivityScreen = () => {
             <Text style={styles.sectionTitle}>Lịch trình</Text>
             
             <View>
-              <TextInput
-                label="Ngày"
-                value={formatDate(date)}
-                onPressIn={() => setShowDatePicker(true)}
-                right={<TextInput.Icon icon="calendar" />}
-                mode="outlined"
-                editable={false}
-                style={styles.input}
-              />
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                style={styles.dateTimeInput}
+              >
+                <TextInput
+                  label="Ngày"
+                  value={formatDate(date)}
+                  right={<TextInput.Icon icon="calendar" />}
+                  mode="outlined"
+                  editable={false}
+                  style={styles.input}
+                />
+              </TouchableOpacity>
               {showDatePicker && (
                 <DateTimePicker
                   value={date}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleDateChange}
+                  style={Platform.OS === 'android' ? { width: '100%' } : {}}
                 />
               )}
               
-              <TextInput
-                label="Thời gian"
-                value={formatTime(time)}
-                onPressIn={() => setShowTimePicker(true)}
-                right={<TextInput.Icon icon="clock-outline" />}
-                mode="outlined"
-                editable={false}
-                style={styles.input}
-              />
+              <TouchableOpacity
+                onPress={() => setShowTimePicker(true)}
+                style={styles.dateTimeInput}
+              >
+                <TextInput
+                  label="Thời gian"
+                  value={formatTime(time)}
+                  right={<TextInput.Icon icon="clock-outline" />}
+                  mode="outlined"
+                  editable={false}
+                  style={styles.input}
+                />
+              </TouchableOpacity>
               {showTimePicker && (
                 <DateTimePicker
                   value={time}
                   mode="time"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleTimeChange}
+                  style={Platform.OS === 'android' ? { width: '100%' } : {}}
                 />
               )}
               
@@ -616,13 +783,20 @@ const CreateActivityScreen = () => {
                 zIndex={10000}
                 zIndexInverse={1000}
                 listMode="FLATLIST"
-                maxHeight={300}
-                minHeight={50}
+                maxHeight={280}
+                minHeight={80}
                 listItemContainerStyle={styles.listItemContainer}
                 listItemLabelStyle={styles.listItemLabel}
                 scrollViewProps={{
-                  nestedScrollEnabled: false,
+                  nestedScrollEnabled: true,
                   showsVerticalScrollIndicator: true,
+                  scrollEnabled: true,
+                }}
+                flatListProps={{
+                  nestedScrollEnabled: true,
+                  showsVerticalScrollIndicator: true,
+                  scrollEnabled: true,
+                  contentContainerStyle: { paddingBottom: 20 },
                 }}
               />
               <HelperText type="error" visible={!!errors.location}>
@@ -776,9 +950,11 @@ const CreateActivityScreen = () => {
                             </TouchableOpacity>
                           );
                         }}
-                        showsVerticalScrollIndicator={false}
+                        showsVerticalScrollIndicator={true}
                         style={styles.residentsList}
                         contentContainerStyle={styles.residentsListContent}
+                        nestedScrollEnabled={true}
+                        scrollEnabled={true}
                       />
                     </View>
                   </View>
@@ -843,6 +1019,9 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: COLORS.surface,
+    marginBottom: 4,
+  },
+  dateTimeInput: {
     marginBottom: 4,
   },
   inputLabel: {
@@ -948,11 +1127,13 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    maxHeight: 280,
   },
   listItemContainer: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 16,
-    minHeight: 50,
+    paddingBottom: 24,
+    minHeight: 65,
   },
   listItemLabel: {
     fontSize: 16,

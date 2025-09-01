@@ -10,9 +10,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   Modal,
-  FlatList,
-  SafeAreaView,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import carePlanService from '../../api/services/carePlanService';
 import carePlanAssignmentService from '../../api/services/carePlanAssignmentService';
@@ -41,7 +41,7 @@ const bedTypeToVietnamese = (type) => {
 
 // Hàm format giá tiền với đơn vị tính riêng
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN').format(price);
+  return new Intl.NumberFormat('vi-VN').format(price * 10000);
 };
 
 const ServicePackageScreen = ({ navigation }) => {
@@ -102,8 +102,10 @@ const ServicePackageScreen = ({ navigation }) => {
       console.log('DEBUG - Available care plans response:', availableRes);
       if (availableRes && Array.isArray(availableRes)) {
         console.log('DEBUG - Available care plans data:', availableRes);
-        const mainPackages = availableRes.filter(pkg => pkg.category === 'main');
-        const supplementaryPackages = availableRes.filter(pkg => pkg.category === 'supplementary');
+        const mainPackages = availableRes.filter(pkg => pkg.category === 'main')
+          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
+        const supplementaryPackages = availableRes.filter(pkg => pkg.category === 'supplementary')
+          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
         console.log('DEBUG - Main packages count:', mainPackages.length);
         console.log('DEBUG - Supplementary packages count:', supplementaryPackages.length);
         setAvailablePackages({
@@ -181,8 +183,10 @@ const ServicePackageScreen = ({ navigation }) => {
           }
         ];
         
-        const mainPackages = mockCarePlans.filter(pkg => pkg.category === 'main');
-        const supplementaryPackages = mockCarePlans.filter(pkg => pkg.category === 'supplementary');
+        const mainPackages = mockCarePlans.filter(pkg => pkg.category === 'main')
+          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
+        const supplementaryPackages = mockCarePlans.filter(pkg => pkg.category === 'supplementary')
+          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
         console.log('DEBUG - Using mock data - Main packages:', mainPackages.length);
         console.log('DEBUG - Using mock data - Supplementary packages:', supplementaryPackages.length);
         
@@ -473,7 +477,7 @@ const ServicePackageScreen = ({ navigation }) => {
             <Text style={styles.totalAmount}>{formatPrice(totalMonthly)}</Text>
           </View>
           {/* Unit under total */}
-          <Text style={styles.unitUnderTotal}>× 10,000 VNĐ/tháng</Text>
+
         </View>
 
         <View style={styles.cardFooter}>
@@ -895,7 +899,7 @@ const ServicePackageScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Đang tải gói dịch vụ...</Text>
@@ -905,7 +909,7 @@ const ServicePackageScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
@@ -959,7 +963,6 @@ const ServicePackageScreen = ({ navigation }) => {
             <View style={styles.categorySection}>
               <View style={styles.categoryHeader}>
                 <Text style={styles.categoryTitle}>Gói Chăm Sóc Chính</Text>
-                <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
               </View>
               <Text style={styles.categoryDesc}>Gói dịch vụ chăm sóc cơ bản (bắt buộc)</Text>
               <FlatList
@@ -974,7 +977,6 @@ const ServicePackageScreen = ({ navigation }) => {
             <View style={styles.categorySection}>
               <View style={styles.categoryHeader}>
                 <Text style={styles.categoryTitle}>Gói Dịch Vụ Bổ Sung</Text>
-                <Text style={styles.unitLabel}>× 10,000 VNĐ/tháng</Text>
               </View>
               <Text style={styles.categoryDesc}>Dịch vụ chuyên khoa theo nhu cầu (tùy chọn)</Text>
               <FlatList

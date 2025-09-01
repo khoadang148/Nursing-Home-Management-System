@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { 
+import {
   View, 
   Text, 
   StyleSheet, 
@@ -8,9 +8,9 @@ import {
   ScrollView,
   Image,
   Platform,
-  SafeAreaView,
-  Alert,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import * as ImagePicker from 'expo-image-picker';
@@ -267,7 +267,7 @@ const EditProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
         <TouchableOpacity

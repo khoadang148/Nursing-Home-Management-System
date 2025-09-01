@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
+import {
+  View,
   StyleSheet, 
   FlatList, 
   TouchableOpacity, 
-  StatusBar, 
-  SafeAreaView, // thêm SafeAreaView
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Appbar, 
@@ -243,7 +243,7 @@ const ActivityListScreen = () => {
   
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={{ marginTop: 16, color: COLORS.textSecondary }}>Đang tải hoạt động...</Text>
       </SafeAreaView>
@@ -251,7 +251,7 @@ const ActivityListScreen = () => {
   }
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       {/* Header + Search + Filter block */}
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary]}

@@ -21,23 +21,29 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
       
-      // Log request for debugging
-      console.log('🌐 API Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        baseURL: config.baseURL,
-        fullURL: `${config.baseURL}${config.url}`,
-        headers: config.headers,
-        data: config.data
-      });
+      // Log request for debugging (chỉ trong development)
+      if (__DEV__) {
+        console.log('🌐 API Request:', {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          baseURL: config.baseURL,
+          fullURL: `${config.baseURL}${config.url}`,
+          headers: config.headers,
+          data: config.data
+        });
+      }
       
     } catch (error) {
-      console.error('Error getting token from storage:', error);
+      if (__DEV__) {
+        console.error('Error getting token from storage:', error);
+      }
     }
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
+    if (__DEV__) {
+      console.error('❌ Request interceptor error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -45,27 +51,21 @@ apiClient.interceptors.request.use(
 // Response interceptor - xử lý token refresh và error handling
 apiClient.interceptors.response.use(
   (response) => {
-    // Log successful response
-    console.log('✅ API Response:', {
-      status: response.status,
-      url: response.config.url,
-      data: response.data
-    });
+    // Log successful response (chỉ trong development)
+    if (__DEV__) {
+      console.log('✅ API Response:', {
+        status: response.status,
+        url: response.config.url,
+        data: response.data
+      });
+    }
     return response;
   },
   async (error) => {
-    // Log minimal error info for debugging (without exposing technical details)
-    console.log('❌ API Error occurred:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      hasResponse: !!error.response,
-      hasRequest: !!error.request,
-      isTimeout: error.code === 'ECONNABORTED',
-      message: error.message ? 'Error occurred' : 'Unknown error'
-    });
+    // Không log lỗi API để tránh hiển thị cho user
 
-    // Xử lý timeout error cho iPhone
-    if (error.code === 'ECONNABORTED') {
+    // Xử lý timeout error cho iPhone (chỉ log trong development)
+    if (error.code === 'ECONNABORTED' && __DEV__) {
       console.log('⏰ Timeout Error - Có thể do:');
       console.log('1. iPhone không thể truy cập IP của máy host');
       console.log('2. Không cùng mạng WiFi');
@@ -99,11 +99,15 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         } else {
           // Không có refresh token, clear all tokens và return error
-          console.log('No refresh token found, clearing all tokens');
+          if (__DEV__) {
+            console.log('No refresh token found, clearing all tokens');
+          }
           await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
         }
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
+        if (__DEV__) {
+          console.error('Token refresh failed:', refreshError);
+        }
         // Xóa token cũ và redirect về login
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
         // Không dispatch logout action ở đây vì có thể gây infinite loop

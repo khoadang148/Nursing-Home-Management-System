@@ -26,20 +26,26 @@ const CommonAvatar = ({
   const getAvatarUri = (imagePath) => {
     if (!imagePath) return null;
     
+    console.log('CommonAvatar - getAvatarUri input:', imagePath);
+    
     // If it's already a full URL, return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      console.log('CommonAvatar - Full URL detected:', imagePath);
       return imagePath;
     }
     
     // For relative paths, use getImageUri but handle the default avatar case
     const uri = getImageUri(imagePath, 'avatar');
+    console.log('CommonAvatar - getImageUri result:', uri);
     
     // If getImageUri returned the default avatar, return null instead
     // so we can show initials instead of default avatar
     if (uri === 'https://randomuser.me/api/portraits/men/1.jpg') {
+      console.log('CommonAvatar - Default avatar detected, returning null');
       return null;
     }
     
+    console.log('CommonAvatar - Final avatar URI:', uri);
     return uri;
   };
 
@@ -69,6 +75,11 @@ const CommonAvatar = ({
 
   const handleImageError = (error) => {
     console.log('Avatar image error:', error.nativeEvent);
+    console.log('Avatar image error details:', {
+      uri: uri,
+      error: error.nativeEvent.error,
+      responseCode: error.nativeEvent.responseCode
+    });
     setImageError(true);
     if (onError) onError(error);
   };

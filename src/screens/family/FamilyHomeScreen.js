@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity,
-  RefreshControl,
-  SafeAreaView,
+  RefreshControl
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { Card, Title, Paragraph, ActivityIndicator, useTheme, Chip } from 'react-native-paper';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -471,7 +471,7 @@ const FamilyHomeScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
         <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
@@ -479,7 +479,7 @@ const FamilyHomeScreen = ({ navigation }) => {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={

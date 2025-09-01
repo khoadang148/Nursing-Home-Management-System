@@ -7,11 +7,11 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
   Modal,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ import { COLORS, FONTS } from '../../constants/theme';
 import billsService from '../../api/services/billsService';
 import carePlanService from '../../api/services/carePlanService';
 import roomTypeService from '../../api/services/roomTypeService';
+import residentService from '../../api/services/residentService';
 
 const CreateBillScreen = () => {
   const navigation = useNavigation();
@@ -104,8 +105,18 @@ const CreateBillScreen = () => {
     try {
       setLoading(true);
       // Lấy residents, assignments, roomTypes song song
-      const [residentsData, assignmentsData, roomTypesResponse] = await Promise.all([
-        billsService.billingService.getResidents(),
+      let residentsData;
+      if (currentUser?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        const residentsResponse = await residentService.getResidentsByFamilyMember(currentUser._id || currentUser.id);
+        residentsData = residentsResponse.success ? residentsResponse.data : [];
+      } else {
+        // Staff có thể xem tất cả residents
+        const residentsResponse = await billsService.billingService.getResidents();
+        residentsData = residentsResponse || [];
+      }
+      
+      const [assignmentsData, roomTypesResponse] = await Promise.all([
         billsService.getAllCarePlanAssignments(),
         roomTypeService.getAllRoomTypes()
       ]);
@@ -114,16 +125,61 @@ const CreateBillScreen = () => {
       const roomTypesData = roomTypesResponse?.success ? roomTypesResponse.data : [];
       setRoomTypes(roomTypesData || []);
 
-      // Lấy danh sách resident_id đã đăng ký dịch vụ
-      const registeredResidentIds = new Set(
-        (assignmentsData || []).map(a => (a.resident_id?._id || a.resident_id))
+      // Lọc residents có gói dịch vụ còn hạn sử dụng và status active
+      const now = new Date();
+      const validAssignments = (assignmentsData || []).filter(assignment => {
+        const startDate = new Date(assignment.start_date);
+        const endDate = new Date(assignment.end_date);
+        return assignment.status === 'active' && now >= startDate && now <= endDate;
+      });
+
+      console.log('DEBUG - Valid assignments found:', validAssignments.length);
+
+      // Lấy danh sách resident IDs có gói dịch vụ hợp lệ
+      const validResidentIds = new Set(
+        validAssignments.map(a => (a.resident_id?._id || a.resident_id))
       );
-      // Lọc residents đã đăng ký dịch vụ
-      const filteredResidents = (residentsData || []).filter(r => registeredResidentIds.has(r._id));
-      setResidents(filteredResidents);
+
+      console.log('DEBUG - Valid resident IDs:', Array.from(validResidentIds));
+
+      // Lọc residents có gói dịch vụ còn hạn
+      let filteredResidents = (residentsData || []).filter(r => validResidentIds.has(r._id));
+      
+      console.log('DEBUG - Total residents:', residentsData?.length || 0);
+      console.log('DEBUG - Filtered residents with valid care plans:', filteredResidents.length);
+
+      // Kiểm tra thêm bed assignment cho từng resident
+      const residentsWithValidBedAssignment = [];
+      
+      for (const resident of filteredResidents) {
+        try {
+          const bedAssignmentData = await billsService.billingService.getBedAssignmentByResident(resident._id);
+          
+          // Kiểm tra có bed assignment hợp lệ không (unassigned_date = null)
+          let hasValidBedAssignment = false;
+          
+          if (bedAssignmentData && Array.isArray(bedAssignmentData)) {
+            hasValidBedAssignment = bedAssignmentData.some(assignment => !assignment.unassigned_date);
+          } else if (bedAssignmentData && typeof bedAssignmentData === 'object') {
+            hasValidBedAssignment = !bedAssignmentData.unassigned_date;
+          }
+          
+          if (hasValidBedAssignment) {
+            residentsWithValidBedAssignment.push(resident);
+          } else {
+            console.log('DEBUG - Resident', resident.full_name, 'has no valid bed assignment');
+          }
+        } catch (error) {
+          console.error('DEBUG - Error checking bed assignment for resident', resident._id, error);
+        }
+      }
+      
+      console.log('DEBUG - Final filtered residents with both care plan and bed assignment:', residentsWithValidBedAssignment.length);
+      
+      setResidents(residentsWithValidBedAssignment);
 
       // Prepare dropdown items
-      const dropdownItems = filteredResidents.map(resident => ({
+      const dropdownItems = residentsWithValidBedAssignment.map(resident => ({
         label: `${resident.full_name || resident.name} - ${resident.gender === 'male' ? 'Nam' : 'Nữ'}`,
         value: resident._id,
         resident: resident
@@ -174,12 +230,120 @@ const CreateBillScreen = () => {
         billsService.getBillsByResident(residentId)
       ]);
 
-      setCarePlanAssignment(carePlanData);
-      setBedAssignment(bedAssignmentData);
+      // Lọc gói dịch vụ còn hạn sử dụng và status active
+      const now = new Date();
+      let validCarePlan = null;
+      
+      console.log('DEBUG - Care plan data received:', carePlanData);
+      
+      if (carePlanData && Array.isArray(carePlanData)) {
+        validCarePlan = carePlanData.filter(assignment => {
+          const startDate = new Date(assignment.start_date);
+          const endDate = new Date(assignment.end_date);
+          const isValid = assignment.status === 'active' && now >= startDate && now <= endDate;
+          console.log('DEBUG - Assignment check:', {
+            id: assignment._id,
+            status: assignment.status,
+            startDate: assignment.start_date,
+            endDate: assignment.end_date,
+            isValid
+          });
+          return isValid;
+        });
+      } else if (carePlanData && typeof carePlanData === 'object') {
+        const startDate = new Date(carePlanData.start_date);
+        const endDate = new Date(carePlanData.end_date);
+        if (carePlanData.status === 'active' && now >= startDate && now <= endDate) {
+          validCarePlan = [carePlanData];
+        }
+      }
 
-      console.log('DEBUG - Set care plan assignment:', carePlanData);
-      console.log('DEBUG - Set bed assignment:', bedAssignmentData);
-      console.log('DEBUG - Existing bills:', existingBills);
+      console.log('DEBUG - Valid care plans found:', validCarePlan?.length || 0);
+
+      // Lọc phòng giường còn đang sử dụng (unassigned_date = null)
+      let validBedAssignment = null;
+      
+      console.log('DEBUG - Bed assignment data received:', bedAssignmentData);
+      
+      if (bedAssignmentData && Array.isArray(bedAssignmentData)) {
+        validBedAssignment = bedAssignmentData.filter(assignment => {
+          const isValid = !assignment.unassigned_date;
+          console.log('DEBUG - Bed assignment check:', {
+            id: assignment._id,
+            unassigned_date: assignment.unassigned_date,
+            isValid
+          });
+          return isValid;
+        });
+      } else if (bedAssignmentData && typeof bedAssignmentData === 'object') {
+        if (!bedAssignmentData.unassigned_date) {
+          validBedAssignment = [bedAssignmentData];
+        }
+      }
+
+      console.log('DEBUG - Valid bed assignments found:', validBedAssignment?.length || 0);
+
+      // Tính toán giá tiền từ care plan assignment
+      let calculatedCarePlansCost = 0;
+      let calculatedRoomCost = 0;
+      let calculatedTotalCost = 0;
+
+      if (validCarePlan && validCarePlan.length > 0) {
+        const carePlanAssignment = Array.isArray(validCarePlan) ? validCarePlan[0] : validCarePlan;
+        
+        // Tính tổng giá gói dịch vụ từ care_plan_ids
+        if (carePlanAssignment.care_plan_ids && Array.isArray(carePlanAssignment.care_plan_ids)) {
+          calculatedCarePlansCost = carePlanAssignment.care_plan_ids.reduce((total, carePlan) => {
+            const monthlyPrice = carePlan.monthly_price || 0;
+            console.log('DEBUG - Care plan price:', carePlan.plan_name, monthlyPrice);
+            return total + monthlyPrice;
+          }, 0);
+        }
+        
+        console.log('DEBUG - Calculated care plans cost:', calculatedCarePlansCost);
+      }
+
+      // Tính giá phòng từ bed assignment
+      if (validBedAssignment && validBedAssignment.length > 0) {
+        const bedAssignment = Array.isArray(validBedAssignment) ? validBedAssignment[0] : validBedAssignment;
+        
+        if (bedAssignment.bed_id && bedAssignment.bed_id.room_id && bedAssignment.bed_id.room_id.room_type) {
+          // Tìm room type để lấy giá
+          const roomType = roomTypes.find(rt => rt.room_type === bedAssignment.bed_id.room_id.room_type);
+          if (roomType && roomType.monthly_price) {
+            calculatedRoomCost = roomType.monthly_price;
+            console.log('DEBUG - Room type found:', roomType.type_name, 'Price:', calculatedRoomCost);
+          } else {
+            console.log('DEBUG - Room type not found or no price for:', bedAssignment.bed_id.room_id.room_type);
+          }
+        }
+        
+        console.log('DEBUG - Calculated room cost:', calculatedRoomCost);
+      }
+
+      // Tính tổng chi phí
+      calculatedTotalCost = calculatedCarePlansCost + calculatedRoomCost;
+      console.log('DEBUG - Total calculated cost:', calculatedTotalCost);
+
+      // Cập nhật care plan assignment với giá đã tính
+      if (validCarePlan && validCarePlan.length > 0) {
+        const updatedCarePlan = Array.isArray(validCarePlan) ? validCarePlan[0] : validCarePlan;
+        updatedCarePlan.care_plans_monthly_cost = calculatedCarePlansCost;
+        updatedCarePlan.room_monthly_cost = calculatedRoomCost;
+        updatedCarePlan.total_monthly_cost = calculatedTotalCost;
+        
+        setCarePlanAssignment([updatedCarePlan]);
+      } else {
+        setCarePlanAssignment(validCarePlan);
+      }
+      
+      setBedAssignment(validBedAssignment);
+
+      console.log('DEBUG - Updated care plan assignment with calculated costs:', {
+        care_plans_monthly_cost: calculatedCarePlansCost,
+        room_monthly_cost: calculatedRoomCost,
+        total_monthly_cost: calculatedTotalCost
+      });
 
       // Kiểm tra xem resident đã có hóa đơn trước đó chưa
       const isFirstBill = !existingBills || existingBills.length === 0;
@@ -190,10 +354,6 @@ const CreateBillScreen = () => {
       let calculatedNotes = '';
       let calculatedDueDate;
       
-      const carePlan = Array.isArray(carePlanData) ? carePlanData[0] : carePlanData;
-      const totalMonthlyCost = carePlan?.total_monthly_cost || 0;
-      
-      const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
       const currentDay = now.getDate();
@@ -205,16 +365,16 @@ const CreateBillScreen = () => {
         const remainingDays = daysInMonth - currentDay + 1;
         
         // Tiền tháng hiện tại (theo tỷ lệ ngày còn lại) + tiền cọc 1 tháng
-        const dailyRate = totalMonthlyCost / 30;
+        const dailyRate = calculatedTotalCost / 30;
         const partialMonthAmount = dailyRate * remainingDays;
-        const depositAmount = totalMonthlyCost;
+        const depositAmount = calculatedTotalCost;
         
         calculatedAmount = Math.round(partialMonthAmount + depositAmount);
         calculatedTitle = `Hóa đơn thanh toán tháng ${currentMonth.toString().padStart(2, '0')}/${currentYear}`;
         calculatedNotes = 'Hóa đơn đăng ký dịch vụ tháng đầu + tiền cọc 1 tháng';
         
-        // Hạn thanh toán: cuối tháng hiện tại
-        const lastDayOfMonth = new Date(currentYear, currentMonth, 0);
+        // Hạn thanh toán: cuối tháng hiện tại (23:59:59 VN time)
+        const lastDayOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
         calculatedDueDate = formatDateForDisplay(lastDayOfMonth);
         
         console.log('DEBUG - First bill calculation:', {
@@ -227,7 +387,7 @@ const CreateBillScreen = () => {
         });
       } else {
         // Đã có hóa đơn trước đó
-        calculatedAmount = totalMonthlyCost;
+        calculatedAmount = calculatedTotalCost;
         
         // Tiêu đề cho tháng kế tiếp
         let nextMonth = currentMonth + 1;
@@ -240,8 +400,8 @@ const CreateBillScreen = () => {
         calculatedTitle = `Hóa đơn thanh toán tháng ${nextMonth.toString().padStart(2, '0')}/${nextYear}`;
         calculatedNotes = '';
         
-        // Hạn thanh toán: ngày 5 của tháng kế tiếp
-        const fifthOfNextMonth = new Date(nextYear, nextMonth - 1, 5);
+        // Hạn thanh toán: ngày 5 của tháng kế tiếp (23:59:59 VN time)
+        const fifthOfNextMonth = new Date(nextYear, nextMonth - 1, 5, 23, 59, 59, 999);
         calculatedDueDate = formatDateForDisplay(fifthOfNextMonth);
         
         console.log('DEBUG - Regular bill calculation:', {
@@ -262,7 +422,8 @@ const CreateBillScreen = () => {
         title: calculatedTitle,
         notes: calculatedNotes,
         dueDate: calculatedDueDate,
-        isFirstBill
+        isFirstBill,
+        dueDateUTC: convertDisplayDateToUTC(calculatedDueDate)
       });
 
     } catch (error) {
@@ -333,12 +494,17 @@ const CreateBillScreen = () => {
         care_plan_assignment_id: carePlan._id,
         staff_id: currentUser._id,
         amount: parseFloat(amount),
-        due_date: new Date(convertDisplayDateToUTC(dueDate)).toISOString(),
+        due_date: convertDisplayDateToUTC(dueDate), // Đã được convert sang UTC ISO string
         title: title.trim(),
         notes: notes.trim() || undefined
       };
 
       console.log('DEBUG - Creating bill with data:', billData);
+      console.log('DEBUG - Date conversion details:', {
+        displayDueDate: dueDate,
+        convertedUTC: billData.due_date,
+        parsedDate: new Date(billData.due_date).toISOString()
+      });
 
       const result = await billsService.createBill(billData);
       
@@ -366,7 +532,7 @@ const CreateBillScreen = () => {
   };
 
   const formatPrice = (price) => {
-    const formattedPrice = new Intl.NumberFormat('vi-VN').format(price);
+    const formattedPrice = new Intl.NumberFormat('vi-VN').format(price * 10000);
     return `${formattedPrice} VNĐ`;
   };
 
@@ -380,11 +546,25 @@ const CreateBillScreen = () => {
 
   // Format date for display in Vietnam timezone (UTC+7) - DD/MM/YYYY
   const formatDateForDisplay = (date) => {
-    // Create a new date adjusted to Vietnam timezone
-    const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
-    const day = vietnamTime.getUTCDate().toString().padStart(2, '0');
-    const month = (vietnamTime.getUTCMonth() + 1).toString().padStart(2, '0');
-    const year = vietnamTime.getUTCFullYear();
+    if (!date) return '';
+    
+    // Tạo date object mới để tránh thay đổi date gốc
+    const dateObj = new Date(date);
+    
+    // Lấy ngày theo giờ địa phương (đã được set đúng giờ VN)
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    
+    console.log('DEBUG - formatDateForDisplay:', {
+      inputDate: date,
+      dateObj: dateObj.toISOString(),
+      day,
+      month,
+      year,
+      result: `${day}/${month}/${year}`
+    });
+    
     return `${day}/${month}/${year}`;
   };
 
@@ -392,10 +572,23 @@ const CreateBillScreen = () => {
   const convertDisplayDateToUTC = (displayDate) => {
     if (!displayDate) return '';
     const [day, month, year] = displayDate.split('/');
-    // Create date in Vietnam timezone then convert to UTC
-    const vietnamDate = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone edge cases
+    
+    // Tạo ngày ở giờ Việt Nam (UTC+7) vào lúc 23:59:59 để đảm bảo không bị lệch ngày
+    // Ví dụ: 5/10/2024 23:59:59 (VN) = 5/10/2024 16:59:59 (UTC) - vẫn là ngày 5/10
+    const vietnamDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+    
+    // Chuyển đổi sang UTC (trừ đi 7 giờ)
     const utcDate = new Date(vietnamDate.getTime() - (7 * 60 * 60 * 1000));
-    return utcDate.toISOString().split('T')[0];
+    
+    console.log('DEBUG - Date conversion:', {
+      displayDate,
+      vietnamDate: vietnamDate.toISOString(),
+      utcDate: utcDate.toISOString(),
+      vietnamDay: vietnamDate.getDate(),
+      utcDay: utcDate.getUTCDate()
+    });
+    
+    return utcDate.toISOString();
   };
 
   // Get selected resident info
@@ -425,7 +618,7 @@ const CreateBillScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
@@ -433,7 +626,7 @@ const CreateBillScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -488,11 +681,17 @@ const CreateBillScreen = () => {
           </View>
 
           {/* Thông tin gói dịch vụ */}
-          {carePlanAssignment && (
+          {carePlanAssignment && (Array.isArray(carePlanAssignment) ? carePlanAssignment.length > 0 : true) && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>2. Thông Tin Gói Dịch Vụ</Text>
               {(() => {
                 const carePlan = Array.isArray(carePlanAssignment) ? carePlanAssignment[0] : carePlanAssignment;
+                
+                console.log('DEBUG - Displaying care plan with calculated costs:', {
+                  care_plans_monthly_cost: carePlan?.care_plans_monthly_cost,
+                  room_monthly_cost: carePlan?.room_monthly_cost,
+                  total_monthly_cost: carePlan?.total_monthly_cost
+                });
                 
                 return (
                   <>
@@ -503,6 +702,25 @@ const CreateBillScreen = () => {
                           formatPrice(carePlan.care_plans_monthly_cost) : 'Chưa có thông tin'}
                       </Text>
                     </View>
+                    {carePlan?.care_plan_ids && Array.isArray(carePlan.care_plan_ids) && carePlan.care_plan_ids.length > 0 && (
+                      <View style={styles.infoCard}>
+                        <Text style={styles.infoLabel}>Chi tiết gói:</Text>
+                        <View style={styles.packageDetailsContainer}>
+                          {carePlan.care_plan_ids.map((cp, index) => (
+                            <View key={cp._id || index} style={styles.packageDetailItem}>
+                              <Text style={styles.packageDetailText}>
+                                • {cp.plan_name || 'Không có tên'}
+                              </Text>
+                              {cp.monthly_price && (
+                                <Text style={styles.packageDetailPrice}>
+                                  {formatPrice(cp.monthly_price)}
+                                </Text>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
                     <View style={styles.infoCard}>
                       <Text style={styles.infoLabel}>Phí phòng:</Text>
                       <Text style={styles.infoValue}>
@@ -510,11 +728,26 @@ const CreateBillScreen = () => {
                           formatPrice(carePlan.room_monthly_cost) : 'Chưa có thông tin'}
                       </Text>
                     </View>
+                    {bedAssignment && (Array.isArray(bedAssignment) ? bedAssignment.length > 0 : true) && (
+                      <View style={styles.infoCard}>
+                        <Text style={styles.infoLabel}>Loại phòng:</Text>
+                        <Text style={styles.infoValue}>
+                          {(() => {
+                            const bedAssign = Array.isArray(bedAssignment) ? bedAssignment[0] : bedAssignment;
+                            if (bedAssign?.bed_id?.room_id?.room_type) {
+                              const roomType = roomTypes.find(rt => rt.room_type === bedAssign.bed_id.room_id.room_type);
+                              return roomType ? roomType.type_name : bedAssign.bed_id.room_id.room_type;
+                            }
+                            return 'Chưa có thông tin';
+                          })()}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.infoCard}>
                       <Text style={styles.infoLabel}>Tổng cộng:</Text>
                       <Text style={styles.infoValue}>
                         {carePlan?.total_monthly_cost ? 
-                          formatPrice(carePlan.total_monthly_cost) : 'Chưa có thông tin'}
+                          `${formatPrice(carePlan.total_monthly_cost)}` : 'Chưa có thông tin'}
                       </Text>
                     </View>
                   </>
@@ -523,12 +756,26 @@ const CreateBillScreen = () => {
             </View>
           )}
 
+          {/* Thông báo khi không có gói dịch vụ hợp lệ */}
+          {residentDropdownValue && (!carePlanAssignment || (Array.isArray(carePlanAssignment) && carePlanAssignment.length === 0)) && (
+            <View style={styles.section}>
+              <View style={styles.warningCard}>
+                <Ionicons name="warning-outline" size={24} color={COLORS.warning} />
+                <Text style={styles.warningText}>
+                  Người cao tuổi này không có gói dịch vụ còn hạn hoặc đang hoạt động.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Thông tin phòng và giường */}
-          {bedAssignment && (
+          {bedAssignment && (Array.isArray(bedAssignment) ? bedAssignment.length > 0 : true) && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>3. Thông Tin Phòng & Giường</Text>
               {(() => {
                 const bedAssign = Array.isArray(bedAssignment) ? bedAssignment[0] : bedAssignment;
+                
+                console.log('DEBUG - Displaying bed assignment:', bedAssign);
                 
                 return (
                   <>
@@ -556,6 +803,18 @@ const CreateBillScreen = () => {
             </View>
           )}
 
+          {/* Thông báo khi không có phòng giường hợp lệ */}
+          {residentDropdownValue && (!bedAssignment || (Array.isArray(bedAssignment) && bedAssignment.length === 0)) && (
+            <View style={styles.section}>
+              <View style={styles.warningCard}>
+                <Ionicons name="warning-outline" size={24} color={COLORS.warning} />
+                <Text style={styles.warningText}>
+                  Người cao tuổi này không có phòng giường đang sử dụng.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Form tạo hóa đơn */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Thông Tin Hóa Đơn</Text>
@@ -569,11 +828,14 @@ const CreateBillScreen = () => {
                 placeholder="Nhập tiêu đề hóa đơn..."
                 maxLength={100}
                 contentStyle={{ paddingVertical: 8 }}
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
+                style={{ backgroundColor: COLORS.white }}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Số tiền (VND) *</Text>
+                              <Text style={styles.inputLabel}>Số tiền (*10,000 VNĐ) *</Text>
               <TextInput
                 mode="outlined"
                 value={amount}
@@ -582,6 +844,9 @@ const CreateBillScreen = () => {
                 keyboardType="numeric"
                 editable={!loadingCalculation}
                 contentStyle={{ paddingVertical: 8 }}
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
+                style={{ backgroundColor: COLORS.white }}
               />
               {loadingCalculation && (
                 <ActivityIndicator size="small" color={COLORS.primary} style={styles.calculationLoader} />
@@ -599,6 +864,9 @@ const CreateBillScreen = () => {
                     editable={false}
                     right={<TextInput.Icon icon="calendar" />}
                     contentStyle={{ paddingVertical: 8 }}
+                    outlineColor={COLORS.border}
+                    activeOutlineColor={COLORS.primary}
+                    style={{ backgroundColor: COLORS.white }}
                   />
                 </View>
               </TouchableOpacity>
@@ -629,6 +897,9 @@ const CreateBillScreen = () => {
                 multiline
                 numberOfLines={3}
                 maxLength={200}
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
+                style={{ backgroundColor: COLORS.white }}
               />
             </View>
           </View>
@@ -713,13 +984,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   sectionTitle: {
     fontSize: 18,
@@ -741,6 +1018,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Center vertically
     alignItems: 'center', // Center horizontally
     paddingHorizontal: 15,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   dropdownWrapper: {
     zIndex: 6000,
@@ -820,6 +1099,44 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warning + '10',
+    borderWidth: 1,
+    borderColor: COLORS.warning,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: COLORS.warning,
+    marginLeft: 8,
+    flex: 1,
+  },
+  packageDetailsContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  packageDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  packageDetailText: {
+    fontSize: 14,
+    color: COLORS.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  packageDetailPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.primary,
+    textAlign: 'right',
   },
 });
 

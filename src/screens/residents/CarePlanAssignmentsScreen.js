@@ -7,8 +7,9 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +71,27 @@ const CarePlanAssignmentsScreen = () => {
         );
         
         setAssignments(assignmentsWithBedInfo);
+        
+        // Debug: Log thông tin về các assignment có vấn đề
+        assignmentsWithBedInfo.forEach((assignment, index) => {
+          const actualStatus = getActualStatus(assignment);
+          const validStatuses = ['packages_selected', 'room_assigned', 'payment_completed', 'active', 'completed', 'cancelled', 'paused'];
+          
+          // Log tất cả assignments để debug
+          console.log(`[CarePlanAssignmentsScreen] Assignment ${index + 1} (${assignment._id}):`);
+          console.log(`  - Resident: ${assignment.resident_id?.full_name}`);
+          console.log(`  - Original status: ${assignment.status}`);
+          console.log(`  - Is valid status: ${validStatuses.includes(assignment.status)}`);
+          console.log(`  - Resident status: ${assignment.resident_id?.status}`);
+          console.log(`  - End date: ${assignment.end_date}`);
+          console.log(`  - Bed unassigned: ${assignment.bed_info?.unassigned_date}`);
+          console.log(`  - Calculated status: ${actualStatus}`);
+          
+          // Log cảnh báo nếu status không hợp lệ
+          if (assignment.status && !validStatuses.includes(assignment.status)) {
+            console.warn(`[CarePlanAssignmentsScreen] INVALID STATUS: ${assignment.status} for assignment ${assignment._id}`);
+          }
+        });
       } else {
         console.error('Failed to fetch assignments:', assignmentsResponse.error);
         setAssignments([]);
@@ -87,7 +109,7 @@ const CarePlanAssignmentsScreen = () => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(price);
+    }).format(price * 1000);
   };
 
   const formatDate = (date) => {
@@ -96,32 +118,90 @@ const CarePlanAssignmentsScreen = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'packages_selected':
+        return COLORS.primary; // Xanh dương - đã chọn gói
+      case 'room_assigned':
+        return COLORS.warning; // Vàng - đã phân phòng
+      case 'payment_completed':
+        return COLORS.success; // Xanh lá - đã thanh toán
       case 'active':
-        return COLORS.success;
-      case 'consulting':
-        return COLORS.warning;
-      case 'pending':
-        return COLORS.primary;
+        return COLORS.success; // Xanh lá - đang hoạt động
+      case 'completed':
+        return COLORS.success; // Xanh lá - đã hoàn thành
       case 'cancelled':
-        return COLORS.error;
+        return COLORS.error; // Đỏ - đã hủy
+      case 'paused':
+        return COLORS.warning; // Vàng - tạm dừng
       default:
-        return COLORS.textSecondary;
+        return COLORS.textSecondary; // Xám - không xác định
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
+      case 'packages_selected':
+        return 'Đã chọn gói';
+      case 'room_assigned':
+        return 'Đã phân phòng';
+      case 'payment_completed':
+        return 'Đã thanh toán';
       case 'active':
         return 'Đang hoạt động';
-      case 'consulting':
-        return 'Đang tư vấn';
-      case 'pending':
-        return 'Chờ xử lý';
+      case 'completed':
+        return 'Đã hoàn thành';
       case 'cancelled':
         return 'Đã hủy';
+      case 'paused':
+        return 'Tạm dừng';
       default:
         return 'Không xác định';
     }
+  };
+
+  // Hàm xác định trạng thái thực tế dựa trên nhiều yếu tố
+  const getActualStatus = (assignment) => {
+    console.log('[CarePlanAssignmentsScreen] getActualStatus for assignment:', assignment._id);
+    console.log('[CarePlanAssignmentsScreen] Assignment status:', assignment.status);
+    console.log('[CarePlanAssignmentsScreen] Resident status:', assignment.resident_id?.status);
+    console.log('[CarePlanAssignmentsScreen] End date:', assignment.end_date);
+    console.log('[CarePlanAssignmentsScreen] Bed unassigned date:', assignment.bed_info?.unassigned_date);
+
+    // 1. Ưu tiên cao nhất: Status của care plan assignment (nếu hợp lệ)
+    const validStatuses = ['packages_selected', 'room_assigned', 'payment_completed', 'active', 'completed', 'cancelled', 'paused'];
+    if (assignment.status && validStatuses.includes(assignment.status)) {
+      console.log('[CarePlanAssignmentsScreen] Using valid assignment status:', assignment.status);
+      return assignment.status;
+    }
+
+    // 2. Kiểm tra end_date - nếu đã hết hạn thì là completed
+    if (assignment.end_date) {
+      const endDate = new Date(assignment.end_date);
+      const now = new Date();
+      
+      if (endDate < now) {
+        console.log('[CarePlanAssignmentsScreen] Assignment completed based on end_date');
+        return 'completed';
+      }
+    }
+
+    // 3. Kiểm tra resident status - nếu resident đã xuất viện hoặc qua đời
+    if (assignment.resident_id?.status) {
+      const residentStatus = assignment.resident_id.status;
+      if (residentStatus === 'discharged' || residentStatus === 'deceased') {
+        console.log('[CarePlanAssignmentsScreen] Assignment completed due to resident status:', residentStatus);
+        return 'completed';
+      }
+    }
+
+    // 4. Kiểm tra bed assignment - nếu đã rời giường
+    if (assignment.bed_info?.unassigned_date) {
+      console.log('[CarePlanAssignmentsScreen] Assignment completed based on bed unassigned');
+      return 'completed';
+    }
+
+    // 5. Mặc định là active nếu không có dấu hiệu gì khác
+    console.log('[CarePlanAssignmentsScreen] Defaulting to active status');
+    return 'active';
   };
 
   const getPaymentStatusColor = (paymentStatus) => {
@@ -168,6 +248,8 @@ const CarePlanAssignmentsScreen = () => {
     const supplementaryPlans = assignment.care_plan_ids?.filter(plan => plan.category === 'supplementary')
                               .map(plan => plan.plan_name).join(', ') || 'Không có';
     
+    const actualStatus = getActualStatus(assignment);
+    
     Alert.alert(
       'Chi tiết đăng ký',
       `Cư dân: ${assignment.resident_id?.full_name || 'N/A'}\n` +
@@ -178,14 +260,17 @@ const CarePlanAssignmentsScreen = () => {
       `Ngày bắt đầu: ${formatDate(assignment.start_date || assignment.registration_date || assignment.created_at)}\n` +
       `Ngày kết thúc: ${assignment.end_date ? formatDate(assignment.end_date) : 'Chưa có'}\n` +
       `Tổng chi phí: ${formatPrice(assignment.total_monthly_cost || 0)}\n` +
-      `Trạng thái: ${getStatusText(assignment.status)}\n` +
+      `Trạng thái gốc: ${getStatusText(assignment.status)}\n` +
+      `Trạng thái thực tế: ${getStatusText(actualStatus)}\n` +
+      `Trạng thái cư dân: ${assignment.resident_id?.status || 'N/A'}\n` +
+      `Ngày rời giường: ${assignment.bed_info?.unassigned_date ? formatDate(assignment.bed_info.unassigned_date) : 'N/A'}\n` +
       `Thanh toán: ${getPaymentStatusText(assignment.payment_status || 'pending')}`
     );
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
@@ -193,7 +278,7 @@ const CarePlanAssignmentsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -243,10 +328,10 @@ const CarePlanAssignmentsScreen = () => {
                 <View style={styles.statusContainer}>
                   <View style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusColor(assignment.status) }
+                    { backgroundColor: getStatusColor(getActualStatus(assignment)) }
                   ]}>
                     <Text style={styles.statusText}>
-                      {getStatusText(assignment.status)}
+                      {getStatusText(getActualStatus(assignment))}
                     </Text>
                   </View>
                 </View>
@@ -429,11 +514,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   assignmentHeader: {
     flexDirection: 'row',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   ScrollView, 
@@ -8,10 +8,10 @@ import {
   Image,
   Alert,
   RefreshControl,
-  SafeAreaView,
   Switch,
-  TextInput,
+  TextInput
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   ActivityIndicator, 
@@ -224,8 +224,8 @@ const FamilyProfileScreen = ({ navigation }) => {
       const res = await userService.updateAvatar(userData.id || userData._id, pickerResult.assets ? pickerResult.assets[0].uri : pickerResult.uri);
       setLoading(false);
       if (res.success) {
-        // Cập nhật lại avatar cho user trong Redux
-        dispatch({ type: 'UPDATE_USER', payload: { ...user, avatar: res.data.avatar } });
+        // Cập nhật lại avatar cho user trong Redux sử dụng updateProfile action
+        dispatch(updateProfile({ ...user, avatar: res.data.avatar }));
         showSuccess('Đổi avatar thành công!');
       } else {
         showError(res.error || 'Đổi avatar thất bại!');
@@ -249,7 +249,7 @@ const FamilyProfileScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} animating={true} />
         <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
       </SafeAreaView>
@@ -257,7 +257,7 @@ const FamilyProfileScreen = ({ navigation }) => {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Custom Header */}
       <View style={styles.customHeader}>
         <TouchableOpacity 

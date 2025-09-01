@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   FlatList,
@@ -12,11 +12,11 @@ import {
   ScrollView,
   TextInput,
   SectionList,
-  SafeAreaView,
   Modal,
   Platform,
-  PermissionsAndroid,
+  PermissionsAndroid
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
@@ -31,12 +31,11 @@ import {
   Menu,
 } from 'react-native-paper';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
-import ImageViewing from 'react-native-image-viewing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import BottomSheet from '@gorhom/bottom-sheet';
+// Removed BottomSheet import
 import * as FileSystem from 'expo-file-system';
 
-import PhotoSearchFilters from '../../components/PhotoSearchFilters';
+// Removed PhotoSearchFilters import
 import residentPhotosService from '../../api/services/residentPhotosService';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 
@@ -51,9 +50,66 @@ const SIDE_PADDING = 16;
 // Two columns per row with side paddings and one inter-item gap
 const ITEM_DIMENSION = Math.floor((width - SIDE_PADDING * 2 - GRID_SPACING) / COLUMNS);
 
-// Helper để format image
+// Helper để format image với validation tốt hơn
 const getImageUriHelper = (imagePath) => {
-  return getImageUri(imagePath, 'image');
+  if (!imagePath || typeof imagePath !== 'string') {
+    return null;
+  }
+  
+  // Nếu đã là URL đầy đủ, trả về luôn
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // Nếu là mock data với URL đầy đủ
+  if (imagePath.includes('unsplash.com') || imagePath.includes('mekongsport.com')) {
+    return imagePath;
+  }
+  
+  // Sử dụng getImageUri từ config
+  try {
+    const uri = getImageUri(imagePath, 'image');
+    // Kiểm tra URI có hợp lệ không
+    if (uri && typeof uri === 'string' && uri.length > 0) {
+      return uri;
+    }
+    return null;
+  } catch (error) {
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log('Image URI generation failed for:', imagePath, error.message);
+    }
+    return null;
+  }
+};
+
+// Helper để lấy tên cư dân một cách nhất quán
+const getResidentDisplayName = (photo) => {
+  try {
+    if (photo.resident_name) return photo.resident_name;
+    if (photo.resident_id) {
+      if (typeof photo.resident_id === 'string') return photo.resident_id;
+      if (photo.resident_id.full_name) return photo.resident_id.full_name;
+      if (photo.resident_id.name) return photo.resident_id.name;
+    }
+    return 'Không xác định';
+  } catch (error) {
+    return 'Không xác định';
+  }
+};
+
+// Helper để lấy tên hoạt động một cách nhất quán
+const getActivityDisplayName = (photo) => {
+  try {
+    if (photo.activity_type) return photo.activity_type;
+    if (photo.related_activity_id) {
+      if (photo.related_activity_id.activity_name) return photo.related_activity_id.activity_name;
+      if (photo.related_activity_id.activity_type) return photo.related_activity_id.activity_type;
+    }
+    return 'Không xác định';
+  } catch (error) {
+    return 'Không xác định';
+  }
 };
 
 // =========================
@@ -252,12 +308,18 @@ const groupPhotosByDate = (photos) => {
       const aPhotos = grouped[a];
       const bPhotos = grouped[b];
       
-      if (!aPhotos[0].upload_date) return 1;
-      if (!bPhotos[0].upload_date) return -1;
+      // Kiểm tra array có rỗng không
+      if (!aPhotos || aPhotos.length === 0 || !aPhotos[0]?.upload_date) return 1;
+      if (!bPhotos || bPhotos.length === 0 || !bPhotos[0]?.upload_date) return -1;
       
-      const aDate = new Date(aPhotos[0].upload_date);
-      const bDate = new Date(bPhotos[0].upload_date);
-      return bDate - aDate;
+      try {
+        const aDate = new Date(aPhotos[0].upload_date);
+        const bDate = new Date(bPhotos[0].upload_date);
+        return bDate - aDate;
+      } catch (error) {
+        console.error('Error sorting photos by date:', error);
+        return 0;
+      }
     })
     .map(date => ({
       title: date,
@@ -267,6 +329,10 @@ const groupPhotosByDate = (photos) => {
 
 // Chunk an array into rows of given size (for grid in SectionList)
 const chunkArray = (arr, size) => {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return [];
+  }
+  
   const result = [];
   for (let i = 0; i < arr.length; i += size) {
     result.push(arr.slice(i, i + size));
@@ -289,9 +355,8 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [allImages, setAllImages] = useState([]);
   const [currentPhoto, setCurrentPhoto] = useState(null);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({});
-  const [showPhotoDetail, setShowPhotoDetail] = useState(false);
+  // Removed advanced filters - only search functionality remains
+  // Removed photo detail modal state
   
   // Download functionality states
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -299,9 +364,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const [downloadingPhotos, setDownloadingPhotos] = useState(new Set());
   const [downloadProgress, setDownloadProgress] = useState({});
   
-  // Bottom Sheet
-  const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['25%', '50%', '75%'], []);
+  // Removed bottom sheet refs
   
   useEffect(() => {
     if (user?.id && photos.length === 0) {
@@ -310,15 +373,20 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   }, [user?.id, photos.length]); // Only depend on user.id, not entire user object
 
   useEffect(() => {
-    const filtered = filterAndSearchPhotos();
-    setFilteredPhotos(filtered);
-    const grouped = groupPhotosByDate(filtered);
-    const groupedAsRows = grouped.map(section => ({
-      title: section.title,
-      data: chunkArray(section.data, COLUMNS),
-    }));
-    setSections(groupedAsRows);
-  }, [photos, searchQuery, activeFilters]);
+    try {
+      const filtered = filterAndSearchPhotos();
+      setFilteredPhotos(filtered);
+      const grouped = groupPhotosByDate(filtered);
+      const groupedAsRows = grouped.map(section => ({
+        title: section.title,
+        data: chunkArray(section.data, COLUMNS),
+      }));
+      setSections(groupedAsRows);
+    } catch (error) {
+      console.error('Error in useEffect for sections:', error);
+      setSections([]);
+    }
+  }, [photos, searchQuery]);
   
   const loadData = async () => {
     try {
@@ -332,14 +400,35 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       }
       const res = await residentPhotosService.getAllResidentPhotos({ family_member_id: user.id });
       if (res.success && Array.isArray(res.data)) {
-        // Format lại file_path cho đúng URL
-        const photos = res.data.map(photo => ({
-          ...photo,
-          file_path: getImageUriHelper(photo.file_path)
-        }));
-        setPhotos(photos);
-        setFilteredPhotos(photos);
-        const groupedSections = groupPhotosByDate(photos);
+        // Lọc ra những ảnh có file_path hợp lệ
+        const validPhotos = res.data.filter(photo => {
+          const imageUri = getImageUriHelper(photo.file_path);
+          return imageUri !== null;
+        });
+        
+        // Debug: Log sample photo data structure
+        if (__DEV__ && validPhotos.length > 0) {
+          console.log('DEBUG - Sample photo data structure:', {
+            id: validPhotos[0]._id,
+            caption: validPhotos[0].caption,
+            resident_name: validPhotos[0].resident_name,
+            resident_id: validPhotos[0].resident_id,
+            activity_type: validPhotos[0].activity_type,
+            related_activity_id: validPhotos[0].related_activity_id,
+            uploaded_by: validPhotos[0].uploaded_by,
+            location: validPhotos[0].location,
+            tags: validPhotos[0].tags
+          });
+        }
+        
+        // Chỉ log trong development mode
+        if (__DEV__) {
+          console.log(`Loaded ${res.data.length} photos, ${validPhotos.length} are valid`);
+        }
+        
+        setPhotos(validPhotos);
+        setFilteredPhotos(validPhotos);
+        const groupedSections = groupPhotosByDate(validPhotos);
         setSections(groupedSections);
       } else {
         setPhotos([]);
@@ -365,117 +454,243 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   const filterAndSearchPhotos = () => {
     let filtered = photos;
 
-    // Apply search
+    // Apply search with safe string operations
     if (searchQuery.trim()) {
-      filtered = filtered.filter(photo =>
-        photo.caption.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        photo.resident_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        photo.activity_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        photo.uploaded_by.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply advanced filters
-    if (activeFilters.residents?.length > 0) {
-      filtered = filtered.filter(photo => 
-        activeFilters.residents.includes(photo.resident_id)
-      );
-    }
-
-    if (activeFilters.activities?.length > 0) {
-      filtered = filtered.filter(photo => 
-        activeFilters.activities.includes(photo.activity_type)
-      );
-    }
-
-    if (activeFilters.staff?.length > 0) {
-      filtered = filtered.filter(photo => 
-        activeFilters.staff.includes(photo.uploaded_by)
-      );
-    }
-
-    if (activeFilters.tags?.length > 0) {
-      filtered = filtered.filter(photo => 
-        photo.tags?.some(tag => activeFilters.tags.includes(tag))
-      );
-    }
-
-    // Apply date range filter
-    if (activeFilters.dateRange && activeFilters.dateRange !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const query = searchQuery.toLowerCase().trim();
+      
+      if (__DEV__) {
+        console.log('DEBUG - Searching for query:', query);
+        console.log('DEBUG - Total photos to search:', photos.length);
+      }
       
       filtered = filtered.filter(photo => {
-        const photoDate = new Date(photo.upload_date);
-        const photoDay = new Date(photoDate.getFullYear(), photoDate.getMonth(), photoDate.getDate());
-        
-        switch (activeFilters.dateRange) {
-          case 'today':
-            return photoDay.getTime() === today.getTime();
-          case 'week':
-            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-            return photoDay >= weekAgo;
-          case 'month':
-            const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-            return photoDay >= monthAgo;
-          default:
-            return true;
+        try {
+          // Get all possible searchable text from photo
+          const searchableTexts = [];
+          
+          // 1. Caption
+          if (photo.caption) {
+            searchableTexts.push(photo.caption.toLowerCase());
+          }
+          
+          // 2. Resident name - using helper function
+          const residentName = getResidentDisplayName(photo);
+          if (residentName && residentName !== 'Không xác định') {
+            searchableTexts.push(residentName.toLowerCase());
+          }
+          
+          // 3. Activity information - using helper function
+          const activityName = getActivityDisplayName(photo);
+          if (activityName && activityName !== 'Không xác định') {
+            searchableTexts.push(activityName.toLowerCase());
+          }
+          
+          // 4. Uploaded by
+          if (photo.uploaded_by) {
+            if (typeof photo.uploaded_by === 'string') {
+              searchableTexts.push(photo.uploaded_by.toLowerCase());
+            } else if (photo.uploaded_by.full_name) {
+              searchableTexts.push(photo.uploaded_by.full_name.toLowerCase());
+            } else if (photo.uploaded_by.username) {
+              searchableTexts.push(photo.uploaded_by.username.toLowerCase());
+            }
+          }
+          
+          // 5. Location
+          if (photo.location) {
+            searchableTexts.push(photo.location.toLowerCase());
+          }
+          if (photo.related_activity_id?.location) {
+            searchableTexts.push(photo.related_activity_id.location.toLowerCase());
+          }
+          
+          // 6. Tags
+          if (photo.tags && Array.isArray(photo.tags)) {
+            photo.tags.forEach(tag => {
+              if (tag) {
+                searchableTexts.push(tag.toLowerCase());
+              }
+            });
+          }
+          
+          // Check if query matches any of the searchable texts
+          const matches = searchableTexts.some(text => text.includes(query));
+          
+          if (__DEV__ && matches) {
+            console.log('DEBUG - Photo matched:', {
+              id: photo._id,
+              caption: photo.caption,
+              resident_name: getResidentDisplayName(photo),
+              activity_name: getActivityDisplayName(photo),
+              searchableTexts: searchableTexts
+            });
+          }
+          
+          return matches;
+          
+        } catch (error) {
+          // If any error occurs during search, include the photo to be safe
+          if (__DEV__) {
+            console.log('Search error for photo:', photo._id, error.message);
+          }
+          return true;
         }
       });
+      
+      if (__DEV__) {
+        console.log('DEBUG - Search results:', filtered.length, 'photos found');
+      }
     }
 
     return filtered;
   };
 
-  const handleApplyFilters = (filters) => {
-    setActiveFilters(filters);
-  };
+  // Removed advanced filters functionality
 
   const handlePhotoPress = (photo) => {
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log('DEBUG - handlePhotoPress called with photo:', photo);
+    }
+    
+    // Kiểm tra ảnh có khả dụng không
+    const imageUri = getImageUriHelper(photo.file_path);
+    if (!imageUri) {
+      Alert.alert(
+        'Ảnh không khả dụng',
+        'Ảnh này có thể đã bị xóa hoặc không tồn tại trên server. Vui lòng liên hệ nhân viên để được hỗ trợ.',
+        [{ text: 'Đã hiểu' }]
+      );
+      return;
+    }
+    
+    // Platform-specific loading indicator
+    if (Platform.OS === 'android') {
+      // Android: Show loading state before opening viewer
+      setLoading(true);
+      setTimeout(() => setLoading(false), 100);
+    }
+    
     // Tạo danh sách tất cả ảnh từ tất cả sections để có thể lướt qua toàn bộ
     const allPhotosFromSections = sections.flatMap(section => section.data).flat();
-    const allImagesForViewing = allPhotosFromSections.map(p => ({
-      uri: p.file_path,
-      title: p.caption,
-    }));
     
     // Tìm index của ảnh hiện tại trong toàn bộ danh sách
     const globalIndex = allPhotosFromSections.findIndex(p => p._id === photo._id);
     
-    setAllImages(allImagesForViewing);
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log('DEBUG - allPhotosFromSections length:', allPhotosFromSections.length);
+      console.log('DEBUG - globalIndex:', globalIndex);
+    }
+    
+    // Lưu trữ toàn bộ photo data, không chỉ uri
+    setAllImages(allPhotosFromSections);
     setCurrentImageIndex(globalIndex >= 0 ? globalIndex : 0);
     setCurrentPhoto(photo);
-    setIsImageViewVisible(true);
+    
+          // Android: Delay opening viewer slightly for better performance
+      if (Platform.OS === 'android') {
+        setTimeout(() => {
+          setIsImageViewVisible(true);
+          // Chỉ log trong development mode
+          if (__DEV__) {
+            console.log('DEBUG - Android image viewer opened');
+          }
+        }, 50);
+      } else {
+        setIsImageViewVisible(true);
+        // Chỉ log trong development mode
+        if (__DEV__) {
+          console.log('DEBUG - iOS image viewer opened');
+        }
+      }
+    
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log('DEBUG - Image viewer opened with:', {
+        allImagesLength: allPhotosFromSections.length,
+        currentIndex: globalIndex >= 0 ? globalIndex : 0,
+        currentPhoto: photo._id,
+        platform: Platform.OS
+      });
+    }
 
     // Prefetch nearby images to reduce lag when swiping
-    prefetchAround(allImagesForViewing, globalIndex >= 0 ? globalIndex : 0, 2);
+    try {
+      prefetchAround(allPhotosFromSections, globalIndex >= 0 ? globalIndex : 0, 2);
+    } catch (error) {
+      console.error('Error in prefetchAround:', error);
+    }
   };
 
   const handleImageIndexChange = (index) => {
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log('DEBUG - handleImageIndexChange called with index:', index);
+    }
+    
     setCurrentImageIndex(index);
-    // Tìm photo tương ứng trong allImages hiện tại
+    
+    // Bây giờ allImages chứa toàn bộ photo data
     if (allImages[index]) {
-      const photoUri = allImages[index].uri;
-      // Tìm trong tất cả sections để lấy photo data đầy đủ
-      const allPhotosFromSections = sections.flatMap(section => section.data).flat();
-      const photo = allPhotosFromSections.find(p => p.file_path === photoUri);
-      if (photo) {
-      setCurrentPhoto(photo);
+      const photo = allImages[index];
+      // Chỉ log trong development mode
+      if (__DEV__) {
+        console.log('DEBUG - Setting current photo:', photo._id);
       }
+      setCurrentPhoto(photo);
     }
 
     // Prefetch neighbors for smoother swipe
-    prefetchAround(allImages, index, 2);
+    try {
+      prefetchAround(allImages, index, 2);
+    } catch (error) {
+      console.error('Error in prefetchAround during image change:', error);
+    }
   };
-  // Prefetch helper around a center index
+  // Enhanced Prefetch helper with platform-specific optimizations
   const prefetchAround = (images, centerIndex, radius = 2) => {
     if (!images || images.length === 0) return;
+    
     const start = Math.max(0, centerIndex - radius);
     const end = Math.min(images.length - 1, centerIndex + radius);
+    
+    // Chỉ log trong development mode
+    if (__DEV__) {
+      console.log(`[FamilyPhotoGalleryScreen] Prefetching images from ${start} to ${end}`);
+    }
+    
     for (let i = start; i <= end; i++) {
-      const uri = images[i]?.uri;
-      if (uri) {
-        Image.prefetch(uri).catch(() => {});
+      const photo = images[i];
+      if (photo && photo.file_path) {
+        try {
+          const uri = getImageUriHelper(photo.file_path);
+          if (uri && typeof uri === 'string') {
+            // Platform-specific prefetch strategies
+            if (Platform.OS === 'android') {
+              // Android: Standard prefetch (no options supported)
+              Image.prefetch(uri).catch(() => {
+                // Silently handle prefetch failures - this is normal
+                if (__DEV__) {
+                  console.log('Android prefetch failed for image:', photo.file_path);
+                }
+              });
+            } else {
+              // iOS: Standard prefetch
+              Image.prefetch(uri).catch(() => {
+                // Silently handle prefetch failures - this is normal
+                if (__DEV__) {
+                  console.log('iOS prefetch failed for image:', photo.file_path);
+                }
+              });
+            }
+          }
+        } catch (error) {
+          // Chỉ log trong development mode
+          if (__DEV__) {
+            console.log('Error in prefetch for photo:', photo._id, error.message);
+          }
+        }
       }
     }
   };
@@ -516,13 +731,25 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       setDownloadingPhotos(prev => new Set(prev).add(photo._id));
       setDownloadProgress(prev => ({ ...prev, [photo._id]: 0 }));
 
-      // Generate filename
+      // Lấy URI thực tế của ảnh
+      const imageUri = getImageUriHelper(photo.file_path);
+      if (!imageUri) {
+        throw new Error('Không thể lấy URI của ảnh');
+      }
+
+      // Generate filename with resident name
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `NHMS_${photo.resident_name || 'resident'}_${timestamp}.jpg`;
+      const residentName = getResidentDisplayName(photo);
+      const filename = `NHMS_${residentName}_${timestamp}.jpg`;
+      
+      if (__DEV__) {
+        console.log('DEBUG - Downloading from:', imageUri);
+        console.log('DEBUG - To:', FileSystem.cacheDirectory + filename);
+      }
       
       // Download file to cache directory
       const downloadResumable = FileSystem.createDownloadResumable(
-        photo.file_path,
+        imageUri,
         FileSystem.cacheDirectory + filename,
         {},
         (downloadProgress) => {
@@ -532,6 +759,10 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       );
 
       const { uri } = await downloadResumable.downloadAsync();
+      
+      if (__DEV__) {
+        console.log('DEBUG - Download completed:', uri);
+      }
       
       setDownloadingPhotos(prev => {
         const newSet = new Set(prev);
@@ -562,7 +793,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         delete newProgress[photo._id];
         return newProgress;
       });
-      Alert.alert('Lỗi', 'Không thể tải ảnh. Vui lòng thử lại sau.');
+      Alert.alert('Lỗi', `Không thể tải ảnh: ${error.message || 'Vui lòng thử lại sau.'}`);
     }
   };
 
@@ -594,27 +825,40 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       let errorCount = 0;
 
       for (const photo of photosToDownload) {
-        try {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const filename = `NHMS_${photo.resident_name || 'resident'}_${timestamp}.jpg`;
-          
-          const downloadResumable = FileSystem.createDownloadResumable(
-            photo.file_path,
-            FileSystem.cacheDirectory + filename,
-            {},
-            (downloadProgress) => {
-              const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-              setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
+                  try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const residentName = getResidentDisplayName(photo);
+            const filename = `NHMS_${residentName}_${timestamp}.jpg`;
+            
+            // Lấy URI thực tế của ảnh
+            const imageUri = getImageUriHelper(photo.file_path);
+            if (!imageUri) {
+              if (__DEV__) {
+                console.error(`Cannot get URI for photo: ${photo._id}`);
+              }
+              errorCount++;
+              continue;
             }
-          );
+            
+            const downloadResumable = FileSystem.createDownloadResumable(
+              imageUri,
+              FileSystem.cacheDirectory + filename,
+              {},
+              (downloadProgress) => {
+                const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+                setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
+              }
+            );
 
-          const { uri } = await downloadResumable.downloadAsync();
-          
-          successCount++;
-        } catch (error) {
-          console.error(`Error downloading photo ${photo._id}:`, error);
-          errorCount++;
-        }
+            const { uri } = await downloadResumable.downloadAsync();
+            
+            successCount++;
+          } catch (error) {
+            if (__DEV__) {
+              console.error(`Error downloading photo ${photo._id}:`, error);
+            }
+            errorCount++;
+          }
       }
 
       // Clear downloading states
@@ -691,29 +935,22 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
 
   const handlePrevImage = () => {
-    setCurrentImageIndex(prev => Math.max(0, prev - 1));
+    const newIndex = Math.max(0, currentImageIndex - 1);
+    handleImageIndexChange(newIndex);
   };
 
   const handleNextImage = () => {
-    setCurrentImageIndex(prev => Math.min(allImages.length - 1, prev + 1));
+    const newIndex = Math.min(allImages.length - 1, currentImageIndex + 1);
+    handleImageIndexChange(newIndex);
   };
 
   const handleImageViewClose = () => {
     setIsImageViewVisible(false);
-    bottomSheetRef.current?.close();
+    // Reset current photo to avoid showing wrong info
+    setCurrentPhoto(null);
   };
 
-  const handleInfoButtonPress = () => {
-    if (currentPhoto) {
-      console.log('Info button pressed from image viewer for photo:', currentPhoto._id);
-      // Đóng image viewer trước khi mở modal
-      setIsImageViewVisible(false);
-      // Mở modal sau một chút để tránh conflict
-      setTimeout(() => {
-        setShowPhotoDetail(true);
-      }, 300);
-    }
-  };
+  // Removed info button handler
 
   // =========================
   // 4. RENDER METHODS
@@ -750,11 +987,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       }
     };
 
-    const handleInfoPress = (e) => {
-      e.stopPropagation();
-      setCurrentPhoto(photo);
-      setShowPhotoDetail(true);
-    };
+    // Removed info press handler
 
     const handleDownloadPress = (e) => {
       e.stopPropagation();
@@ -771,12 +1004,29 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
         activeOpacity={0.85}
       >
         <View style={styles.photoCard}>
-          <Image
-            source={{ uri: photo.file_path }}
-            style={styles.photoImage}
-            resizeMode="cover"
-            fadeDuration={0}
-          />
+          {getImageUriHelper(photo.file_path) ? (
+            <Image
+              source={{ uri: getImageUriHelper(photo.file_path) }}
+              style={styles.photoImage}
+              resizeMode="cover"
+              fadeDuration={0}
+              onError={() => {
+                // Silently handle image load errors - no need to log everything
+                // This is normal when some images don't exist on server
+              }}
+              onLoad={() => {
+                // Only log successful loads in development
+                if (__DEV__) {
+                  console.log('Image loaded successfully:', photo.file_path);
+                }
+              }}
+            />
+          ) : (
+            <View style={styles.imageErrorContainer}>
+              <MaterialIcons name="broken-image" size={40} color="#ccc" />
+              <Text style={styles.imageErrorText}>Ảnh không khả dụng</Text>
+            </View>
+          )}
           
           {/* Selection overlay */}
           {isSelectionMode && (
@@ -835,13 +1085,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             )}
-            <TouchableOpacity 
-              style={styles.photoInfoButton} 
-              onPress={handleInfoPress} 
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="info" size={16} color="#fff" />
-            </TouchableOpacity>
+            {/* Removed info button */}
           </View>
         </View>
       </TouchableOpacity>
@@ -867,7 +1111,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải thư viện ảnh...</Text>
       </SafeAreaView>
@@ -877,7 +1121,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   // Empty state when no photos
   if (photos.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header with Search */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -916,7 +1160,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
   
   return (
     <GestureHandlerRootView style={styles.container}>
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header with Search */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -946,26 +1190,6 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                   )}
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  Object.keys(activeFilters).length > 0 && styles.filterButtonActive
-                ]}
-                onPress={() => setShowAdvancedFilters(true)}
-              >
-                <MaterialIcons 
-                  name="filter-list" 
-                  size={24} 
-                  color={Object.keys(activeFilters).length > 0 ? COLORS.primary : "#333"} 
-                />
-                {Object.keys(activeFilters).length > 0 && (
-                  <View style={styles.filterBadge}>
-                    <Text style={styles.filterBadgeText}>
-                      {Object.values(activeFilters).flat().filter(Boolean).length}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.selectionButton,
@@ -1007,11 +1231,14 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           )}
       
           <Searchbar
-            placeholder="Tìm kiếm ảnh, người thân, hoạt động..."
+            placeholder="Tìm kiếm theo tên cư dân, hoạt động, địa điểm..."
             onChangeText={setSearchQuery}
             value={searchQuery}
             style={styles.searchBar}
             inputStyle={styles.searchInput}
+            icon="magnify"
+            clearIcon="close-circle"
+            onClearIconPress={() => setSearchQuery('')}
         />
       </View>
       
@@ -1047,261 +1274,236 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
               style={styles.clearFiltersButton}
               onPress={() => {
                 setSearchQuery('');
-                setActiveFilters({});
               }}
             >
               <MaterialIcons name="clear" size={20} color={COLORS.primary} />
-              <Text style={styles.clearFiltersButtonText}>Xóa bộ lọc</Text>
+              <Text style={styles.clearFiltersButtonText}>Xóa tìm kiếm</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Image Viewer */}
-        <ImageViewing
-          images={allImages}
-          imageIndex={currentImageIndex}
+        {/* Enhanced Image Viewer Modal - Cross Platform Compatible */}
+        <Modal
           visible={isImageViewVisible}
+          transparent={Platform.OS === 'ios'}
+          animationType={Platform.OS === 'ios' ? 'fade' : 'slide'}
           onRequestClose={handleImageViewClose}
-          onImageIndexChange={handleImageIndexChange}
-          backgroundColor="rgba(0, 0, 0, 0.95)"
-          presentationStyle="overFullScreen"
-          HeaderComponent={() => (
+          hardwareAccelerated={Platform.OS === 'android'}
+          statusBarTranslucent={Platform.OS === 'android'}
+        >
+          <View style={[
+            styles.imageViewerContainer,
+            Platform.OS === 'android' && styles.imageViewerContainerAndroid
+          ]}>
+            {/* Header with close button and image counter */}
             <View style={styles.imageViewerHeader}>
               <TouchableOpacity 
                 style={styles.imageViewerCloseButton}
                 onPress={handleImageViewClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <MaterialIcons name="close" size={28} color="#fff" />
               </TouchableOpacity>
+              <Text style={styles.imageViewerCounter}>
+                {currentImageIndex + 1} / {allImages.length}
+              </Text>
+                          <View style={{ width: 40 }} />
+            </View>
+
+            {/* Navigation arrows */}
+            {currentImageIndex > 0 && (
               <TouchableOpacity 
-                style={styles.imageViewerInfoButton}
-                onPress={handleInfoButtonPress}
+                style={styles.imageViewerNavButton}
+                onPress={handlePrevImage}
+                activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <MaterialIcons name="info" size={28} color="#fff" />
+                <MaterialIcons name="chevron-left" size={30} color="#fff" />
               </TouchableOpacity>
-            </View>
-          )}
-          FooterComponent={({ imageIndex }) => (
-            <>
-              {/* Fullscreen overlay for centered arrows */}
-              <View style={styles.footerOverlay} pointerEvents="box-none">
-                {imageIndex > 0 && (
-                  <TouchableOpacity 
-                    style={styles.viewerLeftArrow}
-                    onPress={handlePrevImage}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="chevron-left" size={34} color="#fff" />
-                  </TouchableOpacity>
-                )}
-                {imageIndex < allImages.length - 1 && (
-                  <TouchableOpacity 
-                    style={styles.viewerRightArrow}
-                    onPress={handleNextImage}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="chevron-right" size={34} color="#fff" />
-                  </TouchableOpacity>
-                )}
-              </View>
-              {/* Footer info */}
-              <View style={styles.imageViewerFooter}>
-                <Text style={styles.imageViewerFooterText}>
-                  {imageIndex + 1} / {allImages.length}
-                </Text>
-                {currentPhoto && (
-                  <View style={styles.viewerInfoBox}>
-                    {!!currentPhoto.caption && (
-                      <Text style={[styles.viewerInfoText, { fontWeight: '600' }]} numberOfLines={2}>
-                        {currentPhoto.caption}
-                      </Text>
-                    )}
-                    <Text style={styles.viewerInfoText}>
-                      Người đăng: {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
-                    </Text>
-                    <Text style={styles.viewerInfoText}>
-                      Thời gian: {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
-                    </Text>
-                    {(() => {
-                      const ra = currentPhoto.related_activity_id;
-                      const location = ra?.location || currentPhoto.location;
-                      const activity = ra?.activity_type || ra?.activity_name || currentPhoto.activity_type;
-                      return (
-                        <>
-                          <Text style={styles.viewerInfoText}>Địa điểm: {location || 'Không xác định'}</Text>
-                          <Text style={styles.viewerInfoText}>Hoạt động: {activity || 'Không xác định'}</Text>
-                        </>
-                      );
-                    })()}
-                    {!!currentPhoto.related_activity_id?.description && (
-                      <Text style={styles.viewerInfoText} numberOfLines={3}>
-                        Mô tả: {currentPhoto.related_activity_id?.description}
-                      </Text>
-                    )}
-                    {currentPhoto.tags && currentPhoto.tags.length > 0 && (
-                      <View style={styles.viewerTagsRow}>
-                        {currentPhoto.tags.slice(0, 3).map((tag, idx) => (
-                          <View key={idx} style={styles.viewerTagChip}>
-                            <Text style={styles.viewerTagText} numberOfLines={1}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            </>
-          )}
-        />
-
-        {/* Bottom Sheet for Photo Details */}
-        <BottomSheet
-          ref={bottomSheetRef}
-          snapPoints={snapPoints}
-          enablePanDownToClose={true}
-          index={-1}
-          backgroundStyle={{ backgroundColor: '#fff' }}
-          handleIndicatorStyle={{ backgroundColor: '#ccc' }}
-          onAnimate={(fromIndex, toIndex) => {
-            console.log('Bottom sheet animation:', fromIndex, 'to', toIndex);
-          }}
-        >
-          <ScrollView 
-            style={styles.bottomSheetContent}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          >
-            {currentPhoto && (
-              <View style={styles.photoInfo}>
-                <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Người đăng tải: </Text>
-                  {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
-                </Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Người thân: </Text>
-                  {currentPhoto.resident_id?.full_name || 'Không xác định'}
-                </Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Thời gian: </Text>
-                  {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
-                </Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Địa điểm: </Text>
-                  {currentPhoto.related_activity_id?.location || 'Không xác định'}
-                </Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Hoạt động: </Text>
-                  {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
-                </Text>
-                <Text style={styles.photoInfoText}>
-                  <Text style={styles.label}>Mô tả hoạt động: </Text>
-                  {currentPhoto.related_activity_id?.description || 'Không xác định'}
-                </Text>
-                {currentPhoto.staff_notes && (
-                  <>
-                    <Text style={[styles.label, styles.notesLabel]}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{currentPhoto.staff_notes}</Text>
-                  </>
-                )}
-                {currentPhoto.tags && currentPhoto.tags.length > 0 && (
-                  <View style={styles.tagsContainer}>
-                    <Text style={[styles.label, styles.tagsLabel]}>Thẻ gắn:</Text>
-                    <View style={styles.tagsWrapper}>
-                    {currentPhoto.tags.map((tag, index) => (
-                        <View key={index} style={[styles.tag, styles.tagColorful]}>
-                          <Text style={styles.tagText}>{tag}</Text>
-                        </View>
-                    ))}
-                    </View>
-                  </View>
-                )}
-              </View>
             )}
-          </ScrollView>
-        </BottomSheet>
-
-        {/* Photo Detail Modal */}
-        <Modal
-          visible={showPhotoDetail}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowPhotoDetail(false)}
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowPhotoDetail(false)}
-              >
-                <MaterialIcons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Chi tiết ảnh</Text>
-              <View style={{ width: 24 }} />
-            </View>
             
-            <ScrollView 
-              style={styles.modalContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {currentPhoto && (
-                <View style={styles.photoInfo}>
-                  <Text style={styles.photoInfoTitle}>{currentPhoto.caption || 'Không có tiêu đề'}</Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Người đăng tải: </Text>
-                    {currentPhoto.uploaded_by?.full_name || currentPhoto.uploaded_by?.username || 'Không xác định'}
+            {currentImageIndex < allImages.length - 1 && (
+              <TouchableOpacity 
+                style={[styles.imageViewerNavButton, styles.imageViewerNavButtonRight]}
+                onPress={handleNextImage}
+                activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="chevron-right" size={30} color="#fff" />
+              </TouchableOpacity>
+            )}
+
+            {/* Main image with platform-specific optimizations */}
+            <View style={styles.imageViewerMainContainer}>
+              {allImages.length > 0 && allImages[currentImageIndex] && getImageUriHelper(allImages[currentImageIndex].file_path) ? (
+                <>
+                  <Image
+                    source={{ 
+                      uri: getImageUriHelper(allImages[currentImageIndex].file_path),
+                      // Android-specific optimizations
+                      ...(Platform.OS === 'android' && {
+                        cache: 'force-cache',
+                        fadeDuration: 0,
+                      })
+                    }}
+                    style={styles.imageViewerImage}
+                    resizeMode="contain"
+                    onLoadStart={() => {
+                      // Only log in development
+                      if (__DEV__) {
+                        console.log('Image loading started');
+                      }
+                    }}
+                    onLoad={() => {
+                      // Only log in development
+                      if (__DEV__) {
+                        console.log('Image loaded successfully');
+                      }
+                    }}
+                    onError={() => {
+                      // Silently handle image load errors in image viewer
+                      // This is normal when some images don't exist on server
+                    }}
+                    // Android performance improvements
+                    {...(Platform.OS === 'android' && {
+                      progressiveRenderingEnabled: true,
+                      resizeMethod: 'resize',
+                    })}
+                  />
+                </>
+              ) : (
+                <View style={styles.modalImageErrorContainer}>
+                  <MaterialIcons name="broken-image" size={80} color="#ccc" />
+                  <Text style={styles.modalImageErrorText}>Ảnh không khả dụng</Text>
+                  <Text style={styles.modalImageErrorSubtext}>
+                    Ảnh này có thể đã bị xóa hoặc không tồn tại trên server
                   </Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Người thân: </Text>
-                    {currentPhoto.resident_id?.full_name || 'Không xác định'}
-                  </Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Thời gian: </Text>
-                    {currentPhoto.taken_date ? new Date(currentPhoto.taken_date).toLocaleString('vi-VN') : 'Không xác định'}
-                  </Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Địa điểm: </Text>
-                    {currentPhoto.related_activity_id?.location || 'Không xác định'}
-                  </Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Hoạt động: </Text>
-                    {currentPhoto.related_activity_id?.activity_name || 'Không xác định'}
-                  </Text>
-                  <Text style={styles.photoInfoText}>
-                    <Text style={styles.label}>Mô tả hoạt động: </Text>
-                    {currentPhoto.related_activity_id?.description || 'Không xác định'}
-                  </Text>
-                  {currentPhoto.staff_notes && (
-                    <>
-                      <Text style={[styles.label, styles.notesLabel]}>Ghi chú:</Text>
-                      <Text style={styles.notesText}>{currentPhoto.staff_notes}</Text>
-                    </>
-                  )}
-                  {currentPhoto.tags && currentPhoto.tags.length > 0 && (
-                    <View style={styles.tagsContainer}>
-                      <Text style={[styles.label, styles.tagsLabel]}>Thẻ gắn:</Text>
-                      <View style={styles.tagsWrapper}>
-                      {currentPhoto.tags.map((tag, index) => (
-                          <View key={index} style={[styles.tag, styles.tagColorful]}>
-                            <Text style={styles.tagText}>{tag}</Text>
-                          </View>
-                      ))}
-                      </View>
-                    </View>
-                  )}
                 </View>
               )}
-            </ScrollView>
-          </SafeAreaView>
+            </View>
+
+            {/* Image info panel (caption + metadata) */}
+            {currentPhoto && (
+              <View style={styles.imageInfoContainer}>
+                {!!currentPhoto.caption && (
+                  <Text style={[styles.imageInfoText, { fontWeight: '600' }]} numberOfLines={2}>
+                    {currentPhoto.caption}
+                  </Text>
+                )}
+                <Text style={styles.imageInfoText}>
+                  <Text style={styles.imageInfoLabel}>Cư dân: </Text>
+                  {getResidentDisplayName(currentPhoto)}
+                </Text>
+                <Text style={styles.imageInfoText}>
+                  <Text style={styles.imageInfoLabel}>Người đăng: </Text>
+                  {(() => {
+                    try {
+                      if (currentPhoto.uploaded_by) {
+                        if (typeof currentPhoto.uploaded_by === 'string') {
+                          return currentPhoto.uploaded_by;
+                        } else if (currentPhoto.uploaded_by.full_name) {
+                          return currentPhoto.uploaded_by.full_name;
+                        } else if (currentPhoto.uploaded_by.username) {
+                          return currentPhoto.uploaded_by.username;
+                        }
+                      }
+                      return 'Không xác định';
+                    } catch (error) {
+                      return 'Không xác định';
+                    }
+                  })()}
+                </Text>
+                <Text style={styles.imageInfoText}>
+                  <Text style={styles.imageInfoLabel}>Thời gian: </Text>
+                  {(() => {
+                    try {
+                      if (currentPhoto.taken_date) {
+                        const date = new Date(currentPhoto.taken_date);
+                        if (!isNaN(date.getTime())) {
+                          return date.toLocaleString('vi-VN');
+                        }
+                      }
+                      return 'Không xác định';
+                    } catch (error) {
+                      return 'Không xác định';
+                    }
+                  })()}
+                </Text>
+                {(() => {
+                  try {
+                    const ra = currentPhoto.related_activity_id;
+                    const location = ra?.location || currentPhoto.location;
+                    const activity = ra?.activity_type || ra?.activity_name || currentPhoto.activity_type;
+                    return (
+                      <>
+                        <Text style={styles.imageInfoText}>
+                          <Text style={styles.imageInfoLabel}>Địa điểm: </Text>
+                          {location || 'Không xác định'}
+                        </Text>
+                        <Text style={styles.imageInfoText}>
+                          <Text style={styles.imageInfoLabel}>Hoạt động: </Text>
+                          {getActivityDisplayName(currentPhoto)}
+                        </Text>
+                      </>
+                    );
+                  } catch (error) {
+                    return (
+                      <>
+                        <Text style={styles.imageInfoText}>
+                          <Text style={styles.imageInfoLabel}>Địa điểm: </Text>
+                          Không xác định
+                        </Text>
+                        <Text style={styles.imageInfoText}>
+                          <Text style={styles.imageInfoLabel}>Hoạt động: </Text>
+                          Không xác định
+                        </Text>
+                      </>
+                    );
+                  }
+                })()}
+                {(() => {
+                  try {
+                    if (currentPhoto.related_activity_id?.description) {
+                      return (
+                        <Text style={styles.imageInfoText} numberOfLines={3}>
+                          <Text style={styles.imageInfoLabel}>Mô tả: </Text>
+                          {currentPhoto.related_activity_id.description}
+                        </Text>
+                      );
+                    }
+                    return null;
+                  } catch (error) {
+                    return null;
+                  }
+                })()}
+                {(() => {
+                  try {
+                    if (currentPhoto.tags && Array.isArray(currentPhoto.tags) && currentPhoto.tags.length > 0) {
+                      return (
+                        <View style={styles.imageViewerTagsRow}>
+                          {currentPhoto.tags.slice(0, 3).map((tag, idx) => (
+                            <View key={idx} style={styles.imageViewerTagChip}>
+                              <Text style={styles.imageViewerTagText} numberOfLines={1}>{tag || 'Tag'}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    }
+                    return null;
+                  } catch (error) {
+                    return null;
+                  }
+                })()}
+              </View>
+            )}
+          </View>
         </Modal>
 
-        {/* Advanced Search Filters */}
-        <PhotoSearchFilters
-          visible={showAdvancedFilters}
-          onClose={() => setShowAdvancedFilters(false)}
-          onApplyFilters={handleApplyFilters}
-          currentFilters={activeFilters}
-        />
+        {/* Removed bottom sheet for photo details */}
+
+        {/* Removed photo detail modal */}
+
+        {/* Removed advanced search filters */}
     </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -1355,30 +1557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  filterButton: {
-    padding: 8,
-    position: 'relative',
-  },
-  filterButtonActive: {
-    backgroundColor: COLORS.primary + '15',
-    borderRadius: 8,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  // Removed filter button styles
   selectionButton: {
     padding: 8,
     borderRadius: 8,
@@ -1555,88 +1734,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Image Viewer
-  imageViewerHeader: {
+  // Image Info Container (for image viewer)
+  imageInfoContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 40,
-    zIndex: 1000,
-  },
-  footerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 900,
-  },
-  viewerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
-  },
-  imageViewerCloseButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageViewerInfoButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageViewerFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-start',
-    alignItems: 'stretch',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  imageViewerFooterText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  viewerInfoBox: {
+    bottom: 40,
+    left: 20,
+    right: 20,
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 8,
     padding: 10,
   },
-  viewerInfoText: {
+  imageInfoText: {
     color: '#fff',
     fontSize: 13,
     marginBottom: 4,
   },
-  viewerTagsRow: {
+  imageInfoLabel: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  imageViewerTagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 6,
   },
-  viewerTagChip: {
+  imageViewerTagChip: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1644,131 +1767,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
     marginBottom: 6,
   },
-  viewerTagText: {
+  imageViewerTagText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '500',
   },
-  viewerLeftArrow: {
-    position: 'absolute',
-    left: 12,
-    top: '45%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 26,
-    width: 52,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  viewerRightArrow: {
-    position: 'absolute',
-    right: 12,
-    top: '45%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 26,
-    width: 52,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
-  // Bottom Sheet
-  bottomSheetContent: {
-    padding: 20,
-    backgroundColor: '#fff',
-    maxHeight: height * 0.7, // Giới hạn chiều cao
-  },
-  photoInfo: {
-    gap: 12,
-    paddingBottom: 20, // Thêm padding bottom để scroll
-  },
-  photoInfoTitle: {
-    ...FONTS.h3,
-    marginBottom: 12,
-    color: '#333',
-    fontWeight: '600',
-  },
-  photoInfoText: {
-    ...FONTS.body3,
-    color: '#555',
-    lineHeight: 20,
-  },
-  label: {
-    fontWeight: '600',
-    color: '#333',
-  },
-  notesLabel: {
-    marginTop: 12,
-    marginBottom: 6,
-    fontSize: 16,
-  },
-  notesText: {
-    ...FONTS.body3,
-    color: '#555',
-    fontStyle: 'italic',
-    lineHeight: 20,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-  },
-  tagsContainer: {
-    marginTop: 16,
-  },
-  tagsLabel: {
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  tagsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: COLORS.lightGray,
-  },
-  tagColorful: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-  },
-  tagText: {
-    ...FONTS.body4,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalCloseButton: {
-    padding: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
+  // Removed bottom sheet and modal styles
 
   // Empty State Styles
   emptyContainer: {
@@ -1947,6 +1952,129 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
+  },
+  
+  // Image Error Styles
+  imageErrorContainer: {
+    width: '100%',
+    aspectRatio: 4/3,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  imageErrorText: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalImageErrorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalImageErrorText: {
+    fontSize: 18,
+    color: '#6c757d',
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  modalImageErrorSubtext: {
+    fontSize: 14,
+    color: '#adb5bd',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Enhanced Image Viewer Styles - Cross Platform
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+  },
+  imageViewerContainerAndroid: {
+    backgroundColor: '#000',
+  },
+  imageViewerHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 40 : 20,
+    left: 20,
+    right: 20,
+    zIndex: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  imageViewerCloseButton: {
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+  },
+  imageViewerCounter: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  // Removed info button style
+  imageViewerNavButton: {
+    position: 'absolute',
+    left: 20,
+    top: '50%',
+    zIndex: 2,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -25,
+  },
+  imageViewerNavButtonRight: {
+    left: 'auto',
+    right: 20,
+  },
+  imageViewerMainContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 120,
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '100%',
+    maxWidth: '100%',
+    maxHeight: '100%',
+  },
+  
+  // Android-specific loading styles
+  androidLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1,
+  },
+  androidLoadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });
 

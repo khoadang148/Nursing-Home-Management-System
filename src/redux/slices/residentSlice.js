@@ -4,9 +4,20 @@ import residentService from '../../api/services/residentService';
 // Async thunks
 export const fetchAllResidents = createAsyncThunk(
   'resident/fetchAllResidents',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await residentService.getAllResidents();
+      const { auth } = getState();
+      const user = auth.user;
+      
+      // Kiểm tra role của user để sử dụng API phù hợp
+      let response;
+      if (user?.role === 'family') {
+        // Family member chỉ có thể xem residents của mình
+        response = await residentService.getResidentsByFamilyMember(user._id || user.id);
+      } else {
+        // Staff có thể xem tất cả residents
+        response = await residentService.getAllResidents();
+      }
       if (response.success) {
         return response.data.map(resident => residentService.formatResidentForDisplay(resident));
       } else {

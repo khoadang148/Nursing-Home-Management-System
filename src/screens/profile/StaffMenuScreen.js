@@ -1,20 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { logout } from '../../redux/slices/authSlice';
 import { COLORS } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { getAvatarUri } from '../../utils/avatarUtils';
-
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
+import CommonAvatar from '../../components/CommonAvatar';
 
 const StaffMenuScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const insets = useSafeAreaInsets();
   const user = useSelector((state) => state.auth.user);
 
   // Sử dụng thông tin user thật từ Redux
@@ -113,13 +111,15 @@ const StaffMenuScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }} edges={['top']}>
       <ScrollView style={styles.container}>
         {/* Profile Header */}
         <TouchableOpacity style={styles.profileHeader} onPress={handleProfilePress}>
           <View style={styles.profileImageContainer}>
-            <Image
-              source={{ uri: getAvatarUri(userData.avatar || userData.profile_picture) }}
+            <CommonAvatar
+              source={userData.avatar || userData.profile_picture}
+              size={60}
+              name={userData.full_name || userData.name}
               style={styles.profileImage}
             />
           </View>

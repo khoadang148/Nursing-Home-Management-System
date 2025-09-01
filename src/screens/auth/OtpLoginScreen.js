@@ -10,6 +10,7 @@ import {
   ScrollView,
   Dimensions,
   Animated,
+  Alert,
 } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,17 +21,19 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../../constants/theme';
 import { useNotification } from '../../components/NotificationSystem';
 
 // Placeholder actions, to be implemented in redux
-import { login, resetAuthError, resetAuthMessage } from '../../redux/slices/authSlice';
+import { loginWithOtp, sendOtp, resetAuthError, resetAuthMessage } from '../../redux/slices/authSlice';
 
 const { width, height } = Dimensions.get('window');
 
-const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
+const OtpLoginScreen = ({ navigation }) => {
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const dispatch = useDispatch();
-  const { isLoading, error, message, isAuthenticated } = useSelector((state) => state.auth);
+  const { error, message, isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showWarning } = useNotification();
 
   // Animation values
@@ -48,10 +51,10 @@ const LoginScreen = ({ navigation }) => {
 
   // Clear errors when user starts typing
   useEffect(() => {
-    if (email || password) {
+    if (phone || otp) {
       dispatch(resetAuthError());
     }
-  }, [email, password, dispatch]);
+  }, [phone, otp, dispatch]);
 
   // Handle success/error messages
   useEffect(() => {
@@ -63,58 +66,46 @@ const LoginScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (error) {
-      // Parse error message and show user-friendly message
-      let userFriendlyMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      let userFriendlyMessage = 'Có lỗi xảy ra. Vui lòng thử lại.';
       
       if (typeof error === 'string') {
-        // Handle string errors
-        if (error.includes('401') || error.includes('Unauthorized')) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else if (error.includes('404') || error.includes('User not found')) {
-          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+        if (error.includes('phone') || error.includes('not found')) {
+          userFriendlyMessage = 'Số điện thoại chưa được đăng ký trong hệ thống.';
+        } else if (error.includes('OTP') || error.includes('otp')) {
+          userFriendlyMessage = 'Mã OTP không đúng hoặc đã hết hạn.';
         } else if (error.includes('network') || error.includes('timeout')) {
           userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-        } else if (error.includes('password') || error.includes('credentials')) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else {
-          // For any other technical errors, show generic message
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
         }
       } else if (error && typeof error === 'object') {
-        // Handle object errors
-        if (error.status === 401 || error.statusCode === 401) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else if (error.status === 404 || error.statusCode === 404) {
-          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
-        } else if (error.status === 500 || error.statusCode === 500) {
-          userFriendlyMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
-        } else if (error.message) {
-          // Check for specific error messages
+        if (error.message) {
           const errorMsg = error.message.toLowerCase();
-          if (errorMsg.includes('unauthorized') || errorMsg.includes('invalid credentials')) {
-            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-          } else if (errorMsg.includes('user not found')) {
-            userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+          if (errorMsg.includes('phone') || errorMsg.includes('not found')) {
+            userFriendlyMessage = 'Số điện thoại chưa được đăng ký trong hệ thống.';
+          } else if (errorMsg.includes('otp') || errorMsg.includes('invalid')) {
+            userFriendlyMessage = 'Mã OTP không đúng hoặc đã hết hạn.';
           } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
             userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-          } else {
-            // For any other technical errors, show generic message
-            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
           }
-        } else {
-          // For any other technical errors, show generic message
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
         }
       }
-      
-      // Log technical error to console for debugging (but don't show to user)
-      console.log('Technical error (hidden from user):', error);
       
       showError(userFriendlyMessage);
       dispatch(resetAuthError());
     }
   }, [error, showError, dispatch]);
 
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    let interval = null;
+    if (countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [countdown]);
+
+  // Start animations
   useEffect(() => {
     // Pulse animation for logo
     Animated.loop(
@@ -181,35 +172,82 @@ const LoginScreen = ({ navigation }) => {
     ).start();
   }, []);
 
-  const handleLogin = useCallback(async () => {
-    // Validation
-    if (!email && !password) {
-      showWarning('Vui lòng nhập email và mật khẩu để đăng nhập');
-      return;
-    }
-    if (!email) {
-      showWarning('Vui lòng nhập địa chỉ email');
-      return;
-    }
-    if (!password) {
-      showWarning('Vui lòng nhập mật khẩu');
+  // Validate phone number
+  const validatePhone = (phoneNumber) => {
+    const phoneRegex = /^[0-9]{10,15}$/;
+    return phoneRegex.test(phoneNumber);
+  };
+
+  // Handle send OTP
+  const handleSendOtp = async () => {
+    if (!validatePhone(phone)) {
+      showError('Vui lòng nhập số điện thoại hợp lệ (10-15 chữ số)');
       return;
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      showWarning('Vui lòng nhập địa chỉ email hợp lệ');
+    setIsLoading(true);
+    try {
+      console.log('OtpLoginScreen - Sending OTP to phone:', phone);
+      const result = await dispatch(sendOtp({ phone }));
+      console.log('OtpLoginScreen - Send OTP result:', result);
+      
+      if (result.payload?.success) {
+        setIsOtpSent(true);
+        setCountdown(60); // 60 seconds countdown
+        showSuccess('Mã OTP đã được gửi đến số điện thoại của bạn');
+      } else {
+        // Hiển thị thông báo lỗi cụ thể từ backend
+        const errorMessage = result.payload?.error || 'Không thể gửi mã OTP';
+        showError(errorMessage);
+      }
+    } catch (error) {
+      console.log('OtpLoginScreen - Send OTP error:', error);
+      showError('Không thể gửi mã OTP. Vui lòng thử lại sau.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle login with OTP
+  const handleLoginWithOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      showError('Vui lòng nhập mã OTP 6 chữ số');
       return;
     }
 
-    // Dispatch login action
-    dispatch(login({ email, password }));
-  }, [email, password, showWarning, dispatch]);
+    setIsLoading(true);
+    try {
+      console.log('OtpLoginScreen - Attempting OTP login with phone:', phone);
+      const result = await dispatch(loginWithOtp({ phone, otp }));
+      console.log('OtpLoginScreen - Login result:', result);
+      
+      if (result.payload?.success) {
+        console.log('OtpLoginScreen - Login successful, user data:', result.payload.user);
+        showSuccess('Đăng nhập thành công');
+        // Navigation will be handled by the auth state change
+      }
+    } catch (error) {
+      console.log('OtpLoginScreen - Login error:', error);
+      showError('Đăng nhập thất bại. Vui lòng kiểm tra lại mã OTP.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const togglePasswordVisibility = useCallback(() => {
-    setPasswordVisible(!passwordVisible);
-  }, [passwordVisible]);
+  // Handle resend OTP
+  const handleResendOtp = () => {
+    if (countdown > 0) return;
+    handleSendOtp();
+  };
+
+  // Format phone number for display
+  const formatPhone = (phoneNumber) => {
+    if (phoneNumber.length <= 3) return phoneNumber;
+    if (phoneNumber.length <= 7) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3)}`;
+    }
+    return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 7)} ${phoneNumber.slice(7)}`;
+  };
 
   return (
     <View style={styles.container}>
@@ -240,7 +278,7 @@ const LoginScreen = ({ navigation }) => {
           }
         ]}
       >
-        <MaterialCommunityIcons name="heart" size={40} color="#ff6b6b" />
+        <MaterialCommunityIcons name="cellphone-message" size={40} color="#ff6b6b" />
       </Animated.View>
 
       <Animated.View 
@@ -256,7 +294,7 @@ const LoginScreen = ({ navigation }) => {
           }
         ]}
       >
-        <MaterialCommunityIcons name="account-group" size={35} color="#4ecdc4" />
+        <MaterialCommunityIcons name="shield-check" size={35} color="#4ecdc4" />
       </Animated.View>
 
       <Animated.View 
@@ -272,7 +310,7 @@ const LoginScreen = ({ navigation }) => {
           }
         ]}
       >
-        <MaterialCommunityIcons name="shield-check" size={30} color="#45b7d1" />
+        <MaterialCommunityIcons name="lock" size={30} color="#45b7d1" />
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
@@ -362,56 +400,90 @@ const LoginScreen = ({ navigation }) => {
             {/* Login Form */}
             <View style={styles.formSection}>
               <View style={styles.formContainer}>
+                <Text style={styles.formTitle}>
+                  {isOtpSent ? 'Nhập mã OTP' : 'Đăng nhập bằng số điện thoại'}
+                </Text>
+
+                {/* Phone Input */}
                 <TextInput
                   mode="outlined"
-                  label="Email"
-                  value={email}
-                  onChangeText={setEmail}
+                  label="Số điện thoại"
+                  value={formatPhone(phone)}
+                  onChangeText={(text) => setPhone(text.replace(/\s/g, ''))}
+                  keyboardType="phone-pad"
+                  maxLength={15}
+                  disabled={isOtpSent}
                   style={styles.input}
                   outlineColor="#00A551"
                   activeOutlineColor="#00A551"
-                  left={<TextInput.Icon icon="email" color="#00A551" />}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  left={<TextInput.Icon icon="phone" color="#00A551" />}
                 />
 
-                <TextInput
-                  mode="outlined"
-                  label="Mật khẩu"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!passwordVisible}
-                  style={styles.input}
-                  outlineColor="#00A551"
-                  activeOutlineColor="#00A551"
-                  left={<TextInput.Icon icon="lock" color="#00A551" />}
-                  right={
-                    <TextInput.Icon
-                      icon={passwordVisible ? "eye-off" : "eye"}
-                      color="#00A551"
-                      onPress={togglePasswordVisibility}
+                {/* Send OTP Button */}
+                {!isOtpSent && (
+                  <Button
+                    mode="contained"
+                    onPress={handleSendOtp}
+                    loading={isLoading}
+                    disabled={!validatePhone(phone) || isLoading}
+                    style={styles.sendOtpButton}
+                    contentStyle={styles.sendOtpButtonContent}
+                    labelStyle={styles.sendOtpButtonLabel}
+                  >
+                    Gửi mã OTP
+                  </Button>
+                )}
+
+                {/* OTP Input */}
+                {isOtpSent && (
+                  <>
+                    <TextInput
+                      mode="outlined"
+                      label="Mã OTP"
+                      value={otp}
+                      onChangeText={setOtp}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      style={styles.input}
+                      outlineColor="#00A551"
+                      activeOutlineColor="#00A551"
+                      left={<TextInput.Icon icon="lock" color="#00A551" />}
                     />
-                  }
-                />
 
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('QuenMatKhau')}
-                  style={styles.forgotPassword}
-                >
-                  <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
-                </TouchableOpacity>
+                    <Button
+                      mode="contained"
+                      onPress={handleLoginWithOtp}
+                      loading={isLoading}
+                      disabled={!otp || otp.length !== 6 || isLoading}
+                      style={styles.loginButton}
+                      contentStyle={styles.loginButtonContent}
+                      labelStyle={styles.loginButtonLabel}
+                    >
+                      Đăng nhập
+                    </Button>
 
-                <Button
-                  mode="contained"
-                  onPress={handleLogin}
-                  style={styles.loginButton}
-                  contentStyle={styles.loginButtonContent}
-                  labelStyle={styles.loginButtonLabel}
-                  loading={isLoading}
-                  disabled={isLoading}
-                >
-                  Đăng nhập
-                </Button>
+                    {/* Resend OTP */}
+                    <View style={styles.resendContainer}>
+                      <Text style={styles.resendText}>
+                        Không nhận được mã?{' '}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={handleResendOtp}
+                        disabled={countdown > 0}
+                        style={styles.resendButton}
+                      >
+                        <Text
+                          style={[
+                            styles.resendButtonText,
+                            countdown > 0 && styles.resendButtonDisabled,
+                          ]}
+                        >
+                          {countdown > 0 ? `Gửi lại (${countdown}s)` : 'Gửi lại'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
 
                 {/* Divider */}
                 <View style={styles.dividerContainer}>
@@ -420,16 +492,16 @@ const LoginScreen = ({ navigation }) => {
                   <View style={styles.divider} />
                 </View>
 
-                {/* OTP Login Button */}
+                {/* Back to Email Login */}
                 <Button
                   mode="outlined"
-                  onPress={() => navigation.navigate('OtpLogin')}
-                  style={styles.otpLoginButton}
-                  contentStyle={styles.otpLoginButtonContent}
-                  labelStyle={styles.otpLoginButtonLabel}
+                  onPress={() => navigation.navigate('DangNhap')}
+                  style={styles.emailLoginButton}
+                  contentStyle={styles.emailLoginButtonContent}
+                  labelStyle={styles.emailLoginButtonLabel}
                   disabled={isLoading}
                 >
-                  Đăng nhập bằng OTP
+                  Đăng nhập bằng email
                 </Button>
               </View>
             </View>
@@ -558,7 +630,7 @@ const styles = StyleSheet.create({
   },
   illustrationSection: {
     marginBottom: 30,
-    paddingHorizontal: 0, // Remove padding to match form width
+    paddingHorizontal: 0,
   },
   illustrationContainer: {
     borderRadius: 24,
@@ -591,17 +663,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.5)',
   },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
   input: {
     marginBottom: 16,
     backgroundColor: '#fff',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
+  sendOtpButton: {
+    backgroundColor: '#00A551',
+    borderRadius: 8,
+    elevation: 2,
   },
-  forgotPasswordText: {
-    color: '#00A551',
-    fontSize: 14,
+  sendOtpButtonContent: {
+    height: 48,
+  },
+  sendOtpButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   loginButton: {
     backgroundColor: '#00A551',
@@ -614,6 +697,27 @@ const styles = StyleSheet.create({
   loginButtonLabel: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  resendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  resendText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  resendButton: {
+    marginLeft: 8,
+  },
+  resendButtonText: {
+    fontSize: 14,
+    color: '#00A551',
+    fontWeight: '600',
+  },
+  resendButtonDisabled: {
+    color: '#999',
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -630,15 +734,15 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
-  otpLoginButton: {
+  emailLoginButton: {
     borderColor: '#00A551',
     borderWidth: 1,
     borderRadius: 8,
   },
-  otpLoginButtonContent: {
+  emailLoginButtonContent: {
     height: 48,
   },
-  otpLoginButtonLabel: {
+  emailLoginButtonLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#00A551',
@@ -664,4 +768,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default OtpLoginScreen;

@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Card, Chip, Searchbar, Button, ActivityIndicator, Appbar } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -295,30 +296,58 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#fff',
     borderRadius: 8,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 6,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: 2,
     borderRadius: 8,
     backgroundColor: '#fff',
     alignItems: 'center',
-    elevation: 1,
+    justifyContent: 'center',
+    minHeight: 40,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   filterTabActive: {
     backgroundColor: COLORS.primary,
   },
   filterTabText: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
     fontWeight: '500',
+    textAlign: 'center',
   },
   filterTabTextActive: {
     color: '#fff',
@@ -339,7 +368,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
-    elevation: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   datePickerText: {
     fontSize: 14,
@@ -353,14 +392,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#fff',
     borderRadius: 12,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 0,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+      },
+    }),
   },
   headerRow: {
     flexDirection: 'row',

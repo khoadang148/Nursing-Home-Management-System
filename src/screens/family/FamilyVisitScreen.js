@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text, 
   StyleSheet, 
   ScrollView,
@@ -8,10 +8,10 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 // Native components
 import NativeCard from '../../components/NativeCard';
@@ -119,12 +119,14 @@ const FamilyVisitScreen = ({ navigation }) => {
         // Marked dates cho calendar
         const marked = {};
         visitsData.forEach(visit => {
-          const key = visit.visit_date.toISOString().split('T')[0];
-          marked[key] = {
-            selected: true,
-            marked: true,
-            selectedColor: getStatusColor(visit.status),
-          };
+          if (visit.visit_date && typeof visit.visit_date.toISOString === 'function') {
+            const key = visit.visit_date.toISOString().split('T')[0];
+            marked[key] = {
+              selected: true,
+              marked: true,
+              selectedColor: getStatusColor(visit.status),
+            };
+          }
         });
         setMarkedDates(marked);
         
@@ -216,6 +218,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString('vi-VN', {
       weekday: 'long',
       year: 'numeric',
@@ -244,6 +247,9 @@ const FamilyVisitScreen = ({ navigation }) => {
     console.log('Available visits:', visits);
     
     const filteredVisits = visits.filter(visit => {
+      if (!visit.visit_date || typeof visit.visit_date.toISOString !== 'function') {
+        return false;
+      }
       const visitDateString = visit.visit_date.toISOString().split('T')[0];
       console.log('Comparing:', visitDateString, 'with', selectedDate);
       return visitDateString === selectedDate;
@@ -333,6 +339,7 @@ const FamilyVisitScreen = ({ navigation }) => {
     
     // Check for duplicate visits (same date and time)
     const duplicateVisit = visits.find(visit => {
+      if (!visit.visit_date) return false;
       const existingDateString = new Date(visit.visit_date).toISOString().split('T')[0];
       return existingDateString === dateString && 
              visit.visit_time === visitTime && 
@@ -359,6 +366,8 @@ const FamilyVisitScreen = ({ navigation }) => {
       notes: visitNotes || null
     };
     
+    console.log('FamilyVisitScreen - Creating visit with data:', newVisitData);
+    
     try {
       // Call the createVisit function
       const result = await createVisit(newVisitData);
@@ -367,7 +376,7 @@ const FamilyVisitScreen = ({ navigation }) => {
         // Add new visit to the list, parse visit_date về Date object
         const newVisit = {
           ...result.data,
-          visit_date: result.data.visit_date ? new Date(result.data.visit_date) : undefined
+          visit_date: result.data.visit_date ? new Date(result.data.visit_date) : new Date()
         };
         const updatedVisits = [...visits, newVisit];
         setVisits(updatedVisits);
@@ -468,7 +477,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Đang tải lịch thăm...</Text>
       </SafeAreaView>
@@ -476,7 +485,7 @@ const FamilyVisitScreen = ({ navigation }) => {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.customHeader}>
         <TouchableOpacity 
@@ -700,6 +709,8 @@ const FamilyVisitScreen = ({ navigation }) => {
               visits
                 .filter(visit => {
                   // Only show visits with date and time in the future
+                  if (!visit.visit_date) return false;
+                  
                   const now = new Date();
                   const visitDate = new Date(visit.visit_date);
                   
@@ -713,6 +724,7 @@ const FamilyVisitScreen = ({ navigation }) => {
                 })
                 .sort((a, b) => {
                   // First compare dates
+                  if (!a.visit_date || !b.visit_date) return 0;
                   const dateComparison = new Date(a.visit_date) - new Date(b.visit_date);
                   if (dateComparison !== 0) {
                     return dateComparison; // If dates are different, sort by date
@@ -771,10 +783,16 @@ const FamilyVisitScreen = ({ navigation }) => {
                   >
                     <View style={styles.upcomingVisitDate}>
                       <Text style={styles.upcomingVisitDateDay}>
-                        {(() => { const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; return d.getDate(); })()}
+                        {(() => { 
+                          const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; 
+                          return d && d.getDate ? d.getDate() : '?'; 
+                        })()}
                       </Text>
                       <Text style={styles.upcomingVisitDateMonth}>
-                        {(() => { const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; return `Th${d.getMonth() + 1}`; })()}
+                        {(() => { 
+                          const d = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date; 
+                          return d && d.getMonth ? `Th${d.getMonth() + 1}` : '?'; 
+                        })()}
                       </Text>
                     </View>
                     <View style={styles.upcomingVisitDetails}>
@@ -802,6 +820,7 @@ const FamilyVisitScreen = ({ navigation }) => {
               <Text style={styles.noVisitsText}>Không có lịch thăm nào</Text>
             )}
             {visits.length > 0 && visits.filter(visit => {
+              if (!visit.visit_date) return false;
               const now = new Date();
               const visitDate = new Date(visit.visit_date);
               const [hours, minutes] = (visit.visit_time || '00:00').split(':').map(Number);

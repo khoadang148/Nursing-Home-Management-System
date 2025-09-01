@@ -44,7 +44,14 @@ const AddResidentScreen = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
   // Gender state
   const [gender, setGender] = useState('male');
-  const [dateOfBirth, setDateOfBirth] = useState(new Date(1950, 0, 1));
+  // Tính toán ngày sinh mặc định cho người 60 tuổi (năm hiện tại - 60)
+  const getDefaultDateOfBirth = () => {
+    const currentYear = new Date().getFullYear();
+    const defaultYear = currentYear - 60; // 60 tuổi
+    return new Date(defaultYear, 0, 1); // 1/1 của năm đó
+  };
+
+  const [dateOfBirth, setDateOfBirth] = useState(getDefaultDateOfBirth());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [medicalConditions, setMedicalConditions] = useState([]);
   const [currentCondition, setCurrentCondition] = useState('');
@@ -67,6 +74,12 @@ const AddResidentScreen = ({ navigation }) => {
   const [familyDropdownOpen, setFamilyDropdownOpen] = useState(false);
   const [familyDropdownItems, setFamilyDropdownItems] = useState([]);
   const [discardDialogVisible, setDiscardDialogVisible] = useState(false);
+  
+  // Validation states for real-time checking
+  const [phoneValidation, setPhoneValidation] = useState({ isValid: true, message: '' });
+  const [emailValidation, setEmailValidation] = useState({ isValid: true, message: '' });
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   
 
   
@@ -104,6 +117,46 @@ const AddResidentScreen = ({ navigation }) => {
   const onChangeDateOfBirth = (event, selectedDate) => {
     const currentDate = selectedDate || dateOfBirth;
     setShowDatePicker(Platform.OS === 'ios');
+    
+    if (selectedDate) {
+      // Validate age
+      const today = new Date();
+      const age = today.getFullYear() - selectedDate.getFullYear();
+      const monthDiff = today.getMonth() - selectedDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < selectedDate.getDate())) {
+        age--;
+      }
+      
+      console.log('DEBUG - Age validation:', {
+        selectedDate: selectedDate.toISOString(),
+        today: today.toISOString(),
+        calculatedAge: age,
+        birthYear: selectedDate.getFullYear(),
+        currentYear: today.getFullYear()
+      });
+      
+      if (age < 60) {
+        Alert.alert(
+          'Lỗi',
+          'Người cao tuổi phải từ 60 tuổi trở lên mới được nhận vào viện dưỡng lão.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      if (age > 130) {
+        Alert.alert(
+          'Lỗi',
+          'Tuổi không hợp lệ. Vui lòng kiểm tra lại ngày sinh.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      console.log('DEBUG - Age validation passed:', age);
+    }
+    
     setDateOfBirth(currentDate);
   };
 
@@ -231,6 +284,17 @@ const AddResidentScreen = ({ navigation }) => {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin người thân!');
       return;
     }
+
+    // Check validation errors
+    if (!phoneValidation.isValid) {
+      Alert.alert('Lỗi', 'Số điện thoại không hợp lệ hoặc đã được sử dụng!');
+      return;
+    }
+
+    if (familyEmail && !emailValidation.isValid) {
+      Alert.alert('Lỗi', 'Email không hợp lệ hoặc đã được sử dụng!');
+      return;
+    }
     
     if (!isCreatingNewFamily && selectedFamilyId && !relationshipOption) {
       Alert.alert('Lỗi', 'Vui lòng chọn mối quan hệ với cư dân!');
@@ -349,7 +413,7 @@ const AddResidentScreen = ({ navigation }) => {
   const hasUnsavedChanges = () => {
     return fullName !== '' || 
            gender !== 'male' ||
-           dateOfBirth !== new Date(1950, 0, 1) ||
+           dateOfBirth.getTime() !== getDefaultDateOfBirth().getTime() ||
            medicalConditions.length > 0 || 
            allergies.length > 0 ||
            selectedFamilyId !== null ||
@@ -423,6 +487,90 @@ const AddResidentScreen = ({ navigation }) => {
     return username;
   };
 
+  // Function kiểm tra số điện thoại có tồn tại không
+  const checkPhoneExists = async (phone) => {
+    try {
+      if (!phone || phone.length < 10) return false;
+      
+      const response = await userService.checkPhoneExists(phone);
+      return response.exists;
+    } catch (error) {
+      console.error('Error checking phone:', error);
+      return false;
+    }
+  };
+
+  // Function kiểm tra email có tồn tại không
+  const checkEmailExists = async (email) => {
+    try {
+      if (!email || !email.includes('@')) return false;
+      
+      const response = await userService.checkEmailExists(email);
+      return response.exists;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  };
+
+  // Function validate số điện thoại real-time
+  const validatePhoneRealTime = async (phone) => {
+    if (!phone) {
+      setPhoneValidation({ isValid: true, message: '' });
+      return;
+    }
+
+    // Basic format validation
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(phone)) {
+      setPhoneValidation({ isValid: false, message: 'Số điện thoại phải có 10-15 chữ số' });
+      return;
+    }
+
+    setIsCheckingPhone(true);
+    try {
+      const exists = await checkPhoneExists(phone);
+      if (exists) {
+        setPhoneValidation({ isValid: false, message: 'Số điện thoại đã được sử dụng' });
+      } else {
+        setPhoneValidation({ isValid: true, message: 'Số điện thoại hợp lệ' });
+      }
+    } catch (error) {
+      setPhoneValidation({ isValid: false, message: 'Không thể kiểm tra số điện thoại' });
+    } finally {
+      setIsCheckingPhone(false);
+    }
+  };
+
+  // Function validate email real-time
+  const validateEmailRealTime = async (email) => {
+    if (!email) {
+      setEmailValidation({ isValid: true, message: '' });
+      return;
+    }
+
+    // Basic format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailValidation({ isValid: false, message: 'Email không hợp lệ' });
+      return;
+    }
+
+    setIsCheckingEmail(true);
+    try {
+      const exists = await checkEmailExists(email);
+      if (exists) {
+        setEmailValidation({ isValid: false, message: 'Email đã được sử dụng' });
+      } else {
+        setEmailValidation({ isValid: true, message: 'Email hợp lệ' });
+      }
+    } catch (error) {
+      setEmailValidation({ isValid: false, message: 'Không thể kiểm tra email' });
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
   // Test function để kiểm tra username generation
   const testUsernameGeneration = () => {
     const testNames = [
@@ -449,6 +597,28 @@ const AddResidentScreen = ({ navigation }) => {
     // Test username generation
     testUsernameGeneration();
   }, []);
+
+  // Real-time validation for phone number
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (familyPhone) {
+        validatePhoneRealTime(familyPhone);
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [familyPhone]);
+
+  // Real-time validation for email
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (familyEmail) {
+        validateEmailRealTime(familyEmail);
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [familyEmail]);
 
   // Debug log để kiểm tra familyList
   useEffect(() => {
@@ -557,6 +727,9 @@ const AddResidentScreen = ({ navigation }) => {
           </View>
           <View style={{ marginBottom: 15 }}>
             <Text style={styles.inputLabel}>Ngày sinh *</Text>
+            <Text style={styles.inputSubtext}>
+              Độ tuổi tiếp nhận: 60 - 130 tuổi (năm sinh: {new Date().getFullYear() - 130} - {new Date().getFullYear() - 60})
+            </Text>
             <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
               <View pointerEvents="none">
             <TextInput
@@ -573,13 +746,14 @@ const AddResidentScreen = ({ navigation }) => {
             <DateTimePicker
               value={dateOfBirth}
               mode="date"
-                display="spinner"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setDateOfBirth(selectedDate);
-                }}
-                maximumDate={new Date()}
-              />
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) setDateOfBirth(selectedDate);
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(1895, 0, 1)} // Năm sinh tối thiểu (130 tuổi)
+            />
             )}
           </View>
 
@@ -777,18 +951,40 @@ const AddResidentScreen = ({ navigation }) => {
                 label="Số điện thoại *"
                 value={familyPhone}
                 onChangeText={setFamilyPhone}
-                style={styles.input}
+                style={[styles.input, !phoneValidation.isValid && styles.inputError]}
                 mode="outlined"
                 keyboardType="phone-pad"
+                error={!phoneValidation.isValid}
+                right={isCheckingPhone ? <TextInput.Icon icon="loading" /> : null}
               />
+              {phoneValidation.message && (
+                <HelperText 
+                  type={phoneValidation.isValid ? "info" : "error"}
+                  visible={true}
+                  style={styles.helperText}
+                >
+                  {phoneValidation.message}
+                </HelperText>
+              )}
               <TextInput
                 label="Email"
                 value={familyEmail}
                 onChangeText={setFamilyEmail}
-                style={styles.input}
+                style={[styles.input, !emailValidation.isValid && styles.inputError]}
                 mode="outlined"
                 keyboardType="email-address"
+                error={!emailValidation.isValid}
+                right={isCheckingEmail ? <TextInput.Icon icon="loading" /> : null}
               />
+              {emailValidation.message && (
+                <HelperText 
+                  type={emailValidation.isValid ? "info" : "error"}
+                  visible={true}
+                  style={styles.helperText}
+                >
+                  {emailValidation.message}
+                </HelperText>
+              )}
               <Text style={styles.inputLabel}>Mối quan hệ với cư dân *</Text>
               <View style={[styles.dropdownWrapper, newFamilyRelationshipDropdownOpen && styles.dropdownSpacer]}>
                 <DropDownPicker
@@ -1166,6 +1362,20 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     tintColor: COLORS.primary,
+  },
+  inputError: {
+    borderColor: '#f44336',
+  },
+  helperText: {
+    marginTop: -10,
+    marginBottom: 10,
+    fontSize: 12,
+  },
+  inputSubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
 });
 

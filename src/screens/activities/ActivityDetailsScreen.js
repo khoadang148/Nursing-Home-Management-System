@@ -160,6 +160,37 @@ const ActivityDetailsScreen = () => {
   };
 
   const handleSaveAttendance = async () => {
+    // Validate activity date - only allow attendance for today's activities
+    if (activity && activity.schedule_time) {
+      const activityDate = new Date(activity.schedule_time);
+      const today = new Date();
+      
+      // Reset times to compare dates only
+      activityDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      if (activityDate.getTime() !== today.getTime()) {
+        const activityDateStr = activityDate.toLocaleDateString('vi-VN');
+        const todayStr = today.toLocaleDateString('vi-VN');
+        
+        if (activityDate > today) {
+          Alert.alert(
+            'Không thể điểm danh',
+            `Hoạt động này diễn ra vào ngày ${activityDateStr} (tương lai). Chỉ có thể điểm danh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        } else {
+          Alert.alert(
+            'Không thể điểm danh',
+            `Hoạt động này đã diễn ra vào ngày ${activityDateStr} (quá khứ). Chỉ có thể điểm danh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+    }
+    
     try {
       setSubmitting(true);
       
@@ -338,6 +369,37 @@ const ActivityDetailsScreen = () => {
   };
 
   const handleAddPhotoForParticipant = async (participantId) => {
+    // Validate activity date - only allow photo upload for today's activities
+    if (activity && activity.schedule_time) {
+      const activityDate = new Date(activity.schedule_time);
+      const today = new Date();
+      
+      // Reset times to compare dates only
+      activityDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      if (activityDate.getTime() !== today.getTime()) {
+        const activityDateStr = activityDate.toLocaleDateString('vi-VN');
+        const todayStr = today.toLocaleDateString('vi-VN');
+        
+        if (activityDate > today) {
+          Alert.alert(
+            'Không thể thêm ảnh',
+            `Hoạt động này diễn ra vào ngày ${activityDateStr} (tương lai). Chỉ có thể thêm ảnh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        } else {
+          Alert.alert(
+            'Không thể thêm ảnh',
+            `Hoạt động này đã diễn ra vào ngày ${activityDateStr} (quá khứ). Chỉ có thể thêm ảnh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+    }
+    
     Alert.alert(
       'Thêm ảnh cho ' + participants.find(p => p._id === participantId)?.resident_id?.full_name,
       'Chọn cách thêm ảnh',
@@ -366,6 +428,37 @@ const ActivityDetailsScreen = () => {
   };
 
   const handleAddActivityPhoto = async () => {
+    // Validate activity date - only allow photo upload for today's activities
+    if (activity && activity.schedule_time) {
+      const activityDate = new Date(activity.schedule_time);
+      const today = new Date();
+      
+      // Reset times to compare dates only
+      activityDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      if (activityDate.getTime() !== today.getTime()) {
+        const activityDateStr = activityDate.toLocaleDateString('vi-VN');
+        const todayStr = today.toLocaleDateString('vi-VN');
+        
+        if (activityDate > today) {
+          Alert.alert(
+            'Không thể thêm ảnh',
+            `Hoạt động này diễn ra vào ngày ${activityDateStr} (tương lai). Chỉ có thể thêm ảnh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        } else {
+          Alert.alert(
+            'Không thể thêm ảnh',
+            `Hoạt động này đã diễn ra vào ngày ${activityDateStr} (quá khứ). Chỉ có thể thêm ảnh cho hoạt động diễn ra hôm nay (${todayStr}).`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+    }
+    
     Alert.alert(
       'Thêm ảnh hoạt động',
       'Chọn cách thêm ảnh',

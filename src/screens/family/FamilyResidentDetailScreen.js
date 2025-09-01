@@ -772,33 +772,29 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
   const renderMedications = () => (
     <View>
-      <Text style={styles.sectionSubtitle}>Thuốc hiện tại:</Text>
       {(residentData.current_medications || []).length > 0 ? (
-        (residentData.current_medications || []).map((med, index) => (
-          <Card key={`current-${index}`} style={styles.card}>
-            <Card.Content>
-              <View style={styles.medicationHeader}>
-                <MaterialCommunityIcons name="pill" size={24} color={COLORS.primary} />
-                <View style={styles.medicationInfo}>
-                  <Text style={styles.medicationName}>{med.medication_name}</Text>
-                  <Text style={styles.medicationDosage}>{med.dosage}</Text>
+        <>
+          <Text style={styles.sectionSubtitle}>Thuốc hiện tại:</Text>
+          {(residentData.current_medications || []).map((med, index) => (
+            <Card key={`current-${index}`} style={styles.card}>
+              <Card.Content>
+                <View style={styles.medicationHeader}>
+                  <MaterialCommunityIcons name="pill" size={24} color={COLORS.primary} />
+                  <View style={styles.medicationInfo}>
+                    <Text style={styles.medicationName}>{med.medication_name}</Text>
+                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                  </View>
                 </View>
-              </View>
-              
-              <View style={styles.medicationDetails}>
-                <Text style={styles.medicationFrequency}>Tần suất: {med.frequency}</Text>
-                <Text style={styles.medicationFrequency}>Chỉ định: {med.indication || 'Chưa ghi rõ'}</Text>
-              </View>
-            </Card.Content>
-          </Card>
-        ))
-      ) : (
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.noDataText}>Chưa có thuốc đang dùng</Text>
-          </Card.Content>
-        </Card>
-      )}
+                
+                <View style={styles.medicationDetails}>
+                  <Text style={styles.medicationFrequency}>Tần suất: {med.frequency}</Text>
+                  <Text style={styles.medicationFrequency}>Chỉ định: {med.indication || 'Chưa ghi rõ'}</Text>
+                </View>
+              </Card.Content>
+            </Card>
+          ))}
+        </>
+      ) : null}
       
       <Text style={[styles.sectionSubtitle, { marginTop: 20 }]}>Lịch sử dùng thuốc:</Text>
       {medicationAdministrations.length > 0 ? (
