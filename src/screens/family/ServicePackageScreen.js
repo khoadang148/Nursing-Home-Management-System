@@ -39,6 +39,33 @@ const bedTypeToVietnamese = (type) => {
   }
 };
 
+// Helper functions for status
+const getStatusText = (status) => {
+  switch (status) {
+    case 'active': return 'Đang hoạt động';
+    case 'completed': return 'Hoàn thành';
+    case 'cancelled': return 'Đã hủy';
+    case 'paused': return 'Tạm dừng';
+    case 'packages_selected': return 'Đã chọn gói';
+    case 'room_assigned': return 'Đã phân phòng';
+    case 'payment_completed': return 'Đã thanh toán';
+    default: return 'Không xác định';
+  }
+};
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'active': return '#4CAF50'; // Green
+    case 'completed': return '#2196F3'; // Blue
+    case 'cancelled': return '#F44336'; // Red
+    case 'paused': return '#FF9800'; // Orange
+    case 'packages_selected': return '#9C27B0'; // Purple
+    case 'room_assigned': return '#607D8B'; // Blue Grey
+    case 'payment_completed': return '#4CAF50'; // Green
+    default: return '#757575'; // Grey
+  }
+};
+
 // Hàm format giá tiền với đơn vị tính riêng
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price * 10000);
@@ -446,9 +473,9 @@ const ServicePackageScreen = ({ navigation }) => {
               <Text style={styles.roomInfo}>Phòng {roomNumber} • Giường {bedNumber}{bedType ? ` (${bedTypeToVietnamese(bedType)})` : ''}</Text>
             </View>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#4CAF50' : '#FF9800' }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
             <Text style={styles.statusText}>
-              {item.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+              {getStatusText(item.status)}
             </Text>
           </View>
         </View>
@@ -474,9 +501,8 @@ const ServicePackageScreen = ({ navigation }) => {
 
           <View style={styles.totalCost}>
             <Text style={styles.totalLabel}>Tổng chi phí hàng tháng:</Text>
-            <Text style={styles.totalAmount}>{formatPrice(totalMonthly)}</Text>
+            <Text style={styles.totalAmount}>{formatPrice(totalMonthly)}/tháng</Text>
           </View>
-          {/* Unit under total */}
 
         </View>
 
@@ -570,9 +596,9 @@ const ServicePackageScreen = ({ navigation }) => {
                       <Text style={styles.residentDetailInfo}>
                         🎂 Ngày sinh: {safeFormatDate(selectedPackage.resident?.date_of_birth)}
                       </Text>
-                      <Text style={styles.residentDetailInfo}>
-                        ⚕️ Trạng thái: {selectedPackage.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
-                      </Text>
+                                          <Text style={styles.residentDetailInfo}>
+                      ⚕️ Trạng thái: {getStatusText(selectedPackage.status)}
+                    </Text>
                     </View>
                   </View>
 
@@ -635,7 +661,7 @@ const ServicePackageScreen = ({ navigation }) => {
                     <View style={styles.paymentInfo}>
                       <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Tổng chi phí hàng tháng:</Text>
-                        <Text style={styles.paymentValue}>{formatPrice(selectedPackage.total_monthly_cost || 0)}</Text>
+                        <Text style={styles.paymentValue}>{formatPrice(selectedPackage.total_monthly_cost || 0)}/tháng</Text>
                       </View>
                       <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Trạng thái thanh toán:</Text>

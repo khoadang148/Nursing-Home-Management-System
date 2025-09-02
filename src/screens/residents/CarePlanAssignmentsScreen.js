@@ -109,7 +109,7 @@ const CarePlanAssignmentsScreen = () => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(price * 1000);
+    }).format(price * 10000);
   };
 
   const formatDate = (date) => {

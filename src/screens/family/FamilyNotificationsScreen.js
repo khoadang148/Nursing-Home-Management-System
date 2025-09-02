@@ -373,7 +373,7 @@ const FamilyNotificationsScreen = ({ navigation }) => {
                 realNotifications.push({
                   id: notificationId,
                   title: 'Tham Gia Hoạt Động',
-                  message: `${resident?.full_name || 'Người thân'} đã tham gia hoạt động: ${participation.activity_id?.activity_name || 'Không rõ'}. Mức độ tham gia: ${participation.participation_level || 'Bình thường'}`,
+                  message: `${resident?.full_name || 'Người thân'} đã tham gia hoạt động: ${participation.activity_id?.activity_name || 'Không rõ'}`,
                   type: 'activity',
                   date: participation.created_at || participation.createdAt || new Date().toISOString(),
                   read: currentReadIds.has(notificationId),

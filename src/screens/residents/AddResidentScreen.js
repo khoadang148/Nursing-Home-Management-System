@@ -362,9 +362,12 @@ const AddResidentScreen = ({ navigation }) => {
       }
       
       // Bước 2: Chuẩn bị dữ liệu resident
+      // Adjust date of birth to UTC by subtracting 7 hours for Vietnam timezone
+      const adjustedDateOfBirth = new Date(dateOfBirth.getTime() - (7 * 60 * 60 * 1000));
+      
       const residentData = {
         full_name: fullName,
-        date_of_birth: dateOfBirth.toISOString().split('T')[0], // Format: YYYY-MM-DD
+        date_of_birth: adjustedDateOfBirth.toISOString().split('T')[0], // Format: YYYY-MM-DD
         gender: gender,
         avatar: avatarUri || null,
         family_member_id: familyMemberId,
@@ -521,9 +524,9 @@ const AddResidentScreen = ({ navigation }) => {
     }
 
     // Basic format validation
-    const phoneRegex = /^[0-9]{10,15}$/;
+    const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(phone)) {
-      setPhoneValidation({ isValid: false, message: 'Số điện thoại phải có 10-15 chữ số' });
+      setPhoneValidation({ isValid: false, message: 'Số điện thoại phải có đúng 10 chữ số' });
       return;
     }
 
@@ -1304,33 +1307,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dropdown: {
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-    minHeight: 55,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    minHeight: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   dropdownWrapper: {
     zIndex: 6000,
     marginBottom: 15,
   },
   dropdownContainer: {
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: COLORS.surface,
+    elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    maxHeight: 280,
     zIndex: 6000,
   },
   dropdownOverlay: {

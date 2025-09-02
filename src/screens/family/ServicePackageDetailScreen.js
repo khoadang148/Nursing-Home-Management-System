@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import bedAssignmentService from '../../api/services/bedAssignmentService';
 
 // Constants
 const COLORS = {
@@ -32,6 +33,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
   
   const [loading, setLoading] = useState(false);
   const [packageInfo, setPackageInfo] = useState(packageData);
+  const [bedAssignment, setBedAssignment] = useState(null);
 
   // Process package data for registered packages
   useEffect(() => {
@@ -74,10 +76,34 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
       
       console.log('processedData:', processedData);
       setPackageInfo(processedData);
+      
+      // Load bed assignment data if resident exists
+      if (packageData.resident_id?._id) {
+        loadBedAssignment(packageData.resident_id._id);
+      }
     } else {
       setPackageInfo(packageData);
     }
   }, [packageData, packageType]);
+
+  // Load bed assignment data from API
+  const loadBedAssignment = async (residentId) => {
+    try {
+      setLoading(true);
+      const response = await bedAssignmentService.getBedAssignmentByResidentId(residentId);
+      if (response.success && response.data && response.data.length > 0) {
+        // Find active bed assignment (unassigned_date = null)
+        const activeAssignment = response.data.find(assignment => !assignment.unassigned_date);
+        if (activeAssignment) {
+          setBedAssignment(activeAssignment);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading bed assignment:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     if (!amount) return '0 VNĐ';
@@ -246,7 +272,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
                 <View style={styles.residentInfo}>
                   <Text style={styles.residentName}>{packageInfo.resident.full_name || 'Không có tên'}</Text>
                   <Text style={styles.residentDetails}>
-                    📍 Phòng {packageInfo.resident.room_number || '--'} • Giường {packageInfo.resident.bed_number || '--'}
+                    📍 Phòng {bedAssignment?.bed_id?.room_id?.room_number || packageInfo.resident?.room_number || '--'} • Giường {bedAssignment?.bed_id?.bed_number || packageInfo.resident?.bed_number || '--'}
                   </Text>
                   <Text style={styles.residentDetails}>
                     🎂 Ngày sinh: {formatDate(packageInfo.resident.date_of_birth)}

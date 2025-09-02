@@ -599,9 +599,6 @@ const ResidentDetailScreen = ({ route, navigation }) => {
       const assignmentData = {
         resident_id: resident._id,
         bed_id: selectedBed._id,
-        assigned_date: new Date().toISOString(),
-        assigned_by: 'staff', // Sẽ cập nhật sau khi có user context
-        notes: 'Phân công giường mới'
       };
 
       const response = await bedAssignmentService.createBedAssignment(assignmentData);
@@ -644,7 +641,11 @@ const ResidentDetailScreen = ({ route, navigation }) => {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Ngày sinh:</Text>
             <Text style={styles.infoValue}>
-              {resident.date_of_birth ? new Date(resident.date_of_birth).toLocaleDateString('vi-VN') : 'N/A'}
+              {resident.date_of_birth ? (() => {
+                const date = new Date(resident.date_of_birth);
+                const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+                return vietnamTime.toLocaleDateString('vi-VN');
+              })() : 'N/A'}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -838,7 +839,7 @@ const ResidentDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.carePlanLabel}>Chi phí:</Text>
                     <Text style={styles.carePlanValue}>
                       {assignment.care_plan_ids?.[0]?.monthly_price 
-                        ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(assignment.care_plan_ids[0].monthly_price) + '/tháng'
+                        ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(assignment.care_plan_ids[0].monthly_price * 10000) + '/tháng'
                         : 'N/A'
                       }
                     </Text>

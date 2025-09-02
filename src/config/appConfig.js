@@ -9,7 +9,7 @@ export const API_CONFIG = {
   
   // IP thực tế từ log - WiFi network
   // BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
-  BASE_URL: 'http://192.168.2.1:8000', // IP WiFi thực tế từ log ở nhà
+  BASE_URL: 'https://care-home-be.onrender.com', // Production backend (Render)
   // BASE_URL: 'http://10.158.126.82:8000', // IP WiFi đt mẹ từ log trên trường
   // BASE_URL: 'http://192.168.123.33:8000', // IP WiFi đt mẹ từ log trên trường
   // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
@@ -162,7 +162,7 @@ export const getApiBaseUrl = () => {
     return API_CONFIG.BASE_URL;
   }
   console.warn('[AppConfig] API_BASE_URL is undefined, fallback to default');
-  return 'http://192.168.2.5:8000'; // Fallback URL - cập nhật theo IP thực tế
+  return 'https://care-home-be.onrender.com'; // Fallback to production backend
 };
 
 // Helper function để format avatar/image URL

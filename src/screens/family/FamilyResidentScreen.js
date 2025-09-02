@@ -47,6 +47,7 @@ const getRecentUpdates = (residentsWithDetails) => {
     if (resident.vitalSigns) {
       const vitalTime = new Date(resident.vitalSigns.date_time || resident.vitalSigns.created_at);
       const timeDiff = Date.now() - vitalTime.getTime();
+      const minutesAgo = Math.floor(timeDiff / (1000 * 60));
       const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
       
       // Chỉ hiển thị nếu có dữ liệu thật
@@ -63,12 +64,19 @@ const getRecentUpdates = (residentsWithDetails) => {
           subtitle = `Nhịp tim ${heartRate} BPM`;
         }
         
+        let timeText = '';
+        if (minutesAgo < 60) {
+          timeText = `${minutesAgo} phút trước`;
+        } else {
+          timeText = `${hoursAgo} giờ trước`;
+        }
+        
         updates.push({
           id: `vital_${resident._id}`,
           type: 'vital_signs',
           title: 'Đo chỉ số sinh hiệu',
           subtitle: subtitle,
-          time: `${hoursAgo} giờ trước`,
+          time: timeText,
           resident_id: resident._id,
           resident_name: resident.full_name,
           icon: 'favorite',
@@ -83,18 +91,26 @@ const getRecentUpdates = (residentsWithDetails) => {
       const latestAssessment = resident.assessments[0]; // Assuming sorted by date desc
       const assessmentTime = new Date(latestAssessment.date || latestAssessment.created_at);
       const timeDiff = Date.now() - assessmentTime.getTime();
+      const minutesAgo = Math.floor(timeDiff / (1000 * 60));
       const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
       
       // Chỉ hiển thị nếu có dữ liệu thật
       const assessmentNotes = latestAssessment.notes || latestAssessment.general_notes;
       
       if (assessmentNotes && assessmentNotes.trim() !== '') {
+        let timeText = '';
+        if (minutesAgo < 60) {
+          timeText = `${minutesAgo} phút trước`;
+        } else {
+          timeText = `${hoursAgo} giờ trước`;
+        }
+        
         updates.push({
           id: `assessment_${resident._id}`,
           type: 'assessment',
           title: 'Đánh giá sức khỏe',
           subtitle: assessmentNotes,
-          time: `${hoursAgo} giờ trước`,
+          time: timeText,
           resident_id: resident._id,
           resident_name: resident.full_name,
           icon: 'assignment',
@@ -109,6 +125,7 @@ const getRecentUpdates = (residentsWithDetails) => {
       const latestActivity = resident.activities[0]; // Assuming sorted by date desc
       const activityTime = new Date(latestActivity.created_at || latestActivity.date);
       const timeDiff = Date.now() - activityTime.getTime();
+      const minutesAgo = Math.floor(timeDiff / (1000 * 60));
       const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
       
       // Chỉ hiển thị nếu có dữ liệu thật
@@ -138,12 +155,19 @@ const getRecentUpdates = (residentsWithDetails) => {
             color = COLORS.textSecondary;
         }
         
+        let timeText = '';
+        if (minutesAgo < 60) {
+          timeText = `${minutesAgo} phút trước`;
+        } else {
+          timeText = `${hoursAgo} giờ trước`;
+        }
+        
         updates.push({
           id: `activity_${resident._id}`,
           type: 'activity',
           title: 'Hoạt động',
           subtitle: `${activityName} - ${statusText}`,
-          time: `${hoursAgo} giờ trước`,
+          time: timeText,
           resident_id: resident._id,
           resident_name: resident.full_name,
           icon: 'directions-run',
@@ -434,8 +458,8 @@ const FamilyResidentScreen = ({ navigation }) => {
   };
 
   const formatCurrency = (amount) => {
-    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount || 0);
-    return `${formattedAmount} × 10,000 VNĐ`;
+    const formattedAmount = new Intl.NumberFormat('vi-VN').format((amount || 0) * 10000);
+    return `${formattedAmount} VNĐ`;
   };
 
   const handleResidentPress = (resident) => {

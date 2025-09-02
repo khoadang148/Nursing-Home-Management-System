@@ -383,6 +383,15 @@ const CreateActivityScreen = () => {
       newErrors.capacity = 'Nhập số lượng người tham gia hợp lệ';
     }
     
+    // Check if activity time is in the future
+    const scheduledTime = new Date(date);
+    scheduledTime.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    const now = new Date();
+    
+    if (scheduledTime <= now) {
+      newErrors.time = 'Thời gian hoạt động phải trong tương lai';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -473,16 +482,14 @@ const CreateActivityScreen = () => {
               
               if (conflictingParticipation) {
                 const activity = conflictingParticipation.activity_id;
-                const activityStartTime = new Date(activity.schedule_time).toLocaleTimeString('vi-VN', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                });
-                const activityEndTime = new Date(new Date(activity.schedule_time).getTime() + (activity.duration || 60) * 60 * 1000).toLocaleTimeString('vi-VN', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                });
+                // Fix timezone issue by adding 7 hours for Vietnam timezone
+                const activityDate = new Date(activity.schedule_time);
+                const vietnamTime = new Date(activityDate.getTime() + (7 * 60 * 60 * 1000));
+                const activityStartTime = `${vietnamTime.getHours().toString().padStart(2, '0')}:${vietnamTime.getMinutes().toString().padStart(2, '0')}`;
+                const activityEndTime = new Date(vietnamTime.getTime() + (activity.duration || 60) * 60 * 1000);
+                const endTimeStr = `${activityEndTime.getHours().toString().padStart(2, '0')}:${activityEndTime.getMinutes().toString().padStart(2, '0')}`;
                 const residentName = residents.find(r => r._id === residentId)?.full_name || 'Cư dân';
-                conflictingResidents.push(`${residentName} (${activity.activity_name} - ${activityStartTime} đến ${activityEndTime})`);
+                conflictingResidents.push(`${residentName} (${activity.activity_name} - ${activityStartTime} đến ${endTimeStr})`);
               } else {
                 validResidents.push(residentId);
               }
@@ -501,15 +508,13 @@ const CreateActivityScreen = () => {
         let conflictMessage = 'Không thể tạo hoạt động do các xung đột lịch trình sau:\n\n';
         
         if (staffConflict) {
-          const activityStartTime = new Date(staffConflict.schedule_time).toLocaleTimeString('vi-VN', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-          const activityEndTime = new Date(new Date(staffConflict.schedule_time).getTime() + (staffConflict.duration || 60) * 60 * 1000).toLocaleTimeString('vi-VN', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-          conflictMessage += `• Bạn đã có hoạt động "${staffConflict.activity_name}" từ ${activityStartTime} đến ${activityEndTime} trong cùng ngày.\n\n`;
+          // Fix timezone issue by adding 7 hours for Vietnam timezone
+          const activityDate = new Date(staffConflict.schedule_time);
+          const vietnamTime = new Date(activityDate.getTime() + (7 * 60 * 60 * 1000));
+          const activityStartTime = `${vietnamTime.getHours().toString().padStart(2, '0')}:${vietnamTime.getMinutes().toString().padStart(2, '0')}`;
+          const activityEndTime = new Date(vietnamTime.getTime() + (staffConflict.duration || 60) * 60 * 1000);
+          const endTimeStr = `${activityEndTime.getHours().toString().padStart(2, '0')}:${activityEndTime.getMinutes().toString().padStart(2, '0')}`;
+          conflictMessage += `• Bạn đã có hoạt động "${staffConflict.activity_name}" từ ${activityStartTime} đến ${endTimeStr} trong cùng ngày.\n\n`;
         }
         
         if (conflictingResidents.length > 0) {
@@ -744,6 +749,7 @@ const CreateActivityScreen = () => {
                   mode="outlined"
                   editable={false}
                   style={styles.input}
+                  error={!!errors.time}
                 />
               </TouchableOpacity>
               {showTimePicker && (
@@ -755,6 +761,9 @@ const CreateActivityScreen = () => {
                   style={Platform.OS === 'android' ? { width: '100%' } : {}}
                 />
               )}
+              <HelperText type="error" visible={!!errors.time}>
+                {errors.time}
+              </HelperText>
               
               <TextInput
                 key="duration"

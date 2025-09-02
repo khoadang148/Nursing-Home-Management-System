@@ -205,14 +205,15 @@ export const dateUtils = {
   }
 };
 
-// Helper để format ngày từ backend (đã có timezone +7)
+// Helper để format ngày từ backend (cần cộng 7 giờ để hiển thị đúng)
 export const formatDateFromBackend = (dateString) => {
   if (!dateString) return '--';
   
   try {
-    // Backend đã lưu với timezone +7, nên parse trực tiếp
+    // Add 7 hours to compensate for UTC storage
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN');
+    const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    return vietnamTime.toLocaleDateString('vi-VN');
   } catch (error) {
     console.error('Error parsing date:', dateString, error);
     return '--';

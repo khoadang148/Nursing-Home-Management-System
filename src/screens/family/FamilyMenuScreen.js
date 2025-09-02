@@ -111,14 +111,7 @@ const FamilyMenuScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('DoiMatKhau'),
       showArrow: true
     },
-    {
-      id: 'terms',
-      title: 'Điều Khoản Dịch Vụ',
-      icon: 'description',
-      iconType: 'MaterialIcons',
-      onPress: () => navigation.navigate('DieuKhoanDichVu'),
-      showArrow: true
-    },
+
     {
       id: 'divider2',
       type: 'divider'

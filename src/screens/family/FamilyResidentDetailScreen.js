@@ -219,7 +219,9 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
 
   const formatDate = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString('vi-VN', {
+    const dateObj = new Date(date);
+    const vietnamTime = new Date(dateObj.getTime() + (7 * 60 * 60 * 1000));
+    return vietnamTime.toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -251,8 +253,8 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
   };
 
   const formatCurrency = (amount) => {
-    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
-    return `${formattedAmount} × 10,000 VNĐ`;
+    const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount * 10000);
+    return `${formattedAmount} VNĐ`;
   };
 
   // ===== Helpers for date filtering =====
@@ -479,7 +481,9 @@ const FamilyResidentDetailScreen = ({ route, navigation }) => {
           </View>
           <View style={styles.contactInfo}>
             <Text style={styles.contactName}>{residentData.emergency_contact?.name || 'Chưa có'}</Text>
-            <Text style={styles.contactRelation}>({residentData.emergency_contact?.relationship || 'Chưa có'})</Text>
+            <Text style={styles.contactRelation}>({residentData.emergency_contact?.relationship ? 
+              residentData.emergency_contact.relationship.charAt(0).toUpperCase() + residentData.emergency_contact.relationship.slice(1) 
+              : 'Chưa có'})</Text>
             {residentData.emergency_contact?.phone ? (
             <TouchableOpacity
               style={styles.phoneButton}

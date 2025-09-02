@@ -835,7 +835,7 @@ const CreateBillScreen = () => {
             </View>
 
             <View style={styles.inputGroup}>
-                              <Text style={styles.inputLabel}>Số tiền (*10,000 VNĐ) *</Text>
+              <Text style={styles.inputLabel}>Số tiền (*10,000 VNĐ) *</Text>
               <TextInput
                 mode="outlined"
                 value={amount}
@@ -851,6 +851,9 @@ const CreateBillScreen = () => {
               {loadingCalculation && (
                 <ActivityIndicator size="small" color={COLORS.primary} style={styles.calculationLoader} />
               )}
+              <Text style={styles.calculationNote}>
+                Công thức tính tiền tháng đầu: (Số ngày còn lại × Giá 1 ngày) + Tiền cọc 1 tháng
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -1081,6 +1084,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 15,
     top: 40,
+  },
+  calculationNote: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   submitContainer: {
     paddingHorizontal: 20,

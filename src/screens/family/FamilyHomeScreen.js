@@ -234,7 +234,8 @@ const FamilyHomeScreen = ({ navigation }) => {
             db.setHours(Number(hb), Number(mb), 0, 0);
             return da - db;
           });
-          setUpcomingVisits(upcoming);
+          // Giới hạn hiển thị tối đa 5 lịch thăm gần nhất
+          setUpcomingVisits(upcoming.slice(0, 5));
         } else {
           setUpcomingVisits([]);
         }
@@ -581,14 +582,22 @@ const FamilyHomeScreen = ({ navigation }) => {
                       <View style={styles.residentDetailRow}>
                           <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
                         <Text style={styles.residentDetails}>
-                            Ngày vào viện: {new Date(selectedResident.admission_date).toLocaleDateString('vi-VN')}
+                            Ngày vào viện: {(() => {
+                  const date = new Date(selectedResident.admission_date);
+                  const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+                  return vietnamTime.toLocaleDateString('vi-VN');
+                })()}
                         </Text>
                       </View>
                       )}
                       <View style={styles.residentDetailRow}>
                         <MaterialIcons name="cake" size={16} color={COLORS.textSecondary} />
                         <Text style={styles.residentDetails}>
-                          Sinh ngày: {selectedResident.date_of_birth ? new Date(selectedResident.date_of_birth).toLocaleDateString('vi-VN') : 'Chưa có thông tin'} - {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
+                          Sinh ngày: {selectedResident.date_of_birth ? (() => {
+                  const date = new Date(selectedResident.date_of_birth);
+                  const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+                  return vietnamTime.toLocaleDateString('vi-VN');
+                })() : 'Chưa có thông tin'} - {selectedResident.age || residentService.calculateAge(selectedResident.date_of_birth) || 75} tuổi
                         </Text>
                       </View>
                     </View>
@@ -706,7 +715,10 @@ const FamilyHomeScreen = ({ navigation }) => {
                   <Text style={styles.visitLabel}>Ngày:</Text>
                     <Text style={styles.visitValue}>{(() => {
                       const dateObj = typeof visit.visit_date === 'string' ? new Date(visit.visit_date) : visit.visit_date;
-                      return dateObj ? dateObj.toLocaleDateString('vi-VN') : 'Không rõ';
+                      return dateObj ? (() => {
+                      const vietnamTime = new Date(dateObj.getTime() + (7 * 60 * 60 * 1000));
+                      return vietnamTime.toLocaleDateString('vi-VN');
+                    })() : 'Không rõ';
                     })()}</Text>
                 </View>
                 <View style={styles.visitDetail}>

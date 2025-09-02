@@ -313,9 +313,9 @@ const groupPhotosByDate = (photos) => {
       if (!bPhotos || bPhotos.length === 0 || !bPhotos[0]?.upload_date) return -1;
       
       try {
-        const aDate = new Date(aPhotos[0].upload_date);
-        const bDate = new Date(bPhotos[0].upload_date);
-        return bDate - aDate;
+      const aDate = new Date(aPhotos[0].upload_date);
+      const bDate = new Date(bPhotos[0].upload_date);
+      return bDate - aDate;
       } catch (error) {
         console.error('Error sorting photos by date:', error);
         return 0;
@@ -374,14 +374,14 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
   useEffect(() => {
     try {
-      const filtered = filterAndSearchPhotos();
-      setFilteredPhotos(filtered);
-      const grouped = groupPhotosByDate(filtered);
-      const groupedAsRows = grouped.map(section => ({
-        title: section.title,
-        data: chunkArray(section.data, COLUMNS),
-      }));
-      setSections(groupedAsRows);
+    const filtered = filterAndSearchPhotos();
+    setFilteredPhotos(filtered);
+    const grouped = groupPhotosByDate(filtered);
+    const groupedAsRows = grouped.map(section => ({
+      title: section.title,
+      data: chunkArray(section.data, COLUMNS),
+    }));
+    setSections(groupedAsRows);
     } catch (error) {
       console.error('Error in useEffect for sections:', error);
       setSections([]);
@@ -533,7 +533,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           if (__DEV__) {
             console.log('Search error for photo:', photo._id, error.message);
           }
-          return true;
+            return true;
         }
       });
       
@@ -591,7 +591,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
           // Android: Delay opening viewer slightly for better performance
       if (Platform.OS === 'android') {
         setTimeout(() => {
-          setIsImageViewVisible(true);
+    setIsImageViewVisible(true);
           // Chỉ log trong development mode
           if (__DEV__) {
             console.log('DEBUG - Android image viewer opened');
@@ -643,7 +643,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
     // Prefetch neighbors for smoother swipe
     try {
-      prefetchAround(allImages, index, 2);
+    prefetchAround(allImages, index, 2);
     } catch (error) {
       console.error('Error in prefetchAround during image change:', error);
     }
@@ -825,8 +825,8 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       let errorCount = 0;
 
       for (const photo of photosToDownload) {
-                  try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const residentName = getResidentDisplayName(photo);
             const filename = `NHMS_${residentName}_${timestamp}.jpg`;
             
@@ -839,26 +839,26 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
               errorCount++;
               continue;
             }
-            
-            const downloadResumable = FileSystem.createDownloadResumable(
+          
+          const downloadResumable = FileSystem.createDownloadResumable(
               imageUri,
-              FileSystem.cacheDirectory + filename,
-              {},
-              (downloadProgress) => {
-                const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-                setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
-              }
-            );
-
-            const { uri } = await downloadResumable.downloadAsync();
-            
-            successCount++;
-          } catch (error) {
-            if (__DEV__) {
-              console.error(`Error downloading photo ${photo._id}:`, error);
+            FileSystem.cacheDirectory + filename,
+            {},
+            (downloadProgress) => {
+              const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+              setDownloadProgress(prev => ({ ...prev, [photo._id]: progress }));
             }
-            errorCount++;
-          }
+          );
+
+          const { uri } = await downloadResumable.downloadAsync();
+          
+          successCount++;
+        } catch (error) {
+            if (__DEV__) {
+          console.error(`Error downloading photo ${photo._id}:`, error);
+            }
+          errorCount++;
+        }
       }
 
       // Clear downloading states
@@ -1005,11 +1005,11 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
       >
         <View style={styles.photoCard}>
           {getImageUriHelper(photo.file_path) ? (
-            <Image
-              source={{ uri: getImageUriHelper(photo.file_path) }}
-              style={styles.photoImage}
-              resizeMode="cover"
-              fadeDuration={0}
+          <Image
+            source={{ uri: getImageUriHelper(photo.file_path) }}
+            style={styles.photoImage}
+            resizeMode="cover"
+            fadeDuration={0}
               onError={() => {
                 // Silently handle image load errors - no need to log everything
                 // This is normal when some images don't exist on server
@@ -1312,26 +1312,26 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
 
             {/* Navigation arrows */}
             {currentImageIndex > 0 && (
-              <TouchableOpacity 
+                  <TouchableOpacity 
                 style={styles.imageViewerNavButton}
-                onPress={handlePrevImage}
-                activeOpacity={0.8}
+                    onPress={handlePrevImage}
+                    activeOpacity={0.8}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
+                  >
                 <MaterialIcons name="chevron-left" size={30} color="#fff" />
-              </TouchableOpacity>
-            )}
+                  </TouchableOpacity>
+                )}
             
             {currentImageIndex < allImages.length - 1 && (
-              <TouchableOpacity 
+                  <TouchableOpacity 
                 style={[styles.imageViewerNavButton, styles.imageViewerNavButtonRight]}
-                onPress={handleNextImage}
-                activeOpacity={0.8}
+                    onPress={handleNextImage}
+                    activeOpacity={0.8}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
+                  >
                 <MaterialIcons name="chevron-right" size={30} color="#fff" />
-              </TouchableOpacity>
-            )}
+                  </TouchableOpacity>
+                )}
 
             {/* Main image with platform-specific optimizations */}
             <View style={styles.imageViewerMainContainer}>
@@ -1377,23 +1377,23 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                   <Text style={styles.modalImageErrorText}>Ảnh không khả dụng</Text>
                   <Text style={styles.modalImageErrorSubtext}>
                     Ảnh này có thể đã bị xóa hoặc không tồn tại trên server
-                  </Text>
+                </Text>
                 </View>
               )}
             </View>
 
             {/* Image info panel (caption + metadata) */}
-            {currentPhoto && (
+                {currentPhoto && (
               <View style={styles.imageInfoContainer}>
-                {!!currentPhoto.caption && (
+                    {!!currentPhoto.caption && (
                   <Text style={[styles.imageInfoText, { fontWeight: '600' }]} numberOfLines={2}>
-                    {currentPhoto.caption}
-                  </Text>
-                )}
+                        {currentPhoto.caption}
+                      </Text>
+                    )}
                 <Text style={styles.imageInfoText}>
                   <Text style={styles.imageInfoLabel}>Cư dân: </Text>
                   {getResidentDisplayName(currentPhoto)}
-                </Text>
+                    </Text>
                 <Text style={styles.imageInfoText}>
                   <Text style={styles.imageInfoLabel}>Người đăng: </Text>
                   {(() => {
@@ -1412,10 +1412,10 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                       return 'Không xác định';
                     }
                   })()}
-                </Text>
+                    </Text>
                 <Text style={styles.imageInfoText}>
                   <Text style={styles.imageInfoLabel}>Thời gian: </Text>
-                  {(() => {
+                    {(() => {
                     try {
                       if (currentPhoto.taken_date) {
                         const date = new Date(currentPhoto.taken_date);
@@ -1431,11 +1431,11 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                 </Text>
                 {(() => {
                   try {
-                    const ra = currentPhoto.related_activity_id;
-                    const location = ra?.location || currentPhoto.location;
-                    const activity = ra?.activity_type || ra?.activity_name || currentPhoto.activity_type;
-                    return (
-                      <>
+                      const ra = currentPhoto.related_activity_id;
+                      const location = ra?.location || currentPhoto.location;
+                      const activity = ra?.activity_type || ra?.activity_name || currentPhoto.activity_type;
+                      return (
+                        <>
                         <Text style={styles.imageInfoText}>
                           <Text style={styles.imageInfoLabel}>Địa điểm: </Text>
                           {location || 'Không xác định'}
@@ -1444,8 +1444,8 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                           <Text style={styles.imageInfoLabel}>Hoạt động: </Text>
                           {getActivityDisplayName(currentPhoto)}
                         </Text>
-                      </>
-                    );
+                        </>
+                      );
                   } catch (error) {
                     return (
                       <>
@@ -1460,7 +1460,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                       </>
                     );
                   }
-                })()}
+                    })()}
                 {(() => {
                   try {
                     if (currentPhoto.related_activity_id?.description) {
@@ -1468,7 +1468,7 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                         <Text style={styles.imageInfoText} numberOfLines={3}>
                           <Text style={styles.imageInfoLabel}>Mô tả: </Text>
                           {currentPhoto.related_activity_id.description}
-                        </Text>
+                      </Text>
                       );
                     }
                     return null;
@@ -1481,12 +1481,12 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                     if (currentPhoto.tags && Array.isArray(currentPhoto.tags) && currentPhoto.tags.length > 0) {
                       return (
                         <View style={styles.imageViewerTagsRow}>
-                          {currentPhoto.tags.slice(0, 3).map((tag, idx) => (
+                        {currentPhoto.tags.slice(0, 3).map((tag, idx) => (
                             <View key={idx} style={styles.imageViewerTagChip}>
                               <Text style={styles.imageViewerTagText} numberOfLines={1}>{tag || 'Tag'}</Text>
-                            </View>
-                          ))}
-                        </View>
+                          </View>
+                        ))}
+                      </View>
                       );
                     }
                     return null;
@@ -1494,9 +1494,9 @@ const FamilyPhotoGalleryScreen = ({ navigation }) => {
                     return null;
                   }
                 })()}
+                  </View>
+                )}
               </View>
-            )}
-          </View>
         </Modal>
 
         {/* Removed bottom sheet for photo details */}
