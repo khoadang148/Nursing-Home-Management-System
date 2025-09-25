@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,17 +12,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { MaterialIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getImageUri, APP_CONFIG } from '../../config/appConfig';
 import { logout, updateProfile } from '../../redux/slices/authSlice';
 import authService from '../../api/services/authService';
-
-const DEFAULT_AVATAR = APP_CONFIG.DEFAULT_AVATAR;
-
-// Helper để format avatar
-const getAvatarUri = (avatar) => {
-  const uri = getImageUri(avatar, 'avatar');
-  return uri || DEFAULT_AVATAR;
-};
+import CommonAvatar from '../../components/CommonAvatar';
 
 const FamilyMenuScreen = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
@@ -92,7 +83,7 @@ const FamilyMenuScreen = ({ navigation }) => {
     },
     {
       id: 'services',
-      title: 'Gói Dịch Vụ',
+      title: 'Gói Dịch Vụ Và Phòng',
       icon: 'card-membership',
       iconType: 'MaterialIcons',
       onPress: () => navigation.navigate('GoiDichVu'),
@@ -111,7 +102,14 @@ const FamilyMenuScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('DoiMatKhau'),
       showArrow: true
     },
-
+    {
+      id: 'terms',
+      title: 'Điều Khoản Dịch Vụ',
+      icon: 'description',
+      iconType: 'MaterialIcons',
+      onPress: () => navigation.navigate('DieuKhoanDichVu'),
+      showArrow: true
+    },
     {
       id: 'divider2',
       type: 'divider'
@@ -148,8 +146,11 @@ const FamilyMenuScreen = ({ navigation }) => {
           style={styles.userProfileHeader}
           onPress={() => navigation.navigate('HoSo')}
         >
-          <Image 
-            source={{ uri: getAvatarUri(user?.avatar || user?.photo) }}
+          <CommonAvatar 
+            key={`user-${user?.id || user?._id}-${user?.avatar}`}
+            source={user?.avatar || user?.photo}
+            size={50}
+            name={user?.full_name || user?.fullName || 'User'}
             style={styles.userAvatar}
           />
           <View style={styles.userInfo}>
@@ -228,9 +229,6 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     marginRight: 15,
   },
   userInfo: {

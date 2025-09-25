@@ -401,12 +401,13 @@ const FamilyNotificationsScreen = ({ navigation }) => {
               })
               .slice(0, 3);
             
-            upcomingBills.forEach(bill => {
+              upcomingBills.forEach(bill => {
               const notificationId = `bill_${bill._id}`;
               realNotifications.push({
                 id: notificationId,
                 title: 'Nhắc Nhở Thanh Toán',
-                message: `Hóa đơn "${bill.title}" sẽ đến hạn thanh toán vào ${new Date(bill.due_date).toLocaleDateString('vi-VN')}. Số tiền: ${new Intl.NumberFormat('vi-VN').format(bill.amount)} VNĐ`,
+                // Hiển thị số tiền theo đơn vị VNĐ; nhân 10000 để tương thích các hóa đơn cũ lưu theo đơn vị 10.000
+                message: `Hóa đơn "${bill.title}" sẽ đến hạn thanh toán vào ${new Date(bill.due_date).toLocaleDateString('vi-VN')}. Số tiền: ${new Intl.NumberFormat('vi-VN').format((bill.amount || 0) * 10000)} VNĐ`,
                 type: 'payment',
                 date: bill.created_at || new Date().toISOString(),
                 read: currentReadIds.has(notificationId),

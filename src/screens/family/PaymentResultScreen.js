@@ -46,11 +46,18 @@ const PaymentResultScreen = ({ route, navigation }) => {
   };
 
   const handleViewBill = () => {
-    navigation.navigate('BillDetail', { billId });
+    // Navigate into the billing stack and then to BillDetail inside it
+    navigation.navigate('HoaDon', {
+      screen: 'BillDetail',
+      params: { billId },
+    });
   };
 
   const handleRetryPayment = () => {
-    navigation.navigate('BillDetail', { billId });
+    navigation.navigate('HoaDon', {
+      screen: 'BillDetail',
+      params: { billId },
+    });
   };
 
   const isSuccess = paymentStatus === 'success' || paymentStatus === 'paid';
@@ -138,7 +145,7 @@ const PaymentResultScreen = ({ route, navigation }) => {
             </View>
             <View style={styles.billInfoRow}>
               <Text style={styles.billInfoLabel}>Số tiền:</Text>
-              <Text style={styles.billInfoValue}>{formatCurrency(billInfo.amount)}</Text>
+              <Text style={styles.billInfoValue}>{formatCurrency(billInfo.amount || 0)}</Text>
             </View>
             <View style={styles.billInfoRow}>
               <Text style={styles.billInfoLabel}>Trạng thái:</Text>

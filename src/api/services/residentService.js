@@ -119,7 +119,8 @@ class ResidentService {
   // Create new resident
   async createResident(residentData) {
     try {
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.RESIDENT.CREATE, residentData);
+      // Use the correct endpoint for family members
+      const response = await apiClient.post('/residents/my-resident', residentData);
       
       if (response.data && response.data._id) {
         return {

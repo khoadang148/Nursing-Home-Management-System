@@ -9,7 +9,7 @@ export const API_CONFIG = {
   
   // IP thực tế từ log - WiFi network
   // BASE_URL: 'http://10.87.15.234:8000', // IP WiFi thực tế từ log trên trường
-  BASE_URL: 'https://care-home-be.onrender.com', // Production backend (Render)
+  BASE_URL: 'https://sep490-be-xniz.onrender.com', // Production backend (Render)
   // BASE_URL: 'http://10.158.126.82:8000', // IP WiFi đt mẹ từ log trên trường
   // BASE_URL: 'http://192.168.123.33:8000', // IP WiFi đt mẹ từ log trên trường
   // BASE_URL: 'http://10.3.83.12:8000', // IP WiFi thực tế từ log trên trường library
@@ -28,6 +28,7 @@ export const API_CONFIG = {
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/auth/login',
+      REGISTER: '/auth/register', // Đăng ký tài khoản
       LOGOUT: '/auth/logout',
       PROFILE: '/auth/profile',
       UPDATE_PROFILE: '/auth/profile',

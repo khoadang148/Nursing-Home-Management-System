@@ -236,6 +236,8 @@ const AlertDialog = React.memo(({ visible, title, message, buttons, onDismiss })
     }
   }, [visible]);
 
+  const isSingleButton = (buttons?.length || 0) <= 1;
+
   return (
     <Modal
       transparent
@@ -270,7 +272,7 @@ const AlertDialog = React.memo(({ visible, title, message, buttons, onDismiss })
               {sanitizeErrorMessage(message)}
             </Text>
           </View>
-          <View style={styles.alertActions}>
+          <View style={[styles.alertActions, isSingleButton && styles.alertActionsSingle]}>
             {buttons?.map((button, index) => (
               <Button
                 key={index}
@@ -281,13 +283,20 @@ const AlertDialog = React.memo(({ visible, title, message, buttons, onDismiss })
                 }}
                 style={[
                   styles.alertButton,
+                  button.style === 'primary' && styles.primaryButton,
                   button.style === 'destructive' && styles.destructiveButton,
+                  isSingleButton && styles.fullWidthButton,
+                ]}
+                contentStyle={styles.buttonContent}
+                labelStyle={[
+                  styles.buttonLabel,
+                  button.style === 'primary' && styles.buttonLabelPrimary,
                 ]}
                 textColor={
-                  button.style === 'destructive' 
-                    ? COLORS.error 
-                    : button.style === 'primary' 
-                    ? COLORS.surface 
+                  button.style === 'primary'
+                    ? '#FFFFFF'
+                    : button.style === 'destructive'
+                    ? COLORS.error
                     : COLORS.primary
                 }
               >
@@ -586,7 +595,7 @@ const styles = StyleSheet.create({
     width: width * 0.85,
     maxWidth: 400,
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -595,35 +604,60 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
+    overflow: 'hidden',
   },
   alertContent: {
     padding: 24,
   },
   alertTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#00A551',
+    marginBottom: 10,
     textAlign: 'center',
   },
   alertMessage: {
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.textSecondary,
-    lineHeight: 24,
+    lineHeight: 22,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 22,
   },
   alertActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+  },
+  alertActionsSingle: {
+    justifyContent: 'center',
   },
   alertButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 10,
+    height: 48,
+  },
+  primaryButton: {
+    backgroundColor: '#00A551',
+    borderColor: '#00A551',
   },
   destructiveButton: {
     borderColor: COLORS.error,
+  },
+  fullWidthButton: {
+    flex: 0,
+    minWidth: 160,
+  },
+  buttonContent: {
+    height: 48,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonLabelPrimary: {
+    color: '#FFFFFF',
   },
 
   // Loading styles

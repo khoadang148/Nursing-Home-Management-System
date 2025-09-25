@@ -39,8 +39,12 @@ const LoginScreen = ({ navigation }) => {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const titleAnim = useRef(new Animated.Value(0)).current;
 
-  // Clear error when component unmounts
+  // Clear error and message when component mounts and unmounts
   useEffect(() => {
+    // Clear any existing messages when component mounts
+    dispatch(resetAuthMessage());
+    dispatch(resetAuthError());
+    
     return () => {
       dispatch(resetAuthError());
     };
@@ -61,59 +65,85 @@ const LoginScreen = ({ navigation }) => {
     }
   }, [message, isAuthenticated, showSuccess, dispatch]);
 
+  // Handle informative backend messages when not authenticated (e.g., locked/inactive account)
+  useEffect(() => {
+    if (message && !isAuthenticated) {
+      const lowerStateMsg = (message || '').toLowerCase();
+      const isInactiveOrLocked =
+        lowerStateMsg.includes('bị khóa') ||
+        lowerStateMsg.includes('chưa được kích hoạt') ||
+        lowerStateMsg.includes('khóa') ||
+        lowerStateMsg.includes('kích hoạt');
+
+      if (isInactiveOrLocked) {
+        showError('Tài khoản đã bị khóa hoặc chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ quản trị viên.');
+        dispatch(resetAuthMessage());
+        dispatch(resetAuthError());
+      }
+    }
+  }, [message, isAuthenticated, showError, dispatch]);
+
   useEffect(() => {
     if (error) {
       // Parse error message and show user-friendly message
       let userFriendlyMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
-      
-      if (typeof error === 'string') {
-        // Handle string errors
-        if (error.includes('401') || error.includes('Unauthorized')) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else if (error.includes('404') || error.includes('User not found')) {
-          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
-        } else if (error.includes('network') || error.includes('timeout')) {
-          userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-        } else if (error.includes('password') || error.includes('credentials')) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else {
-          // For any other technical errors, show generic message
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        }
-      } else if (error && typeof error === 'object') {
-        // Handle object errors
-        if (error.status === 401 || error.statusCode === 401) {
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        } else if (error.status === 404 || error.statusCode === 404) {
-          userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
-        } else if (error.status === 500 || error.statusCode === 500) {
-          userFriendlyMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
-        } else if (error.message) {
-          // Check for specific error messages
-          const errorMsg = error.message.toLowerCase();
-          if (errorMsg.includes('unauthorized') || errorMsg.includes('invalid credentials')) {
-            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-          } else if (errorMsg.includes('user not found')) {
-            userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
-          } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
-            userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-          } else {
-            // For any other technical errors, show generic message
-            userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-          }
-        } else {
-          // For any other technical errors, show generic message
-          userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
-        }
+
+      // Extract possible server-provided message/code from various shapes
+      const serverMessage = (
+        (error && typeof error === 'object' && (error.response?.data?.message || error.message)) ||
+        (typeof error === 'string' ? error : '')
+      );
+      const serverErrorCode = (error && typeof error === 'object' && (error.response?.data?.error || error.error || error.code)) || '';
+      const lowerMsg = (serverMessage || '').toLowerCase();
+      const lowerCode = (serverErrorCode || '').toLowerCase();
+      const lowerStateMsg = (typeof message === 'string' ? message : '').toLowerCase();
+
+      // Case 1: Account locked/banned/not activated
+      if (
+        lowerMsg.includes('bị khóa') ||
+        lowerMsg.includes('chưa được kích hoạt') ||
+        lowerCode.includes('account_inactive') ||
+        lowerCode.includes('account_locked') ||
+        lowerCode.includes('account_banned') ||
+        // Some BE may still return INVALID_CREDENTIALS code but message indicates inactive
+        (lowerCode.includes('invalid_credentials') && (lowerMsg.includes('khóa') || lowerMsg.includes('kích hoạt'))) ||
+        // Fallback to state message when error is generic
+        lowerStateMsg.includes('bị khóa') ||
+        lowerStateMsg.includes('chưa được kích hoạt') ||
+        lowerStateMsg.includes('khóa') ||
+        lowerStateMsg.includes('kích hoạt')
+      ) {
+        userFriendlyMessage = 'Tài khoản đã bị khóa hoặc chưa được kích hoạt. Vui lòng kiểm tra email hoặc liên hệ quản trị viên.';
       }
-      
+      // Case 2: Incorrect email/password
+      else if (
+        typeof error === 'string' && (error.includes('401') || error.toLowerCase().includes('unauthorized'))
+      ) {
+        userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+      } else if (error && typeof error === 'object' && (error.status === 401 || error.statusCode === 401)) {
+        userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+      } else if (lowerMsg.includes('invalid credentials') || lowerMsg.includes('unauthorized')) {
+        userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+      } else if (lowerMsg.includes('user not found') || (error && typeof error === 'object' && (error.status === 404 || error.statusCode === 404))) {
+        userFriendlyMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra email.';
+      }
+      // Case 3: Network/server errors
+      else if (lowerMsg.includes('network') || lowerMsg.includes('timeout')) {
+        userFriendlyMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+      } else if (error && typeof error === 'object' && (error.status === 500 || error.statusCode === 500)) {
+        userFriendlyMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
+      } else {
+        // Fallback
+        userFriendlyMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.';
+      }
+
       // Log technical error to console for debugging (but don't show to user)
       console.log('Technical error (hidden from user):', error);
       
       showError(userFriendlyMessage);
       dispatch(resetAuthError());
     }
-  }, [error, showError, dispatch]);
+  }, [error, showError, dispatch, message]);
 
   useEffect(() => {
     // Pulse animation for logo
@@ -431,6 +461,18 @@ const LoginScreen = ({ navigation }) => {
                 >
                   Đăng nhập bằng OTP
                 </Button>
+
+                {/* Register Button */}
+                <Button
+                  mode="text"
+                  onPress={() => navigation.navigate('Register')}
+                  style={styles.registerButton}
+                  contentStyle={styles.registerButtonContent}
+                  labelStyle={styles.registerButtonLabel}
+                  disabled={isLoading}
+                >
+                  Chưa có tài khoản? Đăng ký ngay
+                </Button>
               </View>
             </View>
 
@@ -641,6 +683,17 @@ const styles = StyleSheet.create({
   otpLoginButtonLabel: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#00A551',
+  },
+  registerButton: {
+    marginTop: 16,
+  },
+  registerButtonContent: {
+    height: 48,
+  },
+  registerButtonLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#00A551',
   },
   securityNote: {

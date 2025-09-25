@@ -5,9 +5,8 @@ import { API_CONFIG } from './apiConfig';
 // Tạo axios instance
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
-  timeout: 15000, // Tăng timeout lên 15 seconds cho iPhone
+  timeout: 60000, // Tăng timeout 60s để tránh timeout khi server cold-start
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
 });
@@ -19,6 +18,19 @@ apiClient.interceptors.request.use(
       const token = await AsyncStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      
+      // Nếu là FormData, để Axios/RN tự set Content-Type với boundary
+      const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+      if (isFormData) {
+        if (config.headers && config.headers['Content-Type']) {
+          delete config.headers['Content-Type'];
+        }
+      } else {
+        // Đối với JSON, đảm bảo Content-Type
+        if (config.headers && !config.headers['Content-Type']) {
+          config.headers['Content-Type'] = 'application/json';
+        }
       }
       
       // Log request for debugging (chỉ trong development)

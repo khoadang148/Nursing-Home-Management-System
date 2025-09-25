@@ -213,26 +213,26 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
         >
           <MaterialIcons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết gói dịch vụ</Text>
+        <Text style={styles.headerTitle}>{packageType === 'room_type' ? 'Chi tiết loại phòng' : 'Chi tiết gói dịch vụ'}</Text>
         <View style={{ width: 40 }} />
       </View>
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Package Overview */}
+        {/* Package or Room Overview */}
         <View style={styles.overviewCard}>
           <View style={[
             styles.iconContainer, 
-            { backgroundColor: getPackageColor(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main') + '20' }
+            { backgroundColor: (packageType === 'room_type' ? '#607D8B' : getPackageColor(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main')) + '20' }
           ]}>
             <Ionicons 
-              name={getPackageIcon(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main')} 
+              name={packageType === 'room_type' ? 'bed-outline' : getPackageIcon(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main')} 
               size={32} 
-              color={getPackageColor(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main')} 
+              color={packageType === 'room_type' ? '#607D8B' : getPackageColor(packageInfo?.plan_type || packageInfo?.main_care_plan?.plan_type, packageInfo?.category || 'main')} 
             />
           </View>
           
           <Text style={styles.packageName}>
-            {packageInfo?.plan_name || packageInfo?.main_care_plan?.plan_name || 'Tên gói dịch vụ'}
+            {packageType === 'room_type' ? (packageInfo?.type_name || packageInfo?.name || 'Loại phòng') : (packageInfo?.plan_name || packageInfo?.main_care_plan?.plan_name || 'Tên gói dịch vụ')}
           </Text>
           
           <Text style={styles.packagePrice}>
@@ -240,7 +240,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
           </Text>
           
           <Text style={styles.packageDescription}>
-            {packageInfo?.description || packageInfo?.main_care_plan?.description || 'Mô tả gói dịch vụ'}
+            {packageType === 'room_type' ? (packageInfo?.description || 'Mô tả loại phòng') : (packageInfo?.description || packageInfo?.main_care_plan?.description || 'Mô tả gói dịch vụ')}
           </Text>
 
           {/* Status Badge */}
@@ -251,7 +251,7 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
           )}
 
           {/* Category Badge for Available Packages */}
-          {!packageInfo?.resident && (
+          {!packageInfo?.resident && packageType !== 'room_type' && (
             <View style={[styles.categoryBadge, { backgroundColor: packageInfo?.category === 'main' ? COLORS.primary : COLORS.textSecondary }]}>
               <Text style={styles.categoryBadgeText}>
                 {packageInfo?.category === 'main' ? '🏆 Gói chăm sóc chính' : '➕ Gói dịch vụ bổ sung'}
@@ -259,6 +259,21 @@ const ServicePackageDetailScreen = ({ route, navigation }) => {
             </View>
           )}
         </View>
+
+        {/* Room amenities */}
+        {packageType === 'room_type' && Array.isArray(packageInfo?.amenities) && packageInfo.amenities.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🛏️ Tiện ích phòng</Text>
+            <View style={styles.servicesCard}>
+              {packageInfo.amenities.map((amenity, index) => (
+                <View key={index} style={styles.serviceItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.serviceText}>{amenity}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Resident Information (for registered packages) */}
         {packageInfo?.resident && (

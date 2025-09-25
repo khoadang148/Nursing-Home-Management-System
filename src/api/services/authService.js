@@ -25,9 +25,12 @@ class AuthService {
           message: 'Đăng nhập thành công',
         };
       } else {
+        // If BE returns 201 with { success: false, error, message }
         return {
           success: false,
-          error: 'Đăng nhập thất bại',
+          error: response.data.error || 'Đăng nhập thất bại',
+          message: response.data.message,
+          status: 201,
         };
       }
     } catch (error) {
@@ -67,7 +70,9 @@ class AuthService {
           default:
             return {
               success: false,
-              error: data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.',
+              error: data?.error || 'LOGIN_FAILED',
+              message: data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.',
+              status,
             };
         }
       } else if (error.request) {
@@ -89,7 +94,33 @@ class AuthService {
   // Register
   async register(userData) {
     try {
-      const response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData);
+      console.log('AuthService: Sending register request with data:', userData);
+      
+      // Check if userData is FormData
+      const isFormData = userData instanceof FormData;
+      console.log('AuthService: Is FormData:', isFormData);
+      
+      // Set appropriate headers
+      const config = {
+        headers: isFormData ? { /* let axios set boundary automatically */ } : {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      };
+      
+      let response;
+      try {
+        response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData, config);
+      } catch (err) {
+        // simple one-time retry on timeout/network errors
+        if (err.code === 'ECONNABORTED' || !err.response) {
+          console.log('Register request retrying once due to timeout/network...');
+          response = await apiRequest.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData, config);
+        } else {
+          throw err;
+        }
+      }
+      console.log('AuthService: Register response:', response.data);
 
       // Response format có thể khác nhau, kiểm tra cả 2 format
       if (response.data.success || response.data.access_token) {
@@ -107,9 +138,14 @@ class AuthService {
       }
     } catch (error) {
       console.error('Register error:', error);
+      console.error('Register error response:', error.response?.data);
+      console.error('Register error status:', error.response?.status);
+      
+      // Return more detailed error information
+      const errorMessage = error.response?.data?.message || error.message || 'Đăng ký thất bại';
       return {
         success: false,
-        error: error.response?.data?.message || 'Đăng ký thất bại',
+        error: errorMessage,
       };
     }
   }

@@ -87,6 +87,7 @@ const ServicePackageScreen = ({ navigation }) => {
   const [selectedResident, setSelectedResident] = useState(null);
   const [residentsLoading, setResidentsLoading] = useState(false);
   const [bedAssignments, setBedAssignments] = useState({}); // { [resident_id]: bedAssignment }
+  const [roomTypes, setRoomTypes] = useState([]);
 
   const user = useSelector((state) => state.auth.user);
   useEffect(() => {
@@ -141,86 +142,24 @@ const ServicePackageScreen = ({ navigation }) => {
         });
       } else {
         console.log('DEBUG - Available care plans failed or empty:', availableRes);
-        // Fallback to mock data if API fails
-        const mockCarePlans = [
-          {
-            _id: 'cp_001',
-            plan_name: 'Gói Chăm Sóc Tiêu Chuẩn',
-            plan_type: 'cham_soc_tieu_chuan',
-            category: 'main',
-            description: 'Gói chăm sóc cơ bản với các dịch vụ thiết yếu',
-            monthly_price: 5000000,
-            services_included: [
-              'Chăm sóc vệ sinh cá nhân',
-              'Theo dõi sức khỏe cơ bản',
-              'Bữa ăn 3 bữa/ngày',
-              'Hoạt động giải trí cơ bản'
-            ],
-            staff_ratio: '1:8',
-            duration: 'Tối thiểu 1 tháng'
-          },
-          {
-            _id: 'cp_002',
-            plan_name: 'Gói Chăm Sóc Tích Cực',
-            plan_type: 'cham_soc_tich_cuc',
-            category: 'main',
-            description: 'Gói chăm sóc nâng cao với chuyên gia y tế',
-            monthly_price: 8000000,
-            services_included: [
-              'Chăm sóc vệ sinh cá nhân',
-              'Theo dõi sức khỏe 24/7',
-              'Bữa ăn dinh dưỡng đặc biệt',
-              'Hoạt động trị liệu chuyên sâu',
-              'Khám sức khỏe định kỳ'
-            ],
-            staff_ratio: '1:4',
-            duration: 'Tối thiểu 1 tháng'
-          },
-          {
-            _id: 'cp_003',
-            plan_name: 'Hỗ Trợ Dinh Dưỡng',
-            plan_type: 'ho_tro_dinh_duong',
-            category: 'supplementary',
-            description: 'Dịch vụ tư vấn và hỗ trợ dinh dưỡng chuyên biệt',
-            monthly_price: 1500000,
-            services_included: [
-              'Tư vấn dinh dưỡng cá nhân',
-              'Thực đơn đặc biệt',
-              'Bổ sung vitamin và khoáng chất',
-              'Theo dõi cân nặng định kỳ'
-            ],
-            staff_ratio: '1:20',
-            duration: 'Tối thiểu 1 tháng'
-          },
-          {
-            _id: 'cp_004',
-            plan_name: 'Vật Lý Trị Liệu',
-            plan_type: 'vat_ly_tri_lieu',
-            category: 'supplementary',
-            description: 'Dịch vụ vật lý trị liệu phục hồi chức năng',
-            monthly_price: 2000000,
-            services_included: [
-              'Đánh giá chức năng vận động',
-              'Tập luyện phục hồi chức năng',
-              'Massage trị liệu',
-              'Hướng dẫn tập luyện tại nhà'
-            ],
-            staff_ratio: '1:10',
-            duration: 'Tối thiểu 1 tháng'
-          }
-        ];
-        
-        const mainPackages = mockCarePlans.filter(pkg => pkg.category === 'main')
-          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
-        const supplementaryPackages = mockCarePlans.filter(pkg => pkg.category === 'supplementary')
-          .sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
-        console.log('DEBUG - Using mock data - Main packages:', mainPackages.length);
-        console.log('DEBUG - Using mock data - Supplementary packages:', supplementaryPackages.length);
-        
-        setAvailablePackages({
-          main_packages: mainPackages,
-          supplementary_packages: supplementaryPackages
-        });
+        setAvailablePackages({ main_packages: [], supplementary_packages: [] });
+      }
+
+      // Fetch room types
+      try {
+        let roomTypesRes = await apiClient.get('/room-types');
+        let types = Array.isArray(roomTypesRes.data) ? roomTypesRes.data : (roomTypesRes.data?.data || []);
+        if (!Array.isArray(types) || types.length === 0) {
+          try {
+            roomTypesRes = await apiClient.get('/room_types');
+            types = Array.isArray(roomTypesRes.data) ? roomTypesRes.data : (roomTypesRes.data?.data || []);
+          } catch (e) {}
+        }
+        types = (types || []).sort((a, b) => (a.monthly_price || 0) - (b.monthly_price || 0));
+        setRoomTypes(types);
+      } catch (e) {
+        console.log('Failed to fetch room types:', e?.response?.status || e?.message);
+        setRoomTypes([]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -415,7 +354,7 @@ const ServicePackageScreen = ({ navigation }) => {
               styles.tabText, 
               selectedTab === 'available' && styles.activeTabText
             ]}>
-              Gói có sẵn
+              Gói và loại phòng có sẵn
             </Text>
           </View>
           {selectedTab === 'available' && <View style={styles.activeIndicator} />}
@@ -945,7 +884,7 @@ const ServicePackageScreen = ({ navigation }) => {
             <Ionicons name="arrow-back" size={24} color="#212529" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Gói Dịch Vụ</Text>
+            <Text style={styles.headerTitle}>Gói Dịch Vụ Và Phòng</Text>
             <Text style={styles.headerSubtitle}>Quản lý gói chăm sóc của người thân</Text>
           </View>
         </View>
@@ -1009,6 +948,52 @@ const ServicePackageScreen = ({ navigation }) => {
                 data={availablePackages.supplementary_packages}
                 renderItem={renderAvailablePackageCard}
                 keyExtractor={(item) => item._id}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+
+            <View style={styles.categorySection}>
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryTitle}>Loại Phòng Có Sẵn</Text>
+              </View>
+              <Text style={styles.categoryDesc}>Các loại phòng và tiện ích kèm theo</Text>
+              <FlatList
+                data={roomTypes}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[styles.availableCard, { borderLeftColor: '#607D8B' }]}
+                    onPress={() => navigation.navigate('ServicePackageDetail', { packageData: item, packageType: 'room_type' })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.availableCardHeader}>
+                      <View style={[styles.iconContainer, { backgroundColor: '#607D8B20' }]}>
+                        <Ionicons name="bed-outline" size={24} color="#607D8B" />
+                      </View>
+                      <View style={styles.packageDetails}>
+                        <Text style={styles.availablePackageName}>{item.type_name || item.name || 'Loại phòng'}</Text>
+                        {!!item.description && (
+                          <Text style={styles.availablePackageDesc}>{item.description}</Text>
+                        )}
+                        <Text style={styles.availablePackagePrice}>{formatPrice(item.monthly_price || 0)}/tháng</Text>
+                      </View>
+                      <View style={[styles.categoryBadge, { backgroundColor: '#607D8B' }]}>
+                        <Text style={styles.categoryText}>Phòng</Text>
+                      </View>
+                    </View>
+
+                    {Array.isArray(item.amenities) && item.amenities.length > 0 && (
+                      <View style={styles.servicesPreview}>
+                        <Text style={styles.servicesTitle}>Tiện ích:</Text>
+                        <Text style={styles.servicesText} numberOfLines={2}>
+                          {item.amenities.slice(0, 4).join(' • ')}
+                          {item.amenities.length > 4 && '...'}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+                keyExtractor={(item, index) => item._id || item.id || `${item.type_name || item.name}-${index}`}
                 scrollEnabled={false}
                 showsVerticalScrollIndicator={false}
               />

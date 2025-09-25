@@ -30,6 +30,9 @@ import SupportScreen from '../screens/family/SupportScreen';
 import ChangePasswordScreen from '../screens/family/ChangePasswordScreen';
 import TermsOfServiceScreen from '../screens/family/TermsOfServiceScreen';
 import FamilyMenuScreen from '../screens/family/FamilyMenuScreen';
+import FamilyAddResidentScreen from '../screens/family/FamilyAddResidentScreen';
+import FamilyCarePlanSelectionScreen from '../screens/family/FamilyCarePlanSelectionScreen';
+import FamilyRegistrationReviewScreen from '../screens/family/FamilyRegistrationReviewScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -163,10 +166,13 @@ const FamilyHomeStack = () => (
 const FamilyResidentsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="FamilyResidents" component={FamilyResidentScreen} />
-    <Stack.Screen name="CuDan" component={FamilyResidentScreen} />
-    <Stack.Screen name="ThemCuDan" component={FamilyResidentScreen} />
+    <Stack.Screen name="FamilyAddResident" component={FamilyAddResidentScreen} />
+    <Stack.Screen name="FamilyCarePlanSelection" component={FamilyCarePlanSelectionScreen} />
+    <Stack.Screen name="FamilyRegistrationReview" component={FamilyRegistrationReviewScreen} />
     <Stack.Screen name="FamilyResidentDetail" component={FamilyResidentDetailScreen} />
     <Stack.Screen name="FamilyPhotoGallery" component={FamilyPhotoGalleryScreen} />
+    {/* Expose payment webview inside this stack so flows from registration can navigate directly */}
+    <Stack.Screen name="PaymentWebViewScreen" component={PaymentWebViewScreen} />
   </Stack.Navigator>
 );
 

@@ -206,33 +206,121 @@ const FamilyProfileScreen = ({ navigation }) => {
   };
 
   // Đổi avatar
-  const handleChangeAvatar = async () => {
+  const handleChangeAvatar = () => {
+    Alert.alert(
+      'Thay đổi ảnh đại diện',
+      'Chọn cách thay đổi ảnh',
+      [
+        { 
+          text: 'Chụp ảnh', 
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Quyền truy cập camera', 'Bạn cần cấp quyền truy cập camera để chụp ảnh.');
+                return;
+              }
+
+              let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                console.log('Camera photo:', result.assets[0].uri);
+                await uploadAvatarToServer(result.assets[0].uri);
+              }
+            } catch (error) {
+              console.error('Error taking photo:', error);
+              Alert.alert('Lỗi', 'Không thể chụp ảnh. Vui lòng thử lại.');
+            }
+          }
+        },
+        { 
+          text: 'Chọn từ thư viện', 
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Quyền truy cập ảnh', 'Bạn cần cấp quyền truy cập ảnh để chọn ảnh từ thư viện.');
+                return;
+              }
+
+              let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                console.log('Gallery photo:', result.assets[0].uri);
+                await uploadAvatarToServer(result.assets[0].uri);
+              }
+            } catch (error) {
+              console.error('Error selecting photo:', error);
+              Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+            }
+          }
+        },
+        { text: 'Hủy', style: 'cancel' }
+      ]
+    );
+  };
+
+  const uploadAvatarToServer = async (imageUri) => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Bạn cần cấp quyền truy cập ảnh để đổi avatar!');
-        return;
-      }
-      const pickerResult = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
-      if (pickerResult.cancelled) return;
       setLoading(true);
-      const res = await userService.updateAvatar(userData.id || userData._id, pickerResult.assets ? pickerResult.assets[0].uri : pickerResult.uri);
-      setLoading(false);
-      if (res.success) {
-        // Cập nhật lại avatar cho user trong Redux sử dụng updateProfile action
-        dispatch(updateProfile({ ...user, avatar: res.data.avatar }));
-        showSuccess('Đổi avatar thành công!');
+      
+      // Gọi API để upload avatar
+      const response = await userService.updateAvatar(userData.id || userData._id, imageUri);
+      
+      if (response.success) {
+        // Cập nhật Redux store với avatar mới
+        dispatch(updateProfile({ ...user, avatar: response.data.avatar }));
+        showSuccess('Đã cập nhật ảnh đại diện!');
       } else {
-        showError(res.error || 'Đổi avatar thất bại!');
+        showError(response.error || 'Không thể cập nhật ảnh đại diện');
       }
-    } catch (e) {
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      
+      // Xử lý các loại lỗi cụ thể
+      let errorMessage = 'Không thể cập nhật ảnh đại diện. Vui lòng thử lại.';
+      
+      if (error.response) {
+        const { status, data } = error.response;
+        switch (status) {
+          case 400:
+            errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+            break;
+          case 401:
+            errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+            break;
+          case 403:
+            errorMessage = 'Bạn không có quyền thực hiện thao tác này.';
+            break;
+          case 404:
+            errorMessage = 'Không tìm thấy thông tin người dùng.';
+            break;
+          case 413:
+            errorMessage = 'Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.';
+            break;
+          case 500:
+            errorMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
+            break;
+          default:
+            errorMessage = data?.message || errorMessage;
+        }
+      } else if (error.request) {
+        errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+      }
+      
+      showError(errorMessage);
+    } finally {
       setLoading(false);
-      showError('Có lỗi khi đổi avatar!');
     }
   };
 

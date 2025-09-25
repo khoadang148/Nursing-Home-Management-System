@@ -682,7 +682,7 @@ const FamilyHomeScreen = ({ navigation }) => {
               <View style={[styles.iconBackground, { backgroundColor: COLORS.success }]}>
                 <MaterialIcons name="card-membership" size={24} color="white" />
               </View>
-              <Text style={styles.quickActionText}>Gói Dịch Vụ</Text>
+              <Text style={styles.quickActionText}>Gói Dịch Vụ Và Phòng</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

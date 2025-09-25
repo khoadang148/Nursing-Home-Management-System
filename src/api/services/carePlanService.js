@@ -192,6 +192,19 @@ class CarePlanService {
     }
   }
 
+  // Get bed assignments by bed id (include all statuses)
+  async getBedAssignmentsByBedId(bedId) {
+    try {
+      const response = await this.api.get('/bed-assignments', {
+        params: { bed_id: bedId, statuses: 'completed,pending' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching bed assignments by bed id:', error);
+      return [];
+    }
+  }
+
   // Calculate total cost
   calculateTotalCost(selectedPlans, roomType, roomTypes) {
     const carePlansCost = selectedPlans.reduce((total, plan) => {

@@ -713,6 +713,14 @@ const FamilyResidentScreen = ({ navigation }) => {
           </View>
         )}
       </ScrollView>
+      {/* FAB: Add resident then continue flow */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('FamilyAddResident')}
+        style={styles.fab}
+      >
+        <MaterialIcons name="person-add" size={28} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -993,6 +1001,22 @@ const styles = StyleSheet.create({
   emergencyText: {
     fontSize: 12,
     color: '#666',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
 });
 
