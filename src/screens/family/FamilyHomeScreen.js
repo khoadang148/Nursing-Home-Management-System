@@ -624,14 +624,13 @@ const FamilyHomeScreen = ({ navigation }) => {
                 <MaterialIcons name="family-restroom" size={64} color={COLORS.textSecondary} />
                 <Text style={styles.noResidentsTitle}>Chưa có thông tin người thân</Text>
                 <Text style={styles.noResidentsText}>
-                  Hiện tại chưa có người cao tuổi nào được gán cho tài khoản của bạn. 
-                  Vui lòng liên hệ với ban quản lý để được hỗ trợ.
+                  Bạn chưa có người cao tuổi nào. Hãy thêm cư dân để tiếp tục đăng ký dịch vụ và thanh toán.
                 </Text>
                 <TouchableOpacity 
                   style={styles.contactButton}
-                  onPress={() => navigation.navigate('HoTro')}
+                  onPress={() => navigation.navigate('NguoiThan', { screen: 'FamilyAddResident' })}
                 >
-                  <Text style={styles.contactButtonText}>Liên Hệ Hỗ Trợ</Text>
+                  <Text style={styles.contactButtonText}>Thêm Cư Dân</Text>
                 </TouchableOpacity>
               </View>
             </Card.Content>

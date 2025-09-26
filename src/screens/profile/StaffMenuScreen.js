@@ -43,32 +43,8 @@ const StaffMenuScreen = () => {
     navigation.navigate('HoSo');
   };
 
-  // Xóa mục 'Thông tin cá nhân' khỏi menuItems
+  // Menu items for staff only (family-related items removed)
   const menuItems = [
-    {
-      id: 'care-plan-selection',
-      title: 'Chọn gói dịch vụ & phòng',
-      icon: <MaterialIcons name="assignment" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('ChonGoiDichVu'),
-    },
-    {
-      id: 'care-plan-assignments',
-      title: 'Gói dịch vụ đã đăng ký',
-      icon: <MaterialIcons name="list-alt" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('GoiDichVuDaDangKy'),
-    },
-    {
-      id: 'create-bill',
-      title: 'Tạo hóa đơn',
-      icon: <MaterialIcons name="receipt" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('TaoHoaDon'),
-    },
-    {
-      id: 'my-created-bills',
-      title: 'Hóa đơn tôi đã tạo',
-      icon: <MaterialIcons name="fact-check" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('MyCreatedBills'),
-    },
     {
       id: 'family-contact',
       title: 'Liên hệ người nhà',
@@ -81,19 +57,17 @@ const StaffMenuScreen = () => {
       icon: <MaterialIcons name="event" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('HoatDong'),
     },
-    // Thêm mục quản lý lịch thăm
     {
       id: 'visits-management',
       title: 'Quản lý lịch thăm',
       icon: <MaterialIcons name="event-available" size={24} color={COLORS.primary} />,
       onPress: () => navigation.navigate('QuanLyLichTham'),
     },
-    // Thêm mục quản lý giường
     {
-      id: 'bed-management',
-      title: 'Quản lý phân bổ giường',
-      icon: <MaterialIcons name="bed" size={24} color={COLORS.primary} />,
-      onPress: () => navigation.navigate('QuanLyGiuong'),
+      id: 'notifications',
+      title: 'Thông báo',
+      icon: <MaterialIcons name="notifications" size={24} color={COLORS.primary} />,
+      onPress: () => navigation.navigate('ThongBao'),
     },
     {
       id: 'change-password',

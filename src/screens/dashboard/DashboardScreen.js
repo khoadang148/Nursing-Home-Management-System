@@ -81,17 +81,45 @@ const DashboardScreen = ({ navigation }) => {
 
   const fetchTodayTasks = async () => {
     try {
-      const assignRes = await staffAssignmentService.getMyAssignments();
-      if (!assignRes.success) {
+      // Get residents in rooms assigned to this staff
+      const residentsRes = await staffAssignmentService.getMyResidents();
+      if (!residentsRes.success) {
         setTodayTasks([]);
         return;
       }
 
-      const assignments = Array.isArray(assignRes.data) ? assignRes.data : [];
-      const taskPromises = assignments.map(async (asg) => {
-        const resident = asg.resident_id || asg.resident || {};
-        const residentId = resident._id || asg.resident_id || asg.residentId;
-        const residentName = resident.full_name || resident.name || 'Không rõ tên';
+      // Flatten residents from all rooms
+      const allResidents = [];
+      if (Array.isArray(residentsRes.data)) {
+        residentsRes.data.forEach(roomData => {
+          if (roomData && roomData.residents && Array.isArray(roomData.residents)) {
+            // Filter out null/undefined residents
+            const validResidents = roomData.residents.filter(resident => resident != null);
+            allResidents.push(...validResidents);
+          }
+        });
+      }
+
+      if (allResidents.length === 0) {
+        setTodayTasks([]);
+        return;
+      }
+
+      const taskPromises = allResidents.map(async (resident) => {
+        // Skip if resident is null/undefined
+        if (!resident) {
+          console.log('⚠️ Skipping null/undefined resident');
+          return null;
+        }
+
+        const residentId = resident._id;
+        const residentName = resident.full_name || 'Không rõ tên';
+
+        // Skip if residentId is invalid
+        if (!residentId) {
+          console.log('⚠️ Skipping task for resident with invalid ID:', resident);
+          return null;
+        }
 
         // Check today's vitals
         const vitalsRes = await vitalSignsService.getVitalSignsByResidentId(residentId);
@@ -143,7 +171,7 @@ const DashboardScreen = ({ navigation }) => {
       });
 
       const tasksNested = await Promise.all(taskPromises);
-      const builtTasks = tasksNested.flat().filter(task => task.status === 'Chờ xử lý').slice(0, 3);
+      const builtTasks = tasksNested.flat().filter(task => task && task.status === 'Chờ xử lý').slice(0, 3);
       setTodayTasks(builtTasks);
     } catch (error) {
       console.error('Error fetching today tasks:', error);
@@ -300,39 +328,6 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.quickActions}>
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('ChonGoiDichVu')}
-            >
-              <View style={[styles.iconBackground, { backgroundColor: COLORS.primary }]}>
-                <MaterialIcons name="assignment" size={24} color="white" />
-              </View>
-              <Text style={styles.quickActionText}>Chọn Gói Dịch Vụ</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionButton}
-              onPress={() => navigation.navigate('TaoHoaDon')}
-            >
-              <View style={[styles.iconBackground, { backgroundColor: COLORS.warning }]}>
-                <MaterialIcons name="receipt" size={24} color="white" />
-              </View>
-              <Text style={styles.quickActionText}>Tạo Hóa Đơn</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionButton}
-              onPress={() => navigation.navigate('QuanLyGiuong')}
-            >
-              <View style={[styles.iconBackground, { backgroundColor: COLORS.success }]}>
-                <MaterialIcons name="bed" size={24} color="white" />
-              </View>
-              <Text style={styles.quickActionText}>Quản Lý Giường</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Second row of quick actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity 
-              style={styles.quickActionButton}
               onPress={() => navigation.navigate('QuanLyLichTham')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.accent }]}>
@@ -343,22 +338,22 @@ const DashboardScreen = ({ navigation }) => {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('GoiDichVuDaDangKy')}
-            >
-              <View style={[styles.iconBackground, { backgroundColor: COLORS.secondary }]}>
-                <MaterialIcons name="list-alt" size={24} color="white" />
-              </View>
-              <Text style={styles.quickActionText}>Gói Đã Đăng Ký</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionButton}
               onPress={() => navigation.navigate('LienHeNguoiNha')}
             >
               <View style={[styles.iconBackground, { backgroundColor: COLORS.info }]}>
                 <MaterialIcons name="people" size={24} color="white" />
               </View>
               <Text style={styles.quickActionText}>Liên Hệ Gia Đình</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('ThongBao')}
+            >
+              <View style={[styles.iconBackground, { backgroundColor: COLORS.warning }]}>
+                <MaterialIcons name="notifications" size={24} color="white" />
+              </View>
+              <Text style={styles.quickActionText}>Thông Báo</Text>
             </TouchableOpacity>
           </View>
         </View>

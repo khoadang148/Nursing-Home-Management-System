@@ -18,7 +18,22 @@ class ResidentService {
 
       const response = await apiClient.get(API_CONFIG.ENDPOINTS.RESIDENT.LIST);
       
-      if (response.data && Array.isArray(response.data)) {
+      // Handle paginated response from BE
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return {
+          success: true,
+          data: response.data.data, // Extract the actual residents array
+          pagination: {
+            total: response.data.total,
+            page: response.data.page,
+            limit: response.data.limit,
+            totalPages: response.data.totalPages,
+            hasNext: response.data.hasNext,
+            hasPrev: response.data.hasPrev
+          }
+        };
+      } else if (response.data && Array.isArray(response.data)) {
+        // Fallback for non-paginated response
         return {
           success: true,
           data: response.data,

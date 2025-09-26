@@ -11,6 +11,16 @@ const assessmentService = {
    */
   getAssessmentsByResidentId: async (residentId) => {
     try {
+      // Validate residentId
+      if (!residentId || residentId === 'undefined') {
+        console.log('⚠️ Invalid residentId provided:', residentId);
+        return {
+          success: false,
+          error: 'Resident ID không hợp lệ',
+          data: []
+        };
+      }
+
       console.log('🔄 Fetching assessments for resident:', residentId);
       const response = await apiClient.get(`/assessments?resident_id=${residentId}`);
       console.log('📊 Assessment response:', response.data);

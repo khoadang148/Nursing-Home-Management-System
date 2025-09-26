@@ -33,10 +33,10 @@ const useUnreadMessages = () => {
   }, [refreshTrigger]);
 
   useEffect(() => {
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
+    // Temporarily disabled automatic refresh due to API errors
+    // const interval = setInterval(fetchUnreadCount, 30000);
     
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, []);
 
   return { unreadCount, loading, refetch: fetchUnreadCount };

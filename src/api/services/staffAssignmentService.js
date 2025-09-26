@@ -19,6 +19,23 @@ const staffAssignmentService = {
     }
   },
 
+  // Get residents in rooms assigned to current staff
+  getMyResidents: async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        return { success: false, error: 'User not authenticated' };
+      }
+      const response = await apiClient.get('/staff-assignments/my-residents');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data || error.message || 'Không thể tải danh sách cư dân',
+      };
+    }
+  },
+
   // Get bed assignment by resident ID
   getBedAssignmentByResidentId: async (residentId) => {
     try {

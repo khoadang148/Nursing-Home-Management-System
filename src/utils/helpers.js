@@ -3,7 +3,7 @@ export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Hàm format tiền tệ
 export const formatCurrency = (amount) => {
-  const formattedAmount = (amount * 1000).toLocaleString('vi-VN');
+  const formattedAmount = (amount * 10000).toLocaleString('vi-VN');
   return `${formattedAmount} VNĐ`;
 };
 

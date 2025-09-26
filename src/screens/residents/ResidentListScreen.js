@@ -32,7 +32,7 @@ const ResidentListScreen = ({ navigation }) => {
   const [filteredResidents, setFilteredResidents] = useState([]);
   const [residentsWithBedInfo, setResidentsWithBedInfo] = useState([]);
   const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'discharged'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'admitted', 'not_admitted', 'discharged'
 
   // Chỉ reload lần đầu khi component mount
   useEffect(() => {
@@ -143,10 +143,12 @@ const ResidentListScreen = ({ navigation }) => {
     // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter(resident => {
-        if (statusFilter === 'active') {
-          return resident.status === 'active' || !resident.status; // active hoặc chưa có status
+        if (statusFilter === 'admitted') {
+          return resident.status === 'admitted'; // Đang chăm sóc
+        } else if (statusFilter === 'not_admitted') {
+          return resident.status === 'active' && resident.status !== 'admitted'; // Chưa nhập viện
         } else if (statusFilter === 'discharged') {
-          return resident.status === 'discharged' || resident.status === 'deceased';
+          return resident.status === 'discharged' || resident.status === 'deceased'; // Đã xuất viện
         }
         return true;
       });
@@ -342,15 +344,30 @@ const ResidentListScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              statusFilter === 'active' && styles.activeFilterButton
+              statusFilter === 'admitted' && styles.activeFilterButton
             ]}
-            onPress={() => setStatusFilter('active')}
+            onPress={() => setStatusFilter('admitted')}
           >
             <Text style={[
               styles.filterButtonText,
-              statusFilter === 'active' && styles.activeFilterButtonText
+              statusFilter === 'admitted' && styles.activeFilterButtonText
             ]}>
               Đang chăm sóc
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              statusFilter === 'not_admitted' && styles.activeFilterButton
+            ]}
+            onPress={() => setStatusFilter('not_admitted')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              statusFilter === 'not_admitted' && styles.activeFilterButtonText
+            ]}>
+              Chưa nhập viện
             </Text>
           </TouchableOpacity>
           
@@ -405,12 +422,6 @@ const ResidentListScreen = ({ navigation }) => {
             ListFooterComponent={<View style={{ height: 24 }} />}
           />
 
-          <FAB
-            style={styles.fab}
-            icon="plus"
-            color={COLORS.surface}
-            onPress={() => navigation.navigate('AddResident')}
-          />
         </>
       )}
     </View>
@@ -582,13 +593,6 @@ const styles = StyleSheet.create({
     ...FONTS.h4,
     color: COLORS.textSecondary,
     marginTop: 16,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: COLORS.primary,
-    ...SHADOWS.large,
   },
 });
 

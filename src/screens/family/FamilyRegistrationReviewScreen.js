@@ -24,20 +24,31 @@ const FamilyRegistrationReviewScreen = ({ route, navigation }) => {
       // Normalize times to local midnight to avoid off-by-one issues
       const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       const admissionLocal = new Date(admission.getFullYear(), admission.getMonth(), admission.getDate(), 0, 0, 0, 0);
-      // If admission date is in the future, use today for the first-month proration
-      const baseDate = admissionLocal > todayLocal ? todayLocal : admissionLocal;
+      
+      // Admission date must be today or in the future, never in the past
+      // Use admission date directly for calculation (not baseDate logic)
       const totalMonthly = pricing?.totalCost || ((selectedMainPlan?.monthly_price||0) + (selectedRoomType?.monthly_price||0) + selectedSupplementaryPlans.reduce((s,p)=>s+(p?.monthly_price||0),0));
-      // First bill: remaining days of current month from baseDate + 1 month deposit
-      const daysInMonth = new Date(baseDate.getFullYear(), baseDate.getMonth()+1, 0).getDate();
-      const remainingDays = daysInMonth - baseDate.getDate() + 1;
+      
+      // First bill: remaining days of the month from admission date + 1 month deposit
+      const daysInMonth = new Date(admissionLocal.getFullYear(), admissionLocal.getMonth()+1, 0).getDate();
+      const remainingDays = daysInMonth - admissionLocal.getDate() + 1;
       const dailyRate = totalMonthly / daysInMonth; // tính theo đúng số ngày của tháng (28/29/30/31)
       const partialMonthAmount = Math.round(dailyRate * remainingDays);
       const depositAmount = totalMonthly;
       const totalAmount = Math.round(partialMonthAmount + depositAmount);
-      const title = `Hóa đơn thanh toán tháng ${(baseDate.getMonth()+1).toString().padStart(2,'0')}/${baseDate.getFullYear()}`;
+      const title = `Hóa đơn thanh toán tháng ${(admissionLocal.getMonth()+1).toString().padStart(2,'0')}/${admissionLocal.getFullYear()}`;
       const notes = 'Hóa đơn đăng ký dịch vụ tháng đầu + tiền cọc 1 tháng';
-      const dueDate = new Date(baseDate.getFullYear(), baseDate.getMonth()+1, 0, 23, 59, 59, 999); // end of month
-      return { totalMonthly, partialMonthAmount, depositAmount, totalAmount, title, notes, dueDate, daysInMonth, remainingDays, dailyRate };
+      // Due date requirement: 23:59 on the admission date (local time)
+      const dueDate = new Date(
+        admissionLocal.getFullYear(),
+        admissionLocal.getMonth(),
+        admissionLocal.getDate(),
+        23,
+        59,
+        0,
+        0
+      );
+      return { totalMonthly, partialMonthAmount, depositAmount, totalAmount, title, notes, dueDate, daysInMonth, remainingDays, dailyRate, admissionDate: admissionLocal };
     } catch (e) {
       return { totalMonthly: 0, partialMonthAmount: 0, depositAmount: 0, totalAmount: 0, title: '', notes: '', dueDate: new Date() };
     }

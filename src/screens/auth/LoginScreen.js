@@ -443,24 +443,7 @@ const LoginScreen = ({ navigation }) => {
                   Đăng nhập
                 </Button>
 
-                {/* Divider */}
-                <View style={styles.dividerContainer}>
-                  <View style={styles.divider} />
-                  <Text style={styles.dividerText}>hoặc</Text>
-                  <View style={styles.divider} />
-                </View>
-
-                {/* OTP Login Button */}
-                <Button
-                  mode="outlined"
-                  onPress={() => navigation.navigate('OtpLogin')}
-                  style={styles.otpLoginButton}
-                  contentStyle={styles.otpLoginButtonContent}
-                  labelStyle={styles.otpLoginButtonLabel}
-                  disabled={isLoading}
-                >
-                  Đăng nhập bằng OTP
-                </Button>
+                {/* Removed divider and OTP button for cleaner layout */}
 
                 {/* Register Button */}
                 <Button

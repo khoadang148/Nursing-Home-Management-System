@@ -342,6 +342,53 @@ const BillDetailScreen = ({ route, navigation }) => {
   // Kỳ thanh toán: lấy tháng/năm của hạn thanh toán
   const periodDisplay = bill.due_date ? `${new Date(bill.due_date).getMonth() + 1}/${new Date(bill.due_date).getFullYear()}` : 'N/A';
 
+  // Determine if this is the first-month bill and compute breakdown (partial month + deposit)
+  const isFirstBill = (() => {
+    const notesLower = (bill?.notes || '').toLowerCase();
+    if (notesLower.includes('cọc') || notesLower.includes('đăng ký')) return true;
+    const start = assignment?.start_date ? new Date(assignment.start_date) : null;
+    if (!start) return false;
+    const created = bill?.created_at ? new Date(bill.created_at) : new Date();
+    return created.getFullYear() === start.getFullYear() && created.getMonth() === start.getMonth();
+  })();
+
+  const firstMonthCalc = (() => {
+    try {
+      if (!isFirstBill) return null;
+      // Total monthly = main + supplementary + room type
+      const plansMonthly = finalCarePlans.reduce((sum, p) => sum + (p?.monthly_price || 0), 0);
+      const roomMonthly = roomTypeObj?.monthly_price || 0;
+      const totalMonthly = plansMonthly + roomMonthly;
+      
+      // Use admission date from resident data (not assignment start_date)
+      const admissionDate = bill.resident_id?.admission_date ? new Date(bill.resident_id.admission_date) : null;
+      if (!admissionDate) return null;
+      
+      // Admission date must be today or in the future, never in the past
+      // Use admission date directly for calculation (not baseDate logic)
+      const admissionLocal = new Date(admissionDate.getFullYear(), admissionDate.getMonth(), admissionDate.getDate(), 0, 0, 0, 0);
+      
+      const daysInMonth = new Date(admissionLocal.getFullYear(), admissionLocal.getMonth() + 1, 0).getDate();
+      const remainingDays = daysInMonth - admissionLocal.getDate() + 1;
+      const dailyRate = totalMonthly / daysInMonth;
+      const partialMonthAmount = Math.round(dailyRate * remainingDays);
+      const depositAmount = totalMonthly;
+      const totalAmount = Math.round(partialMonthAmount + depositAmount);
+      
+      return { 
+        totalMonthly, 
+        partialMonthAmount, 
+        depositAmount, 
+        totalAmount, 
+        daysInMonth, 
+        remainingDays,
+        admissionDate: admissionLocal
+      };
+    } catch (e) {
+      return null;
+    }
+  })();
+
   const getItemIcon = (category) => {
     switch (category) {
       case 'main':
@@ -637,6 +684,53 @@ const BillDetailScreen = ({ route, navigation }) => {
                 <Text style={styles.notesText}>{bill.notes}</Text>
               </View>
             )}
+          </View>
+        </View>
+      )}
+
+      {/* First-month breakdown (if applicable) */}
+      {firstMonthCalc && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Chi tiết tính phí tháng đầu</Text>
+          <View style={styles.itemCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.label}>Ngày nhập viện</Text>
+              <Text style={styles.value}>{firstMonthCalc.admissionDate.toLocaleDateString('vi-VN')}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text style={styles.label}>Tổng phí theo tháng</Text>
+              <Text style={styles.value}>{formatCurrency(firstMonthCalc.totalMonthly)}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text style={styles.label}>Số ngày trong tháng</Text>
+              <Text style={styles.value}>{firstMonthCalc.daysInMonth}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text style={styles.label}>Số ngày còn lại từ ngày nhập viện</Text>
+              <Text style={styles.value}>{firstMonthCalc.remainingDays}</Text>
+            </View>
+          </View>
+          <View style={[styles.itemCard, { backgroundColor: '#f8f9fa' }]}> 
+            <Text style={[styles.label, { marginBottom: 6 }]}>Công thức tính phí tháng đầu</Text>
+            <Text style={styles.value}>
+              (Tổng phí tháng / Số ngày trong tháng) × Số ngày còn lại từ ngày nhập viện
+            </Text>
+            <Text style={styles.value}>
+              = ({formatCurrency(firstMonthCalc.totalMonthly)} / {firstMonthCalc.daysInMonth}) × {firstMonthCalc.remainingDays}
+            </Text>
+            <Text style={[styles.value, { color: COLORS.primary, fontWeight: '700', marginTop: 4 }]}>
+              = {formatCurrency(firstMonthCalc.partialMonthAmount)}
+            </Text>
+          </View>
+          <View style={styles.itemCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={[styles.label, { fontWeight: '600' }]}>Tiền cọc 1 tháng</Text>
+              <Text style={[styles.value, { fontWeight: '700', color: COLORS.primary }]}>{formatCurrency(firstMonthCalc.depositAmount)}</Text>
+            </View>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Tổng thanh toán tháng đầu:</Text>
+            <Text style={[styles.totalAmount, { fontSize: 18 }]}>{formatCurrency(firstMonthCalc.totalAmount)}</Text>
           </View>
         </View>
       )}

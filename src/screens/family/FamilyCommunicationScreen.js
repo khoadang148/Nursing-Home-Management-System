@@ -69,19 +69,21 @@ const FamilyCommunicationScreen = ({ navigation }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load conversations from API
-      const conversationsResponse = await messageService.getUserConversations();
-      if (conversationsResponse.success) {
-        setConversations(conversationsResponse.data || []);
-      } else {
-        console.error('Failed to load conversations:', conversationsResponse.error);
-        Alert.alert('Lỗi', 'Không thể tải danh sách cuộc trò chuyện');
-      }
+      // Temporarily disabled due to API errors
+      console.log('Message API temporarily disabled due to backend errors');
+      setConversations([]);
+      // const conversationsResponse = await messageService.getUserConversations();
+      // if (conversationsResponse.success) {
+      //   setConversations(conversationsResponse.data || []);
+      // } else {
+      //   console.error('Failed to load conversations:', conversationsResponse.error);
+      //   Alert.alert('Lỗi', 'Không thể tải danh sách cuộc trò chuyện');
+      // }
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu');
     } finally {
-    setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -337,11 +339,11 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           }
         }, 0);
         
-        // Reload conversations to reflect read status changes from backend
-        const conversationsResponse = await messageService.getUserConversations();
-        if (conversationsResponse.success) {
-          setConversations(conversationsResponse.data || []);
-        }
+        // Temporarily disabled due to API errors
+        // const conversationsResponse = await messageService.getUserConversations();
+        // if (conversationsResponse.success) {
+        //   setConversations(conversationsResponse.data || []);
+        // }
         
         // Trigger badge refresh
         triggerRefresh();
@@ -399,11 +401,11 @@ const FamilyCommunicationScreen = ({ navigation }) => {
           }
         }, 0);
 
-        // Reload conversations to reflect the new message
-        const conversationsResponse = await messageService.getUserConversations();
-        if (conversationsResponse.success) {
-          setConversations(conversationsResponse.data || []);
-        }
+        // Temporarily disabled due to API errors
+        // const conversationsResponse = await messageService.getUserConversations();
+        // if (conversationsResponse.success) {
+        //   setConversations(conversationsResponse.data || []);
+        // }
         
         // Trigger badge refresh
         triggerRefresh();

@@ -44,24 +44,55 @@ const TaskListScreen = ({ navigation }) => {
   const buildTasksFromAssignments = async () => {
     setLoading(true);
     try {
-      const assignRes = await staffAssignmentService.getMyAssignments();
-      console.log('🔍 Staff assignments response:', assignRes);
+      // Get residents in rooms assigned to this staff
+      const residentsRes = await staffAssignmentService.getMyResidents();
+      console.log('🔍 Staff residents response:', residentsRes);
       
-      if (!assignRes.success) {
-        console.log('❌ Failed to get staff assignments:', assignRes.error);
+      if (!residentsRes.success) {
+        console.log('❌ Failed to get staff residents:', residentsRes.error);
         setTasks([]);
         setLoading(false);
         return;
       }
-      const assignments = Array.isArray(assignRes.data) ? assignRes.data : [];
-      console.log('📋 Found assignments:', assignments.length);
 
-      const taskPromises = assignments.map(async (asg) => {
-        const resident = asg.resident_id || asg.resident || {};
-        const residentId = resident._id || asg.resident_id || asg.residentId;
-        const residentName = resident.full_name || resident.name || 'Không rõ tên';
+      // Flatten residents from all rooms
+      const allResidents = [];
+      if (Array.isArray(residentsRes.data)) {
+        residentsRes.data.forEach(roomData => {
+          if (roomData && roomData.residents && Array.isArray(roomData.residents)) {
+            // Filter out null/undefined residents
+            const validResidents = roomData.residents.filter(resident => resident != null);
+            allResidents.push(...validResidents);
+          }
+        });
+      }
+
+      if (allResidents.length === 0) {
+        console.log('📋 No residents found in assigned rooms');
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('📋 Found residents:', allResidents.length);
+
+      const taskPromises = allResidents.map(async (resident) => {
+        // Skip if resident is null/undefined
+        if (!resident) {
+          console.log('⚠️ Skipping null/undefined resident');
+          return null;
+        }
+
+        const residentId = resident._id;
+        const residentName = resident.full_name || 'Không rõ tên';
         
         console.log('👤 Processing resident:', { residentId, residentName });
+
+        // Skip if residentId is invalid
+        if (!residentId) {
+          console.log('⚠️ Skipping task for resident with invalid ID:', resident);
+          return null;
+        }
 
         // Get bed assignment info
         let roomNumber = '—';
@@ -138,7 +169,7 @@ const TaskListScreen = ({ navigation }) => {
       });
 
       const tasksNested = await Promise.all(taskPromises);
-      const builtTasks = tasksNested.flat();
+      const builtTasks = tasksNested.flat().filter(task => task != null);
       console.log('✅ Built tasks:', builtTasks);
       setTasks(builtTasks);
     } catch (e) {

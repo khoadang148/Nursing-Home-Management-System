@@ -77,29 +77,12 @@ const FamilyContactScreen = () => {
   const loadFamilyContacts = async () => {
     try {
       setLoading(true);
-      // Lấy danh sách conversations thay vì tất cả family users
-      const response = await messageService.getUserConversations();
-      if (response.success) {
-        // Lọc chỉ lấy conversations với family users
-        const familyConversations = response.data.filter(conversation => 
-          conversation.partner?.role === 'family'
-        );
-        setFamilyContacts(familyConversations);
-        
-        // Tính toán số tin nhắn chưa đọc và cập nhật Redux
-        const totalUnreadCount = familyConversations.reduce((total, conversation) => {
-          return total + (conversation.unreadCount || 0);
-        }, 0);
-        dispatch(setUnreadMessageCount(totalUnreadCount));
-      } else {
-        console.error('Failed to load conversations:', response.error);
-        Alert.alert('Lỗi', response.error || 'Không thể tải danh sách cuộc trò chuyện');
-        setFamilyContacts([]);
-        dispatch(setUnreadMessageCount(0));
-      }
+      // Temporarily disabled due to API errors
+      console.log('Message API temporarily disabled due to backend errors');
+      setFamilyContacts([]);
+      dispatch(setUnreadMessageCount(0));
     } catch (error) {
       console.error('Error loading conversations:', error);
-      Alert.alert('Lỗi', 'Không thể kết nối đến máy chủ');
       setFamilyContacts([]);
       dispatch(setUnreadMessageCount(0));
     } finally {
@@ -202,20 +185,20 @@ const FamilyContactScreen = () => {
           }
         }, 0);
         
-        // Reload conversations to reflect read status changes from backend
-        const conversationsResponse = await messageService.getUserConversations();
-        if (conversationsResponse.success) {
-          const familyConversations = conversationsResponse.data.filter(conversation => 
-            conversation.partner?.role === 'family'
-          );
-          setFamilyContacts(familyConversations);
-          
-          // Cập nhật Redux với số tin nhắn chưa đọc mới
-          const totalUnreadCount = familyConversations.reduce((total, conversation) => {
-            return total + (conversation.unreadCount || 0);
-          }, 0);
-          dispatch(setUnreadMessageCount(totalUnreadCount));
-        }
+        // Temporarily disabled due to API errors
+        // const conversationsResponse = await messageService.getUserConversations();
+        // if (conversationsResponse.success) {
+        //   const familyConversations = conversationsResponse.data.filter(conversation => 
+        //     conversation.partner?.role === 'family'
+        //   );
+        //   setFamilyContacts(familyConversations);
+        //   
+        //   // Cập nhật Redux với số tin nhắn chưa đọc mới
+        //   const totalUnreadCount = familyConversations.reduce((total, conversation) => {
+        //     return total + (conversation.unreadCount || 0);
+        //   }, 0);
+        //   dispatch(setUnreadMessageCount(totalUnreadCount));
+        // }
         
         // Trigger badge refresh
         triggerRefresh();
@@ -329,14 +312,14 @@ const FamilyContactScreen = () => {
           }
         }, 0);
 
-        // Reload conversations to reflect the new message
-        const conversationsResponse = await messageService.getUserConversations();
-        if (conversationsResponse.success) {
-          const familyConversations = conversationsResponse.data.filter(conversation => 
-            conversation.partner?.role === 'family'
-          );
-          setFamilyContacts(familyConversations);
-        }
+        // Temporarily disabled due to API errors
+        // const conversationsResponse = await messageService.getUserConversations();
+        // if (conversationsResponse.success) {
+        //   const familyConversations = conversationsResponse.data.filter(conversation => 
+        //     conversation.partner?.role === 'family'
+        //   );
+        //   setFamilyContacts(familyConversations);
+        // }
         
         // Trigger badge refresh
         triggerRefresh();

@@ -37,6 +37,16 @@ const vitalSignsService = {
    */
   getVitalSignsByResidentId: async (residentId) => {
     try {
+      // Validate residentId
+      if (!residentId || residentId === 'undefined') {
+        console.log('⚠️ Invalid residentId provided:', residentId);
+        return {
+          success: false,
+          error: 'Resident ID không hợp lệ',
+          data: []
+        };
+      }
+
       // Check if user is authenticated
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
